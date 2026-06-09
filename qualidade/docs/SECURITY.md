@@ -52,7 +52,7 @@ Documento técnico de segurança do sistema, alinhado às recomendações **OWAS
 
 ### A04 — Insecure Design
 
-✅ Rate limiting de tentativas de login (5 falhas → 15 min de bloqueio)
+✅ Rate limiting de tentativas de login **persistido em banco** (tabela `login_attempts`, por usuário + IP — 5 falhas → 15 min de bloqueio). O controle é independente de sessão, portanto resistente a brute force mesmo quando o atacante descarta o cookie de sessão
 ✅ Logs de auditoria para operações sensíveis
 ✅ Mensagens de erro genéricas em login (não revelam se usuário existe)
 ✅ Princípio do menor privilégio: apenas `data/` é gravável pelo Apache
@@ -65,7 +65,7 @@ Documento técnico de segurança do sistema, alinhado às recomendações **OWAS
   - `X-Frame-Options: DENY`
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `Permissions-Policy: geolocation=(), microphone=(), camera=()`
-  - `Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; ...`
+  - `Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`
 ✅ `Options -Indexes` impede listagem de diretórios
 ✅ Bloqueio explícito a arquivos `.env`, `.log`, `.db`, `.sqlite*`
 ✅ `LimitRequestBody 5242880` mitiga DoS por upload
@@ -73,7 +73,7 @@ Documento técnico de segurança do sistema, alinhado às recomendações **OWAS
 ### A06 — Vulnerable Components
 
 ✅ Sem dependências de Composer ou npm — superfície de ataque mínima
-⚠️ Chart.js carregado via CDN (cdnjs.cloudflare.com) — verificar SRI em versões futuras
+✅ Chart.js (v4.5.1) servido localmente em `assets/vendor/` — sem CDN externo, sem dependência de terceiros em runtime
 ✅ Manter PHP atualizado (responsabilidade do administrador do servidor)
 
 ### A07 — Identification and Authentication Failures

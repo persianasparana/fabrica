@@ -13,8 +13,10 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # --- PHP / Composer ---
-vendor/
-composer.lock
+# (projeto não usa Composer; o Chart.js é vendorizado de propósito em
+#  qualidade/public/assets/vendor/ e DEVE ser versionado)
+/vendor/
+**/composer/vendor/
 
 # --- Configuração ativa e dados sensíveis (NUNCA versionar) ---
 **/config/config.php

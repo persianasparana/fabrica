@@ -27,7 +27,10 @@ RewriteEngine On
     Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
     # Em produção com HTTPS, descomente:
     # Header set Strict-Transport-Security "max-age=63072000; includeSubDomains"
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+    # Chart.js agora é servido localmente (assets/vendor/), portanto não há mais
+    # CDN externo. 'unsafe-inline' em style-src cobre os atributos style= mínimos
+    # usados no index.html para definir alturas dos gráficos.
+    Header set Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 </IfModule>
 
 # Compressão de respostas

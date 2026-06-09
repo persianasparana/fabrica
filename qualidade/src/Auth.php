@@ -70,8 +70,9 @@ class Auth
             return null;
         }
 
-        // Rate limiting (simples, em sessão)
-        if ($this->isLockedOut($username)) {
+        // Rate limiting persistido em banco (por usuário + IP), resistente a
+        // brute force mesmo quando o atacante descarta o cookie de sessão.
+        if ($this->isLockedOut($username, $ip)) {
             throw new RuntimeException('Muitas tentativas falhas. Tente novamente em alguns minutos.');
         }
 
@@ -81,7 +82,7 @@ class Auth
         );
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            $this->recordFailedAttempt($username);
+            $this->recordFailedAttempt($username, $ip);
             return null;
         }
 
@@ -196,38 +197,52 @@ class Auth
         return $this->db->lastInsertId();
     }
 
-    private function recordFailedAttempt(string $username): void
+    /**
+     * Registra uma tentativa de login falha no banco (anti brute force).
+     */
+    private function recordFailedAttempt(string $username, string $ip = ''): void
     {
-        $key = '_login_fails_' . md5($username);
-        $now = time();
-        $attempts = $_SESSION[$key] ?? ['count' => 0, 'first' => $now];
-        $attempts['count']++;
-        $attempts['last'] = $now;
-        $_SESSION[$key] = $attempts;
+        $this->db->query(
+            'INSERT INTO login_attempts (username, ip_address) VALUES (:u, :ip)',
+            [':u' => $username, ':ip' => $ip]
+        );
     }
 
+    /**
+     * Limpa as tentativas falhas do usuário após login bem-sucedido.
+     */
     private function clearFailedAttempts(string $username): void
     {
-        $key = '_login_fails_' . md5($username);
-        unset($_SESSION[$key]);
+        $this->db->query(
+            'DELETE FROM login_attempts WHERE username = :u',
+            [':u' => $username]
+        );
     }
 
-    private function isLockedOut(string $username): bool
+    /**
+     * Verifica se o login está bloqueado por excesso de tentativas falhas.
+     *
+     * Conta tentativas do mesmo usuário OU do mesmo IP dentro da janela de
+     * bloqueio (lockout_duration). A comparação usa um limite calculado em
+     * PHP com gmdate() porque os timestamps default do SQLite (CURRENT_TIMESTAMP)
+     * são gravados em UTC no formato 'YYYY-MM-DD HH:MM:SS' — assim o filtro
+     * funciona tanto em SQLite quanto em MySQL sem depender do fuso do banco.
+     */
+    private function isLockedOut(string $username, string $ip = ''): bool
     {
-        $key = '_login_fails_' . md5($username);
-        $attempts = $_SESSION[$key] ?? null;
-        if (!$attempts) return false;
-
         $maxAttempts = $this->config['max_login_attempts'] ?? 5;
         $lockoutTime = $this->config['lockout_duration'] ?? 900;
 
-        if ($attempts['count'] >= $maxAttempts) {
-            if (time() - ($attempts['last'] ?? 0) < $lockoutTime) {
-                return true;
-            }
-            // Tempo de bloqueio expirou
-            $this->clearFailedAttempts($username);
-        }
-        return false;
+        $limite = gmdate('Y-m-d H:i:s', time() - $lockoutTime);
+
+        $row = $this->db->fetchOne(
+            'SELECT COUNT(*) AS c FROM login_attempts
+             WHERE attempted_at >= :limite
+               AND (username = :u OR ip_address = :ip)',
+            [':limite' => $limite, ':u' => $username, ':ip' => $ip]
+        );
+
+        $count = (int) ($row['c'] ?? 0);
+        return $count >= $maxAttempts;
     }
 }

@@ -135,9 +135,22 @@ class Database
             )
         ");
 
+        // Rate limiting de login persistido em banco (por usuário + IP).
+        // Necessário porque controle em sessão é ineficaz contra brute force
+        // (atacante simplesmente não reenvia o cookie de sessão).
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                id $autoInc,
+                username VARCHAR(64),
+                ip_address VARCHAR(45),
+                attempted_at $tsType
+            )
+        ");
+
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_nc_data ON nao_conformidades(data_ocorrencia)");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_nc_status ON nao_conformidades(status)");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_nc_impacto ON nao_conformidades(impacto)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(username, attempted_at)");
     }
 
     public function pdo(): PDO
