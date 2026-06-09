@@ -1,0 +1,6 @@
+config/config.php
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/logs/
+**/.DS_Store

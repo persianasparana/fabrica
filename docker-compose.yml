@@ -1,0 +1,47 @@
+# ============================================================================
+# Persianas Paraná — fabrica
+# Sobe os dois sistemas no mesmo host.
+#
+#   PCP        -> http://localhost:8080
+#   Qualidade  -> http://localhost:8081
+#
+# Antes de subir:  cp .env.example .env  e defina as senhas de admin.
+# Em produção: coloque atrás de um proxy TLS e defina PP_INSECURE_COOKIES=0.
+# ============================================================================
+
+services:
+  pcp-api:
+    build: ./pcp/api
+    environment:
+      PCP_ADMIN_USER: ${PCP_ADMIN_USER:-admin}
+      PCP_ADMIN_PASSWORD: ${PCP_ADMIN_PASSWORD:-}
+      PCP_ADMIN_NAME: ${PCP_ADMIN_NAME:-Administrador}
+      PP_INSECURE_COOKIES: ${PP_INSECURE_COOKIES:-1}
+    volumes:
+      - pcp-data:/var/www/pcp/data
+    restart: unless-stopped
+
+  pcp-frontend:
+    build: ./pcp/frontend
+    depends_on:
+      - pcp-api
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  qualidade:
+    build: ./qualidade
+    environment:
+      QUALIDADE_ADMIN_USER: ${QUALIDADE_ADMIN_USER:-admin}
+      QUALIDADE_ADMIN_PASSWORD: ${QUALIDADE_ADMIN_PASSWORD:-}
+      QUALIDADE_ADMIN_NAME: ${QUALIDADE_ADMIN_NAME:-Administrador}
+      PP_INSECURE_COOKIES: ${PP_INSECURE_COOKIES:-1}
+    volumes:
+      - qualidade-data:/var/www/qualidade/data
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+
+volumes:
+  pcp-data:
+  qualidade-data:
