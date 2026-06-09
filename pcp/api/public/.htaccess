@@ -1,0 +1,24 @@
+# ============================================================================
+# Backend do PCP — document root (apenas a API)
+# ============================================================================
+
+# Sem listagem de diretórios
+Options -Indexes
+
+# Cabeçalhos de segurança (também enviados pelo PHP; aqui cobrem respostas estáticas)
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# Protege arquivos sensíveis eventualmente presentes
+<FilesMatch "\.(db|sqlite|log|md|sh)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Deny from all
+  </IfModule>
+</FilesMatch>

@@ -1,0 +1,99 @@
+/* ============================================================================
+   Persianas Paraná — Design Tokens (identidade visual unificada)
+   ----------------------------------------------------------------------------
+   Fonte única de cores/tipografia para TODOS os sistemas do monorepo `fabrica`.
+   Espelha shared/brand/palette.json (canônico).
+
+   PROVISÓRIO: paleta derivada do terracota #C0392B já em uso. Ao receber as
+   cores/logotipo oficiais, basta atualizar este arquivo e palette.json.
+
+   Uso:
+   - Qualidade (CSS puro): @import deste arquivo; use as variáveis var(--pp-*).
+   - PCP (Tailwind): as mesmas cores estão em tailwind.config.js; este arquivo
+     define os temas via [data-theme] e fontes.
+   ============================================================================ */
+
+:root {
+  /* --- Escala da marca (terracota) --- */
+  --pp-brand-50:  #FBEAE8;
+  --pp-brand-100: #F6D0CC;
+  --pp-brand-200: #ECA69D;
+  --pp-brand-300: #E07D70;
+  --pp-brand-400: #D45645;
+  --pp-brand-500: #C0392B;
+  --pp-brand-600: #A83024;
+  --pp-brand-700: #8A271E;
+  --pp-brand-800: #6B1E17;
+  --pp-brand-900: #4D1510;
+
+  /* --- Neutros quentes (areia) --- */
+  --pp-sand-50:  #FAF9F6;
+  --pp-sand-100: #F1EFE8;
+  --pp-sand-200: #E5E2D8;
+  --pp-sand-300: #D2CEC1;
+  --pp-sand-400: #B4AF9F;
+  --pp-sand-500: #8C8775;
+  --pp-sand-600: #6B6757;
+  --pp-sand-700: #4E4B3E;
+  --pp-sand-800: #332F26;
+  --pp-sand-900: #1F1C16;
+
+  /* --- Semânticas --- */
+  --pp-success:    #3B6D11;
+  --pp-success-bg: #EAF3DE;
+  --pp-warning:    #854F0B;
+  --pp-warning-bg: #FAEEDA;
+  --pp-danger:     #922B21;
+  --pp-danger-bg:  #FCEBEB;
+  --pp-info:       #2471A3;
+  --pp-info-bg:    #E6F0F6;
+
+  /* --- Tipografia --- */
+  --pp-font-sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --pp-font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --pp-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* --- Raio / sombra --- */
+  --pp-radius-sm: 6px;
+  --pp-radius-md: 8px;
+  --pp-radius-lg: 12px;
+  --pp-radius-xl: 16px;
+  --pp-shadow-sm: 0 1px 2px rgba(31, 28, 22, 0.06);
+  --pp-shadow-md: 0 4px 12px rgba(31, 28, 22, 0.08);
+  --pp-shadow-lg: 0 10px 30px rgba(31, 28, 22, 0.10);
+
+  /* ====================== TEMA CLARO (padrão / Qualidade) ====================== */
+  --pp-bg:            var(--pp-sand-50);
+  --pp-surface:       #FFFFFF;
+  --pp-surface-2:     var(--pp-sand-100);
+  --pp-text:          #1A1A1A;
+  --pp-text-muted:    #5F5E5A;
+  --pp-text-tertiary: #888780;
+  --pp-border:        rgba(31, 28, 22, 0.12);
+  --pp-border-strong: rgba(31, 28, 22, 0.25);
+
+  --pp-accent:        var(--pp-brand-500);
+  --pp-accent-hover:  var(--pp-brand-600);
+  --pp-accent-bg:     var(--pp-brand-50);
+  --pp-accent-text:   var(--pp-brand-800);
+  --pp-on-accent:     #FFFFFF;
+}
+
+/* ====================== TEMA ESCURO (PCP / chão de fábrica) ====================== */
+:root[data-theme="dark"],
+.pp-theme-dark {
+  --pp-bg:            #15120F;
+  --pp-surface:       #1D1A17;
+  --pp-surface-2:     #272320;
+  --pp-text:          #F1EFE8;
+  --pp-text-muted:    #B4AF9F;
+  --pp-text-tertiary: #8C8775;
+  --pp-border:        rgba(241, 239, 232, 0.10);
+  --pp-border-strong: rgba(241, 239, 232, 0.22);
+
+  --pp-accent:        var(--pp-brand-400);
+  --pp-accent-hover:  var(--pp-brand-300);
+  --pp-accent-bg:     rgba(212, 86, 69, 0.12);
+  --pp-accent-text:   var(--pp-brand-300);
+  --pp-on-accent:     #15120F;
+}
