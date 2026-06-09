@@ -1,0 +1,3 @@
+# Bloqueia TODO acesso a este diretório via HTTP.
+# Apenas o PHP do servidor pode ler estes arquivos.
+Require all denied

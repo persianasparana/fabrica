@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Sistema de Qualidade — Persianas Paraná</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-brand">
+      <strong>Persianas Paraná</strong>
+      <span>Gestão de Não Conformidades</span>
+    </div>
+    <div class="topbar-user">
+      <span id="user-name">—</span>
+      <button class="btn-link" id="btn-logout">Sair</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div id="notif" class="notif" role="status" aria-live="polite"></div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-panel="reg" role="tab">Registrar NC</button>
+    <button class="tab" data-panel="his" role="tab">Histórico</button>
+    <button class="tab" data-panel="plan" role="tab">Planos de Ação</button>
+    <button class="tab" data-panel="kpi" role="tab">KPIs</button>
+    <button class="tab" data-panel="trei" role="tab">Treinamentos</button>
+  </nav>
+
+  <!-- Registrar NC -->
+  <section id="p-reg" class="panel active" role="tabpanel">
+    <h2 class="sr-only">Registrar nova não conformidade</h2>
+    <form id="nc-form" autocomplete="off" novalidate>
+      <div class="grid2">
+        <div class="field">
+          <label for="f-data">Data da ocorrência *</label>
+          <input type="date" id="f-data" name="data_ocorrencia" required>
+        </div>
+        <div class="field">
+          <label for="f-pedido">Nº pedido / referência</label>
+          <input type="text" id="f-pedido" name="pedido" maxlength="64" placeholder="Ex: 18363">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Setor(es) envolvido(s)</label>
+        <p class="hint">Pode marcar mais de um</p>
+        <div class="chip-group" id="g-set" role="group"></div>
+      </div>
+
+      <div class="field">
+        <label>Origem do erro</label>
+        <p class="hint">Onde nasceu o problema — pode marcar mais de um</p>
+        <div class="chip-group" id="g-ori" role="group"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Impacto</label>
+          <div class="chip-group impact" id="g-imp" role="group"></div>
+        </div>
+        <div class="field">
+          <label for="f-status">Status</label>
+          <select id="f-status" name="status">
+            <option value="Aberta">Aberta</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Encerrada">Encerrada</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-desc">Descrição da não conformidade *</label>
+        <textarea id="f-desc" name="descricao" required maxlength="5000" placeholder="Descreva o problema detalhadamente..."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-causa">Causa raiz identificada</label>
+        <textarea id="f-causa" name="causa_raiz" maxlength="2000" placeholder="Por que o problema ocorreu?"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-acao">Ação imediata tomada</label>
+        <textarea id="f-acao" name="acao_imediata" maxlength="2000" placeholder="O que foi feito no momento..."></textarea>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="f-resp">Responsável</label>
+          <input type="text" id="f-resp" name="responsavel" maxlength="128" placeholder="Nome do responsável">
+        </div>
+        <div class="field">
+          <label for="f-prazo">Prazo para resolução</label>
+          <input type="date" id="f-prazo" name="prazo">
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary" id="btn-save">Salvar não conformidade</button>
+    </form>
+  </section>
+
+  <!-- Histórico -->
+  <section id="p-his" class="panel" role="tabpanel">
+    <h2 class="sr-only">Histórico de não conformidades</h2>
+    <div class="filter-row" id="fc-his" role="group">
+      <button class="fchip active" data-f="todos">Todos</button>
+      <button class="fchip" data-f="Aberta">Abertas</button>
+      <button class="fchip" data-f="Em andamento">Em andamento</button>
+      <button class="fchip" data-f="Encerrada">Encerradas</button>
+      <button class="fchip" data-f="Alto">Alto impacto</button>
+    </div>
+    <div id="list-his" class="list"></div>
+  </section>
+
+  <!-- Planos de Ação -->
+  <section id="p-plan" class="panel" role="tabpanel">
+    <h2 class="sr-only">Planos de ação pendentes</h2>
+    <p class="sec-title">Não conformidades com plano de ação pendente</p>
+    <div id="list-plan" class="list"></div>
+  </section>
+
+  <!-- KPIs -->
+  <section id="p-kpi" class="panel" role="tabpanel">
+    <h2 class="sr-only">Indicadores de desempenho (KPIs)</h2>
+    <div class="stats4">
+      <div class="stat"><div class="stat-l">Total NCs</div><div class="stat-v" id="k-total">0</div></div>
+      <div class="stat"><div class="stat-l">Abertas</div><div class="stat-v" id="k-aber">0</div></div>
+      <div class="stat"><div class="stat-l">Encerradas</div><div class="stat-v" id="k-enc">0</div></div>
+      <div class="stat"><div class="stat-l">Taxa resolução</div><div class="stat-v" id="k-tax">0%</div></div>
+    </div>
+    <p class="sec-title">NCs por origem de erro</p>
+    <div class="chart-wrap" style="height:300px"><canvas id="c-ori" role="img" aria-label="Gráfico de NCs por origem">Sem dados</canvas></div>
+    <p class="sec-title" style="margin-top:1.5rem">Evolução temporal</p>
+    <div class="chart-wrap" style="height:200px"><canvas id="c-evo" role="img" aria-label="Evolução temporal de NCs">Sem dados</canvas></div>
+    <p class="sec-title" style="margin-top:1.5rem">Distribuição por impacto</p>
+    <div class="impact-row">
+      <div class="chart-wrap chart-donut"><canvas id="c-imp" role="img" aria-label="Distribuição por impacto">Sem dados</canvas></div>
+      <div id="leg-imp" class="legend"></div>
+    </div>
+  </section>
+
+  <!-- Treinamentos -->
+  <section id="p-trei" class="panel" role="tabpanel">
+    <h2 class="sr-only">Treinamentos sugeridos</h2>
+    <p class="sec-desc">Treinamentos sugeridos com base nas não conformidades registradas, ordenados por frequência.</p>
+    <div id="list-trei" class="list"></div>
+  </section>
+</main>
+
+<footer class="appfoot">
+  <small>v1.0.0 · Persianas Paraná · Gestão de Qualidade</small>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+# ============================================================================
+# Persianas Paraná — fabrica (monorepo)
+# ============================================================================
+
+# --- Node / Vite (pcp/frontend) ---
+node_modules/
+dist/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- PHP / Composer ---
+vendor/
+composer.lock
+
+# --- Configuração ativa e dados sensíveis (NUNCA versionar) ---
+**/config/config.php
+**/data/*.db
+**/data/*.db-shm
+**/data/*.db-wal
+**/data/*.sqlite
+**/data/logs/
+**/data/*.log
+
+# --- Ambiente ---
+.env
+.env.local
+.env.*.local
+
+# --- Sistema operacional / editores ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Build / temporários ---
+*.tgz
+*.zip
+!shared/**/*.zip
+coverage/
+.cache/
