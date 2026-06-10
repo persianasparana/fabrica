@@ -13,11 +13,14 @@
  *
  * As variáveis de ambiente vêm de server/.env (via dotenv).
  */
+const path = require('path');
+
 module.exports = {
   apps: [
     {
       name: 'fabrica-server',
-      cwd: '/var/www/fabrica/server', // ajuste se instalar em outro caminho
+      // independente do caminho de instalação (resolve <repo>/server)
+      cwd: path.join(__dirname, '..', 'server'),
       script: 'src/server.js',
       exec_mode: 'fork',
       instances: 1,

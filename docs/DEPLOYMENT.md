@@ -21,6 +21,22 @@ Recursos próprios do fabrica:
 
 ---
 
+## Instalação rápida (script)
+
+No servidor, depois de clonar o repositório em `/var/www/fabrica`:
+
+```bash
+cd /var/www/fabrica
+bash deploy/install.sh
+```
+
+O script pergunta o usuário/senha do admin e a senha do banco e cuida de:
+dependências do backend, banco próprio (`fabrica_db`), schema + admin, build do
+PCP (subpath) e o processo PM2 `fabrica-server`. Ao final, imprime o **único
+passo manual** (Nginx). Os passos detalhados (caso prefira manual) seguem abaixo.
+
+---
+
 ## 1. Pré-requisitos (já presentes no servidor)
 
 ```bash
