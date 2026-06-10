@@ -48,15 +48,15 @@ cd server
 cp .env.example .env          # ajuste PG*, SESSION_SECRET, FABRICA_ADMIN_*
 npm install
 npm run install-app           # cria schema + usuário admin
-npm run dev                   # API em http://127.0.0.1:8080 (serve /pcp e /qualidade)
+npm run dev                   # API em http://127.0.0.1:3020 (serve /pcp e /qualidade)
 
 # 2. Frontend do PCP (hot reload, opcional)
 cd ../pcp/frontend
 npm install
-npm run dev                   # http://localhost:5173 (proxy /api -> :8080)
+npm run dev                   # http://localhost:5173 (proxy /api -> :3020)
 ```
 
-- PCP: http://localhost:8080/pcp/ · Qualidade: http://localhost:8080/qualidade/
+- PCP: http://localhost:3020/pcp/ · Qualidade: http://localhost:3020/qualidade/
 
 ---
 

@@ -1,128 +1,133 @@
-# Implantação — fabrica (Node + PostgreSQL + Nginx)
+# Implantação — fabrica (no servidor compartilhado `aplicativos`)
 
-Guia para o servidor de aplicativos da Persianas Paraná (Ubuntu, Nginx,
-PostgreSQL, apps Node). O `fabrica` roda como **mais um serviço Node** atrás do
-Nginx, **sem alterar** nada do que já existe.
+O servidor já roda **Logística** e **Agenda de Consultores** em produção
+(Nginx + Node/PM2 + PostgreSQL). O `fabrica` entra como **app novo isolado**,
+seguindo as regras de `docs/SERVIDOR-COMPARTILHADO.md` — **sem tocar** no que
+existe.
 
-> Princípio de convivência: serviço próprio (systemd) em porta local dedicada,
-> banco PostgreSQL próprio e um **novo** server block no Nginx. Portas, vhosts e
-> bancos dos outros apps permanecem intactos.
+Recursos próprios do fabrica:
+
+| Recurso | Valor |
+|---|---|
+| Diretório | `/var/www/fabrica` |
+| Porta interna | **3020** (127.0.0.1) |
+| Processo PM2 | `fabrica-server` |
+| Banco / usuário | `fabrica_db` / `fabrica_user` |
+| Rota pública | `/fabrica/` (subpath) **ou** hostname dedicado |
+
+> ⚠️ Antes de qualquer comando global ou que toque o compartilhado (incluir
+> linha no vhost, etc.), **combine com o responsável** e rode `sudo nginx -t`
+> antes de `reload`. Nunca use `restart`/`pm2 kill`/`pm2 delete all`.
 
 ---
 
-## 1. Pré-requisitos
+## 1. Pré-requisitos (já presentes no servidor)
 
 ```bash
-node -v      # precisa ser 20+  (se for menor, instale via nodesource/nvm)
-psql --version
-nginx -v
+node -v        # 20+  (mesma versão dos outros apps)
+psql --version # PostgreSQL 16
+nginx -v       # 1.24
+pm2 -v
 ```
-
-PostgreSQL e Nginx já estão no servidor. Só falta o código e a configuração.
 
 ---
 
 ## 2. Código
 
 ```bash
-sudo mkdir -p /var/www/fabrica
-sudo chown "$USER" /var/www/fabrica
-git clone <repo> /var/www/fabrica
-cd /var/www/fabrica
+sudo mkdir -p /var/www/fabrica && sudo chown "$USER" /var/www/fabrica
+git clone <repo> /var/www/fabrica && cd /var/www/fabrica
 ```
 
----
-
-## 3. Banco de dados (isolado)
-
-Crie um banco e um usuário **dedicados** — não reutilize bancos existentes:
+## 3. Banco isolado (não tocar nos existentes)
 
 ```bash
 sudo -u postgres psql <<'SQL'
-CREATE ROLE fabrica LOGIN PASSWORD 'DEFINA_UMA_SENHA_FORTE';
-CREATE DATABASE fabrica OWNER fabrica;
+CREATE ROLE fabrica_user LOGIN PASSWORD 'DEFINA_SENHA_FORTE';
+CREATE DATABASE fabrica_db OWNER fabrica_user;
 SQL
 ```
-
-O schema é criado automaticamente na instalação (passo 4).
-
----
 
 ## 4. Backend
 
 ```bash
 cd /var/www/fabrica/server
 cp .env.example .env
-nano .env     # defina PGPASSWORD, SESSION_SECRET (aleatório), TRUST_PROXY=1, COOKIE_SECURE=auto
-              # e FABRICA_ADMIN_USER / FABRICA_ADMIN_PASSWORD para o admin inicial
-
+# edite: PGPASSWORD, SESSION_SECRET (aleatório), TRUST_PROXY=1, COOKIE_SECURE=auto,
+#        FABRICA_ADMIN_USER / FABRICA_ADMIN_PASSWORD, PORT=3020
 npm ci --omit=dev
-npm run install-app    # aplica o schema e cria o admin
+npm run install-app        # cria schema + admin (idempotente)
 ```
 
-Gere um `SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-
----
+`SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
 ## 5. Frontend do PCP (build)
 
+**Subpath `/fabrica/`** (opção A):
+
 ```bash
-cd /var/www/fabrica/pcp/frontend
-npm ci
-npm run build          # gera dist/ (servido pelo backend)
+cd /var/www/fabrica/pcp/frontend && npm ci
+VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build
 ```
 
-> Pouca memória/CPU no servidor? Rode o build em outra máquina/CI e copie só
-> `pcp/frontend/dist/`. O Qualidade não tem build (estático puro).
+**Hostname dedicado** (opção B): `npm ci && npm run build` (padrão).
+
+> O Qualidade é estático e usa caminhos relativos — não precisa de build e
+> funciona nas duas opções sem alteração.
+
+## 6. Processo (PM2)
+
+```bash
+cd /var/www/fabrica
+pm2 start deploy/ecosystem.config.js --only fabrica-server
+pm2 save                     # persiste (o pm2 startup do servidor já existe)
+pm2 status fabrica-server
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true}
+```
+
+Após mudar código: `pm2 delete fabrica-server && pm2 start deploy/ecosystem.config.js --only fabrica-server && pm2 save`.
+
+> Alternativa a PM2: `infra/systemd/fabrica.service` (se preferir systemd).
+
+## 7. Nginx
+
+### Opção A — subpath `/fabrica/` (recomendada; como a Agenda)
+
+```bash
+sudo cp infra/nginx/fabrica-subpath.conf /etc/nginx/snippets/fabrica-subpath.conf
+```
+No vhost compartilhado (`/etc/nginx/sites-available/persianas`), **antes** do
+fallback `/*` da Logística, adicionar **uma linha** (única alteração no arquivo
+compartilhado — combine com o responsável):
+```nginx
+include snippets/fabrica-subpath.conf;
+```
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+Acesso: `https://192.168.0.207/fabrica/pcp/` e `…/fabrica/qualidade/`.
+
+### Opção B — hostname dedicado
+
+Arquivo novo, sem tocar nos vhosts existentes — ver `infra/nginx/fabrica-host.conf`
+(requer SAN no certificado para o novo nome; alinhar antes de regenerar o cert,
+ou usar `tailscale cert`).
 
 ---
 
-## 6. Serviço (systemd)
+## 8. Verificação de convivência (checklist)
 
 ```bash
-sudo cp /var/www/fabrica/infra/systemd/fabrica.service /etc/systemd/system/
-sudo chown -R www-data:www-data /var/www/fabrica
-sudo systemctl daemon-reload
-sudo systemctl enable --now fabrica
-sudo systemctl status fabrica        # deve estar "active (running)"
-curl -s http://127.0.0.1:8080/healthz # {"ok":true}
+sudo ss -tlnp | grep -E ':(3000|3001|3010|3011)'   # apps antigos intactos
+pm2 status                                          # persianas-api, agenda-api, agenda-admin OK + fabrica-server
+sudo -u postgres psql -c "\l" | grep -E 'persianas_db|agenda_consultores|fabrica_db'
+curl -sik https://192.168.0.207/ | head -1          # Logística responde
+curl -sik https://192.168.0.207/agenda/ | head -1   # Agenda responde
+curl -sik https://192.168.0.207/fabrica/pcp/ | head -1
 ```
 
-O serviço lê as variáveis de `server/.env` (via dotenv) e escuta em
-`127.0.0.1:8080` (não exposto publicamente).
-
----
-
-## 7. Nginx (novo server block)
-
-```bash
-sudo cp /var/www/fabrica/infra/nginx/fabrica.conf /etc/nginx/sites-available/
-# ajuste o server_name no arquivo
-sudo ln -s /etc/nginx/sites-available/fabrica.conf /etc/nginx/sites-enabled/
-sudo nginx -t          # valida SEM afetar os outros sites
-sudo systemctl reload nginx
-```
-
-HTTPS (recomendado):
-
-```bash
-sudo certbot --nginx -d fabrica.persianas.com.br
-```
-
-Acesse: `https://fabrica.persianas.com.br/pcp/` e `…/qualidade/`.
-
----
-
-## 8. Verificação de convivência
-
-```bash
-sudo ss -tlnp | grep -E ':3000|:3010|:3011'   # apps antigos seguem ativos
-systemctl is-active fabrica nginx postgresql
-sudo -u postgres psql -c "\l" | grep -E 'fabrica|<bancos_existentes>'
-```
-
-Nada das aplicações existentes é alterado — só foram **adicionados** um serviço,
-um banco e um server block.
+Nada dos sistemas existentes é alterado — só foram **adicionados** porta, processo,
+banco e (subpath) uma linha de `include` no vhost.
 
 ---
 
@@ -130,27 +135,27 @@ um banco e um server block.
 
 ```bash
 cd /var/www/fabrica && git pull
-cd server && npm ci --omit=dev          # se mudaram dependências
-cd ../pcp/frontend && npm ci && npm run build
-sudo systemctl restart fabrica
+cd server && npm ci --omit=dev
+cd ../pcp/frontend && npm ci && VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build   # (subpath)
+pm2 delete fabrica-server && pm2 start ../../deploy/ecosystem.config.js --only fabrica-server && pm2 save
 ```
-
-O schema é idempotente (recriado/migrado no start).
-
----
 
 ## 10. Backup
 
 ```bash
-# Banco
-pg_dump -U fabrica -h 127.0.0.1 fabrica | gzip > fabrica_$(date +%F).sql.gz
-# Restauração: gunzip -c arquivo.sql.gz | psql -U fabrica -h 127.0.0.1 fabrica
+pg_dump -U fabrica_user -h 127.0.0.1 fabrica_db | gzip > fabrica_$(date +%F).sql.gz
 ```
+(O servidor ainda não tem rotina automática — pendência compartilhada nos docs de infra.)
 
 ---
 
+## Acesso remoto
+
+Hoje via **OpenVPN**; **Tailscale** (split-tunnel) está planejado — quando
+entrar, um nome MagicDNS para o fabrica habilita a opção B com HTTPS válido
+(ver `ACESSO-TAILSCALE.md` no repo da Logística).
+
 ## Identidade visual
 
-Ao receber a marca oficial: atualize `shared/brand/`, rode
-`bash shared/brand/sync.sh`, recompile o PCP (`npm run build`) e reinicie o
-serviço. Ver [`shared/brand/README.md`](../shared/brand/README.md).
+Paleta provisória. Ao definir a marca oficial, atualize `shared/brand/`, rode
+`bash shared/brand/sync.sh` e recompile o PCP.

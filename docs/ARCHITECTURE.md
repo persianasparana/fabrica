@@ -10,7 +10,7 @@ apps da Persianas Paraná.
 │   Nginx (80/443)  ── outros apps (3000/3010/3011) ── intactos                    │
 │        │ server block novo: fabrica.persianas…                                   │
 │        ▼                                                                          │
-│   fabrica-server  (Node/Express, systemd)  127.0.0.1:8080                         │
+│   fabrica-server  (Node/Express · PM2)  127.0.0.1:3020                            │
 │        ├─ /pcp/*           → SPA React (estático: pcp/frontend/dist)              │
 │        ├─ /qualidade/*     → estático (qualidade/public)                          │
 │        ├─ /api/auth/*      → login/logout/sessão (compartilhado)                  │
@@ -33,7 +33,7 @@ apps da Persianas Paraná.
 | `shared/brand/` | Design tokens + logotipo (fonte única). |
 | `infra/` | `nginx/` (server block) e `systemd/` (unit). |
 
-## Modelo de dados (PostgreSQL, banco `fabrica`)
+## Modelo de dados (PostgreSQL, banco `fabrica_db`)
 
 | Tabela | Uso |
 |---|---|
@@ -66,6 +66,11 @@ apps da Persianas Paraná.
 
 ## Convivência no servidor
 
-O `fabrica` **não toca** nos apps existentes: processo Node próprio (systemd) em
-porta local dedicada, banco PostgreSQL próprio (`fabrica`), e um **novo** server
-block no Nginx — nenhuma configuração existente é alterada. Ver `docs/DEPLOYMENT.md`.
+O servidor `aplicativos` já roda **Logística** e **Agenda** em produção. O
+`fabrica` entra isolado: processo PM2 próprio (`fabrica-server`) na porta **3020**,
+banco próprio (`fabrica_db`/`fabrica_user`), diretório `/var/www/fabrica`, e
+rota própria (`/fabrica/` via `include` no vhost, **antes** do fallback da
+Logística, ou hostname dedicado). Nenhuma porta, processo, banco ou `location`
+existente é alterado. Regras e reservas em
+[`docs/SERVIDOR-COMPARTILHADO.md`](SERVIDOR-COMPARTILHADO.md); passo a passo em
+[`docs/DEPLOYMENT.md`](DEPLOYMENT.md).

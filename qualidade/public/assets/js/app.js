@@ -143,7 +143,8 @@
       }
     }
 
-    const res = await fetch('/api/' + path, opts);
+    // Caminho relativo: funciona na raiz (/qualidade/) e sob subpath (/fabrica/qualidade/).
+    const res = await fetch('../api/' + path, opts);
 
     if (res.status === 401) {
       window.location.href = 'login.html';

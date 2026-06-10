@@ -21,7 +21,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
 
 const app = express();
-const PORT = Number(process.env.PORT || 8080);
+// Porta na faixa de apps novos do servidor compartilhado (>= 3020).
+const PORT = Number(process.env.PORT || 3020);
 const HOST = process.env.HOST || '127.0.0.1';
 
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
