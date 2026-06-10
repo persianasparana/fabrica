@@ -12,11 +12,10 @@ SRC="$ROOT/shared/brand"
 
 copy() {
   local dest="$1"
-  mkdir -p "$dest"
+  mkdir -p "$dest/logos"
   cp "$SRC/tokens.css" "$dest/tokens.css"
-  cp "$SRC/logo.svg" "$dest/logo.svg"
-  cp "$SRC/logo-mark.svg" "$dest/logo-mark.svg"
   cp "$SRC/palette.json" "$dest/palette.json"
+  cp "$SRC/logos/"*.png "$dest/logos/"
   echo "  → $dest"
 }
 

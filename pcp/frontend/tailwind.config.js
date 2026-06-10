@@ -1,13 +1,13 @@
 /**
  * Tailwind — PCP Persianas Paraná
  *
- * A paleta da marca é lida de public/brand/palette.json (fonte única,
- * sincronizada de shared/brand via `bash shared/brand/sync.sh`).
+ * Paleta lida de public/brand/palette.json (sincronizada de shared/brand).
  *
- * Estratégia de rebrand sem reescrever o componente: a escala `amber` do
- * Tailwind (usada como cor de destaque em toda a UI) é REMAPEADA para o
- * terracota da marca. Assim, todas as classes `amber-*` existentes passam a
- * renderizar na identidade da Persianas Paraná automaticamente.
+ * Rebrand sem reescrever o componente (tema escuro, chão de fábrica):
+ *  - `amber` (cor de destaque legada) -> DOURADO da marca (#C6B784)
+ *  - `stone` (superfícies/texto do tema escuro) -> escala `ink` (preto #1D1D1B)
+ *  - `red` (default do Tailwind) permanece para ALERTAS (atrasos/erros)
+ * Assim a UI adota a identidade oficial (preto + dourado) automaticamente.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const palette = JSON.parse(
   readFileSync(resolve(here, 'public/brand/palette.json'), 'utf8')
 );
-const { brand, sand, night } = palette.color;
+const { brand, gold, ink, sand } = palette.color;
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -25,15 +25,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Escalas nomeadas da marca (uso explícito)
-        brand,
+        brand, // vermelho da marca (alertas/ênfase)
+        gold,
+        ink,
         sand,
-        night,
-        // Remapeia o destaque legado `amber` -> terracota da marca
-        amber: brand,
+        amber: gold, // destaque legado -> dourado
+        stone: ink, // superfícies/texto escuros -> preto da marca
       },
       fontFamily: {
-        sans: ["'Bricolage Grotesque'", 'system-ui', 'sans-serif'],
+        sans: ["'Manrope'", "'Helvetica Neue'", 'Arial', 'sans-serif'],
         mono: ["'JetBrains Mono'", 'ui-monospace', 'monospace'],
       },
     },

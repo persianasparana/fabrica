@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [1.3.0] — 2026-06-10
+
+### Alterado
+
+- **Identidade visual oficial** aplicada: cores do brand-guide (preto #1D1D1B,
+  branco, vermelho #C1212D, dourado #C6B784), tipografia **Manrope**
+  (auto-hospedada, sem CDN) e **logotipo oficial** (versão preta) na topbar e no
+  login; favicon com o selo oficial.
+
+---
+
 ## [1.2.0] — 2026-06-10
 
 ### Alterado

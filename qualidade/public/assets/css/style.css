@@ -5,6 +5,8 @@
 
 /* Tokens da marca compartilhada (identidade visual unificada do monorepo). */
 @import url("../brand/tokens.css");
+/* Fonte oficial Manrope (auto-hospedada, sem CDN). */
+@import url("../fonts/manrope.css");
 
 /* Mapeia os nomes locais para os tokens da marca (--pp-*). Assim o sistema
    herda automaticamente as cores/tipografia oficiais da Persianas Paraná. */

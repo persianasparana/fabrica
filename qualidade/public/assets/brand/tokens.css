@@ -1,99 +1,85 @@
 /* ============================================================================
-   Persianas Paraná — Design Tokens (identidade visual unificada)
+   Persianas Paraná — Design Tokens (identidade visual oficial)
    ----------------------------------------------------------------------------
-   Fonte única de cores/tipografia para TODOS os sistemas do monorepo `fabrica`.
-   Espelha shared/brand/palette.json (canônico).
+   Cores do brand-guide: preto #1D1D1B · branco #FFFFFF · vermelho #C1212D ·
+   dourado #C6B784. Tipografia Manrope (substituta open-source da Galano
+   Grotesque). Espelha shared/brand/palette.json e o pp-brand.css oficial.
 
-   PROVISÓRIO: paleta derivada do terracota #C0392B já em uso. Ao receber as
-   cores/logotipo oficiais, basta atualizar este arquivo e palette.json.
-
-   Uso:
-   - Qualidade (CSS puro): @import deste arquivo; use as variáveis var(--pp-*).
-   - PCP (Tailwind): as mesmas cores estão em tailwind.config.js; este arquivo
-     define os temas via [data-theme] e fontes.
+   Tema claro (Qualidade): acento VERMELHO (linha operacional).
+   Tema escuro (PCP):       acento DOURADO sobre preto; vermelho p/ alertas.
    ============================================================================ */
 
 :root {
-  /* --- Escala da marca (terracota) --- */
-  --pp-brand-50:  #FBEAE8;
-  --pp-brand-100: #F6D0CC;
-  --pp-brand-200: #ECA69D;
-  --pp-brand-300: #E07D70;
-  --pp-brand-400: #D45645;
-  --pp-brand-500: #C0392B;
-  --pp-brand-600: #A83024;
-  --pp-brand-700: #8A271E;
-  --pp-brand-800: #6B1E17;
-  --pp-brand-900: #4D1510;
+  /* ---- Cores oficiais da marca (referência) ---- */
+  --pp-preto:          #1D1D1B;
+  --pp-branco:         #FFFFFF;
+  --pp-vermelho:       #C1212D;
+  --pp-vermelho-claro: #E73B3E;
+  --pp-vermelho-hover: #A11823;
+  --pp-dourado:        #C6B784;
+  --pp-dourado-dark:   #A89760;
 
-  /* --- Neutros quentes (areia) --- */
-  --pp-sand-50:  #FAF9F6;
-  --pp-sand-100: #F1EFE8;
-  --pp-sand-200: #E5E2D8;
-  --pp-sand-300: #D2CEC1;
-  --pp-sand-400: #B4AF9F;
-  --pp-sand-500: #8C8775;
-  --pp-sand-600: #6B6757;
-  --pp-sand-700: #4E4B3E;
-  --pp-sand-800: #332F26;
-  --pp-sand-900: #1F1C16;
-
-  /* --- Semânticas --- */
-  --pp-success:    #3B6D11;
-  --pp-success-bg: #EAF3DE;
-  --pp-warning:    #854F0B;
-  --pp-warning-bg: #FAEEDA;
-  --pp-danger:     #922B21;
-  --pp-danger-bg:  #FCEBEB;
-  --pp-info:       #2471A3;
-  --pp-info-bg:    #E6F0F6;
-
-  /* --- Tipografia --- */
-  --pp-font-sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --pp-font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* ---- Tipografia ---- */
+  --pp-font-sans: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  --pp-font-body: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
   --pp-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* --- Raio / sombra --- */
+  /* ---- Raio / sombra ---- */
   --pp-radius-sm: 6px;
   --pp-radius-md: 8px;
   --pp-radius-lg: 12px;
   --pp-radius-xl: 16px;
-  --pp-shadow-sm: 0 1px 2px rgba(31, 28, 22, 0.06);
-  --pp-shadow-md: 0 4px 12px rgba(31, 28, 22, 0.08);
-  --pp-shadow-lg: 0 10px 30px rgba(31, 28, 22, 0.10);
+  --pp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --pp-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --pp-shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 
   /* ====================== TEMA CLARO (padrão / Qualidade) ====================== */
-  --pp-bg:            var(--pp-sand-50);
+  --pp-bg:            #F7F7F8;
   --pp-surface:       #FFFFFF;
-  --pp-surface-2:     var(--pp-sand-100);
-  --pp-text:          #1A1A1A;
-  --pp-text-muted:    #5F5E5A;
-  --pp-text-tertiary: #888780;
-  --pp-border:        rgba(31, 28, 22, 0.12);
-  --pp-border-strong: rgba(31, 28, 22, 0.25);
+  --pp-surface-2:     #F0F1F3;
+  --pp-text:          #1D1D1B;
+  --pp-text-muted:    #6B7280;
+  --pp-text-tertiary: #9CA3AF;
+  --pp-border:        #E5E7EB;
+  --pp-border-strong: #CCCCCC;
 
-  --pp-accent:        var(--pp-brand-500);
-  --pp-accent-hover:  var(--pp-brand-600);
-  --pp-accent-bg:     var(--pp-brand-50);
-  --pp-accent-text:   var(--pp-brand-800);
+  --pp-accent:        var(--pp-vermelho);
+  --pp-accent-hover:  var(--pp-vermelho-hover);
+  --pp-accent-bg:     #FCEAEB;
+  --pp-accent-text:   #82131C;
   --pp-on-accent:     #FFFFFF;
+  --pp-gold:          var(--pp-dourado);
+
+  --pp-success:    #15803D;  --pp-success-bg: #DCFCE7;
+  --pp-warning:    #B45309;  --pp-warning-bg: #FEF3C7;
+  --pp-danger:     #B91C1C;  --pp-danger-bg:  #FEE2E2;
+  --pp-info:       #1E40AF;  --pp-info-bg:    #DBEAFE;
+
+  color-scheme: light;
 }
 
 /* ====================== TEMA ESCURO (PCP / chão de fábrica) ====================== */
 :root[data-theme="dark"],
 .pp-theme-dark {
-  --pp-bg:            #15120F;
-  --pp-surface:       #1D1A17;
-  --pp-surface-2:     #272320;
-  --pp-text:          #F1EFE8;
-  --pp-text-muted:    #B4AF9F;
-  --pp-text-tertiary: #8C8775;
-  --pp-border:        rgba(241, 239, 232, 0.10);
-  --pp-border-strong: rgba(241, 239, 232, 0.22);
+  --pp-bg:            #1D1D1B;
+  --pp-surface:       #262624;
+  --pp-surface-2:     #2F2F2C;
+  --pp-text:          #ECEBE7;
+  --pp-text-muted:    #B6B4AD;
+  --pp-text-tertiary: #8C8A82;
+  --pp-border:        #34332E;
+  --pp-border-strong: #56554F;
 
-  --pp-accent:        var(--pp-brand-400);
-  --pp-accent-hover:  var(--pp-brand-300);
-  --pp-accent-bg:     rgba(212, 86, 69, 0.12);
-  --pp-accent-text:   var(--pp-brand-300);
-  --pp-on-accent:     #15120F;
+  --pp-accent:        var(--pp-dourado);
+  --pp-accent-hover:  var(--pp-dourado-dark);
+  --pp-accent-bg:     rgba(198, 183, 132, 0.14);
+  --pp-accent-text:   var(--pp-dourado);
+  --pp-on-accent:     #1D1D1B;
+
+  --pp-success:    #4ADE80;  --pp-success-bg: rgba(74, 222, 128, 0.12);
+  --pp-warning:    #FBBF24;  --pp-warning-bg: rgba(251, 191, 36, 0.12);
+  --pp-danger:     #FCA5A5;  --pp-danger-bg:  rgba(252, 165, 165, 0.12);
+  --pp-info:       #60A5FA;  --pp-info-bg:    rgba(96, 165, 250, 0.12);
+
+  color-scheme: dark;
 }

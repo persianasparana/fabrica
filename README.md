@@ -69,9 +69,11 @@ Guia completo (PostgreSQL + systemd + Nginx, sem afetar os apps existentes):
 
 ## Identidade visual
 
-Paleta **provisória** derivada do terracota `#C0392B`. Ao receber a marca
-oficial, atualize [`shared/brand/`](shared/brand/) e rode `bash shared/brand/sync.sh` —
-os dois sistemas refletem a mudança.
+Identidade **oficial** da Persianas Paraná aplicada: preto `#1D1D1B` + branco,
+vermelho `#C1212D` (acento do Qualidade) e dourado `#C6B784` (acento do PCP),
+tipografia **Manrope** e logotipos oficiais — tudo centralizado em
+[`shared/brand/`](shared/brand/). Para ajustar, edite a pasta e rode
+`bash shared/brand/sync.sh`.
 
 ---
 

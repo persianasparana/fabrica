@@ -24,16 +24,16 @@ export default function Login({ onSuccess }) {
   return (
     <div
       className="min-h-screen bg-stone-950 text-stone-100 flex items-center justify-center p-4"
-      style={{ fontFamily: "'Bricolage Grotesque', system-ui, sans-serif" }}
+      style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}
     >
       <form
         onSubmit={submit}
         className="w-full max-w-sm bg-stone-900/60 border border-stone-800 rounded-lg p-8"
       >
         <div className="flex flex-col items-center mb-6">
-          <img src="./brand/logo-mark.svg" alt="Persianas Paraná" className="w-12 h-12 mb-3" />
+          <img src="./brand/logos/logo-branco.png" alt="Persianas Paraná" className="h-9 w-auto mb-4" />
           <h1 className="text-lg font-bold tracking-tight">
-            PCP <span className="text-amber-500">/</span> Persianas Paraná
+            PCP <span className="text-amber-500">/</span> Produção
           </h1>
           <p className="text-[11px] font-mono text-stone-500 uppercase tracking-[0.2em] mt-1">
             Planejamento e Controle da Produção

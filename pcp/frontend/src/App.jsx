@@ -3512,10 +3512,10 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
   const estoqueAlerta = Object.values(estoque).filter((i) => i.saldo < (i.minimo || 0)).length;
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+    <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
       <style>{`
         /* Fontes carregadas via @fontsource em src/index.css (sem CDN) */
-        * { font-family: 'Bricolage Grotesque', system-ui, sans-serif; }
+        * { font-family: 'Manrope', system-ui, sans-serif; }
         .font-mono, table, input, select, textarea, button { font-family: 'JetBrains Mono', monospace; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0a0a0a; }
@@ -3540,10 +3540,10 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
             >
               <Menu size={20} />
             </button>
-            <img src="./brand/logo-mark.svg" alt="Persianas Paraná" className="w-9 h-9 rounded-[10px]" />
+            <img src="./brand/logos/logo-branco.png" alt="Persianas Paraná" className="h-7 w-auto" />
             <div>
-              <h1 className="text-base font-bold leading-tight text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>
-                PCP <span className="text-amber-500">/</span> PERSIANAS
+              <h1 className="text-base font-bold leading-tight text-stone-100">
+                PCP <span className="text-amber-500">/</span> Produção
               </h1>
               <div className="text-[10px] font-mono text-stone-500 uppercase tracking-[0.2em]">
                 Sistema de Planejamento de Produção

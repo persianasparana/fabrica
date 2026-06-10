@@ -1,66 +1,83 @@
 {
   "$schema": "https://persianasparana.com.br/brand/palette.schema.json",
-  "name": "Persianas Paraná — Design Tokens",
-  "version": "1.0.0",
-  "note": "Fonte ÚNICA da identidade visual. Provisório: baseado no terracota #C0392B já em uso. Substitua os valores por cores oficiais quando disponíveis — todos os apps consomem este arquivo (via tokens.css e tailwind.config.js).",
+  "name": "Persianas Paraná — Design Tokens (oficiais)",
+  "version": "2.0.0",
+  "note": "Cores oficiais da marca (brand-guide): preto #1D1D1B, branco, vermelho #C1212D, dourado #C6B784. Fonte Manrope (substituta open-source da Galano Grotesque). Espelha logistica/css/pp-brand.css do pacote de identidade. Consumido por tokens.css e tailwind.config.js.",
   "color": {
     "brand": {
-      "50":  "#FBEAE8",
-      "100": "#F6D0CC",
-      "200": "#ECA69D",
-      "300": "#E07D70",
-      "400": "#D45645",
-      "500": "#C0392B",
-      "600": "#A83024",
-      "700": "#8A271E",
-      "800": "#6B1E17",
-      "900": "#4D1510"
+      "50":  "#FCEAEB",
+      "100": "#F7CDCF",
+      "200": "#EE9DA2",
+      "300": "#E36B73",
+      "400": "#D6444E",
+      "500": "#C1212D",
+      "600": "#A11823",
+      "700": "#82131C",
+      "800": "#5E0E15",
+      "900": "#3D090E",
+      "light": "#E73B3E"
+    },
+    "gold": {
+      "50":  "#FAF7EE",
+      "100": "#F1E9CF",
+      "200": "#E6D9AE",
+      "300": "#D9C896",
+      "400": "#CFBC8C",
+      "500": "#C6B784",
+      "600": "#A89760",
+      "700": "#87794C",
+      "800": "#5F5536",
+      "900": "#3D3722"
+    },
+    "ink": {
+      "50":  "#F5F4F1",
+      "100": "#ECEBE7",
+      "200": "#D2D0C9",
+      "300": "#B6B4AD",
+      "400": "#8C8A82",
+      "500": "#56554F",
+      "600": "#383834",
+      "700": "#2F2F2C",
+      "800": "#262624",
+      "900": "#1D1D1B",
+      "950": "#141413"
     },
     "sand": {
-      "50":  "#FAF9F6",
-      "100": "#F1EFE8",
-      "200": "#E5E2D8",
-      "300": "#D2CEC1",
-      "400": "#B4AF9F",
-      "500": "#8C8775",
-      "600": "#6B6757",
-      "700": "#4E4B3E",
-      "800": "#332F26",
-      "900": "#1F1C16"
-    },
-    "night": {
-      "50":  "#E9E7E3",
-      "100": "#C9C5BD",
-      "200": "#9B968B",
-      "300": "#6E6A5F",
-      "400": "#4A463D",
-      "500": "#332F28",
-      "600": "#272320",
-      "700": "#1D1A17",
-      "800": "#15120F",
-      "900": "#0E0C0A",
-      "950": "#080706"
+      "50":  "#FFFFFF",
+      "100": "#F7F7F8",
+      "200": "#F0F1F3",
+      "300": "#E5E7EB",
+      "400": "#CCCCCC",
+      "500": "#9CA3AF",
+      "600": "#6B7280",
+      "700": "#606060",
+      "800": "#2D2D2D",
+      "900": "#1D1D1B"
     },
     "semantic": {
-      "success":    "#3B6D11",
-      "successBg":  "#EAF3DE",
-      "warning":    "#854F0B",
-      "warningBg":  "#FAEEDA",
-      "danger":     "#922B21",
-      "dangerBg":   "#FCEBEB",
-      "info":       "#2471A3",
-      "infoBg":     "#E6F0F6"
+      "success":    "#15803D",
+      "successBg":  "#DCFCE7",
+      "successDark":"#4ADE80",
+      "warning":    "#B45309",
+      "warningBg":  "#FEF3C7",
+      "warningDark":"#FBBF24",
+      "danger":     "#B91C1C",
+      "dangerBg":   "#FEE2E2",
+      "dangerDark": "#FCA5A5",
+      "info":       "#1E40AF",
+      "infoBg":     "#DBEAFE",
+      "infoDark":   "#60A5FA"
     }
   },
   "font": {
-    "sans": "'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    "body": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "sans": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
+    "body": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
     "mono": "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
   },
-  "radius": { "sm": "6px", "md": "8px", "lg": "12px", "xl": "16px" },
+  "radius": { "xs": "4px", "sm": "6px", "md": "8px", "lg": "12px", "xl": "16px", "pill": "999px" },
   "shadow": {
-    "sm": "0 1px 2px rgba(31,28,22,0.06)",
-    "md": "0 4px 12px rgba(31,28,22,0.08)",
-    "lg": "0 10px 30px rgba(31,28,22,0.10)"
+    "sm": "0 1px 2px rgba(0,0,0,0.04)",
+    "md": "0 2px 6px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+    "lg": "0 6px 18px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04)"
   }
 }

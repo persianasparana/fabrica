@@ -1,6 +1,11 @@
-/* Fontes auto-hospedadas (sem CDN) — instaladas via npm (@fontsource). */
-@import '@fontsource-variable/bricolage-grotesque';
-@import '@fontsource/jetbrains-mono/300.css';
+/* Fontes auto-hospedadas (sem CDN) — instaladas via npm (@fontsource).
+   Manrope é a fonte oficial da marca (substituta open-source da Galano Grotesque);
+   JetBrains Mono é usada apenas em dados tabulares do PCP. */
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/manrope/800.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/jetbrains-mono/600.css';
