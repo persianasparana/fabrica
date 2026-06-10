@@ -1,118 +1,156 @@
-# Implantação — fabrica
+# Implantação — fabrica (Node + PostgreSQL + Nginx)
 
-Dois caminhos. **Docker** é o mais rápido e portável; **Apache/PHP nativo**
-encaixa no servidor de aplicativos já existente da Persianas Paraná.
+Guia para o servidor de aplicativos da Persianas Paraná (Ubuntu, Nginx,
+PostgreSQL, apps Node). O `fabrica` roda como **mais um serviço Node** atrás do
+Nginx, **sem alterar** nada do que já existe.
+
+> Princípio de convivência: serviço próprio (systemd) em porta local dedicada,
+> banco PostgreSQL próprio e um **novo** server block no Nginx. Portas, vhosts e
+> bancos dos outros apps permanecem intactos.
 
 ---
 
-## Opção A — Docker Compose (recomendado)
-
-Pré-requisitos: Docker + Docker Compose no servidor.
+## 1. Pré-requisitos
 
 ```bash
-git clone <repo> fabrica && cd fabrica
-cp .env.example .env
-# edite .env: defina PCP_ADMIN_PASSWORD e QUALIDADE_ADMIN_PASSWORD
-docker compose up -d --build
+node -v      # precisa ser 20+  (se for menor, instale via nodesource/nvm)
+psql --version
+nginx -v
 ```
 
-- PCP → http://SERVIDOR:8080
-- Qualidade → http://SERVIDOR:8081
-
-Os bancos ficam em volumes (`pcp-data`, `qualidade-data`). O admin inicial é
-criado no primeiro start a partir do `.env`.
-
-**Produção:** coloque os serviços atrás de um proxy TLS (Nginx/Traefik/Apache)
-e defina `PP_INSECURE_COOKIES=0` no `.env` (exige HTTPS para os cookies).
+PostgreSQL e Nginx já estão no servidor. Só falta o código e a configuração.
 
 ---
 
-## Opção B — Apache + PHP nativo
-
-Encaixa no servidor existente. Requisitos: Linux, Apache 2.4+ (mods `rewrite`,
-`headers`), PHP 8.0+ (`pdo`, `pdo_sqlite` ou `pdo_mysql`, `mbstring`, `json`),
-Node 20+ **apenas para compilar** o frontend do PCP (pode ser feito em outra
-máquina/CI e enviar só o `dist/`).
-
-### 1. Código no servidor
+## 2. Código
 
 ```bash
 sudo mkdir -p /var/www/fabrica
-sudo rsync -a ./ /var/www/fabrica/        # ou git clone
-```
-
-### 2. Compilar o frontend do PCP
-
-```bash
-cd /var/www/fabrica/pcp/frontend
-npm ci && npm run build                   # gera dist/
-```
-
-> Sem Node no servidor? Rode `npm run build` em outra máquina/CI e copie apenas
-> a pasta `dist/` para `/var/www/fabrica/pcp/frontend/dist`.
-
-### 3. Instalar os backends
-
-```bash
-# PCP
-cd /var/www/fabrica/pcp/api && php scripts/install.php
-
-# Qualidade
-cd /var/www/fabrica/qualidade && php scripts/install.php
-```
-
-Cada instalador gera `config/config.php` (com `secret_key` aleatório), cria o
-banco/esquema e o usuário administrador.
-
-### 4. Permissões
-
-```bash
+sudo chown "$USER" /var/www/fabrica
+git clone <repo> /var/www/fabrica
 cd /var/www/fabrica
-sudo chown -R www-data:www-data pcp/api/data qualidade/data
-sudo find pcp qualidade -type d -exec chmod 755 {} \;
-sudo find pcp qualidade -type f -exec chmod 644 {} \;
-sudo chmod 750 pcp/api/data qualidade/data
 ```
-
-### 5. VirtualHosts
-
-Exemplos prontos em [`infra/apache/`](../infra/apache/):
-
-```bash
-sudo cp infra/apache/pcp.conf       /etc/apache2/sites-available/
-sudo cp infra/apache/qualidade.conf /etc/apache2/sites-available/
-sudo a2enmod rewrite headers
-sudo a2ensite pcp qualidade
-sudo systemctl reload apache2
-```
-
-O vhost do PCP serve o `dist/` e mapeia `/api` para `pcp/api/public/api`
-(mesma origem → cookies de sessão funcionam). O do Qualidade serve `public/`.
-
-### 6. HTTPS
-
-Use Let's Encrypt (`certbot --apache`) e mantenha
-`session_secure_cookie => true` nos `config/config.php` (padrão).
 
 ---
 
-## Atualizações
+## 3. Banco de dados (isolado)
+
+Crie um banco e um usuário **dedicados** — não reutilize bancos existentes:
+
+```bash
+sudo -u postgres psql <<'SQL'
+CREATE ROLE fabrica LOGIN PASSWORD 'DEFINA_UMA_SENHA_FORTE';
+CREATE DATABASE fabrica OWNER fabrica;
+SQL
+```
+
+O schema é criado automaticamente na instalação (passo 4).
+
+---
+
+## 4. Backend
+
+```bash
+cd /var/www/fabrica/server
+cp .env.example .env
+nano .env     # defina PGPASSWORD, SESSION_SECRET (aleatório), TRUST_PROXY=1, COOKIE_SECURE=auto
+              # e FABRICA_ADMIN_USER / FABRICA_ADMIN_PASSWORD para o admin inicial
+
+npm ci --omit=dev
+npm run install-app    # aplica o schema e cria o admin
+```
+
+Gere um `SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+
+---
+
+## 5. Frontend do PCP (build)
+
+```bash
+cd /var/www/fabrica/pcp/frontend
+npm ci
+npm run build          # gera dist/ (servido pelo backend)
+```
+
+> Pouca memória/CPU no servidor? Rode o build em outra máquina/CI e copie só
+> `pcp/frontend/dist/`. O Qualidade não tem build (estático puro).
+
+---
+
+## 6. Serviço (systemd)
+
+```bash
+sudo cp /var/www/fabrica/infra/systemd/fabrica.service /etc/systemd/system/
+sudo chown -R www-data:www-data /var/www/fabrica
+sudo systemctl daemon-reload
+sudo systemctl enable --now fabrica
+sudo systemctl status fabrica        # deve estar "active (running)"
+curl -s http://127.0.0.1:8080/healthz # {"ok":true}
+```
+
+O serviço lê as variáveis de `server/.env` (via dotenv) e escuta em
+`127.0.0.1:8080` (não exposto publicamente).
+
+---
+
+## 7. Nginx (novo server block)
+
+```bash
+sudo cp /var/www/fabrica/infra/nginx/fabrica.conf /etc/nginx/sites-available/
+# ajuste o server_name no arquivo
+sudo ln -s /etc/nginx/sites-available/fabrica.conf /etc/nginx/sites-enabled/
+sudo nginx -t          # valida SEM afetar os outros sites
+sudo systemctl reload nginx
+```
+
+HTTPS (recomendado):
+
+```bash
+sudo certbot --nginx -d fabrica.persianas.com.br
+```
+
+Acesse: `https://fabrica.persianas.com.br/pcp/` e `…/qualidade/`.
+
+---
+
+## 8. Verificação de convivência
+
+```bash
+sudo ss -tlnp | grep -E ':3000|:3010|:3011'   # apps antigos seguem ativos
+systemctl is-active fabrica nginx postgresql
+sudo -u postgres psql -c "\l" | grep -E 'fabrica|<bancos_existentes>'
+```
+
+Nada das aplicações existentes é alterado — só foram **adicionados** um serviço,
+um banco e um server block.
+
+---
+
+## 9. Atualizações
 
 ```bash
 cd /var/www/fabrica && git pull
-cd pcp/frontend && npm ci && npm run build      # rebuild do frontend
-# backends: o schema é idempotente; nenhum passo extra normalmente
-sudo systemctl reload apache2
+cd server && npm ci --omit=dev          # se mudaram dependências
+cd ../pcp/frontend && npm ci && npm run build
+sudo systemctl restart fabrica
 ```
+
+O schema é idempotente (recriado/migrado no start).
+
+---
+
+## 10. Backup
+
+```bash
+# Banco
+pg_dump -U fabrica -h 127.0.0.1 fabrica | gzip > fabrica_$(date +%F).sql.gz
+# Restauração: gunzip -c arquivo.sql.gz | psql -U fabrica -h 127.0.0.1 fabrica
+```
+
+---
 
 ## Identidade visual
 
-Ao receber o logotipo/cores oficiais: atualize `shared/brand/`, rode
-`bash shared/brand/sync.sh` e recompile o PCP (`npm run build`). Ver
-[`shared/brand/README.md`](../shared/brand/README.md).
-
-## Backup
-
-- **SQLite:** copie `pcp/api/data/*.db` e `qualidade/data/*.db` (com o serviço
-  parado ou via `sqlite3 .backup`). O Qualidade inclui `scripts/backup.sh`.
-- **MySQL:** `mysqldump` das bases `persianas_pcp` e `persianas_qualidade`.
+Ao receber a marca oficial: atualize `shared/brand/`, rode
+`bash shared/brand/sync.sh`, recompile o PCP (`npm run build`) e reinicie o
+serviço. Ver [`shared/brand/README.md`](../shared/brand/README.md).

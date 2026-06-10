@@ -1,0 +1,31 @@
+# systemd — serviço do backend unificado fabrica
+#
+#   sudo cp infra/systemd/fabrica.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now fabrica
+#   sudo systemctl status fabrica
+#
+# As variáveis de ambiente são lidas de server/.env (via dotenv).
+
+[Unit]
+Description=Fabrica (PCP + Qualidade) — Persianas Paraná
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/fabrica/server
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=3
+
+# Endurecimento
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

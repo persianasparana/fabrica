@@ -18,20 +18,20 @@ import { getCsrf } from './session.js';
 export function installStorage() {
   window.storage = {
     list(prefix) {
-      return apiFetch('storage.php?prefix=' + encodeURIComponent(prefix || ''));
+      return apiFetch('/pcp/storage?prefix=' + encodeURIComponent(prefix || ''));
     },
     get(key) {
-      return apiFetch('storage.php?key=' + encodeURIComponent(key));
+      return apiFetch('/pcp/storage?key=' + encodeURIComponent(key));
     },
     set(key, value) {
-      return apiFetch('storage.php?key=' + encodeURIComponent(key), {
+      return apiFetch('/pcp/storage?key=' + encodeURIComponent(key), {
         method: 'PUT',
         body: { value },
         csrf: getCsrf(),
       });
     },
     delete(key) {
-      return apiFetch('storage.php?key=' + encodeURIComponent(key), {
+      return apiFetch('/pcp/storage?key=' + encodeURIComponent(key), {
         method: 'DELETE',
         csrf: getCsrf(),
       });

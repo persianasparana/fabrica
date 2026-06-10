@@ -143,7 +143,7 @@
       }
     }
 
-    const res = await fetch('api/' + path, opts);
+    const res = await fetch('/api/' + path, opts);
 
     if (res.status === 401) {
       window.location.href = 'login.html';
@@ -158,14 +158,14 @@
   }
 
   async function carregarSessao() {
-    const data = await api('auth.php');
+    const data = await api('auth/session');
     state.user = data.user;
     state.csrfToken = data.csrf_token;
     $('#user-name').textContent = data.user.full_name || data.user.username;
   }
 
   async function carregarNCs() {
-    const data = await api('ncs.php');
+    const data = await api('qualidade/ncs');
     state.ncs = data.data || [];
   }
 
@@ -331,7 +331,7 @@
     if (action === 'delete') {
       if (!confirm('Excluir esta NC permanentemente?')) return;
       try {
-        await api('ncs.php?id=' + id, { method: 'DELETE' });
+        await api('qualidade/ncs?id=' + id, { method: 'DELETE' });
         state.ncs = state.ncs.filter(n => n.id !== id);
         notify('NC excluída', true);
         rerenderListas();
@@ -351,7 +351,7 @@
     if (!nc || novoStatus === statusAnterior) return;
 
     try {
-      await api('ncs.php?id=' + id, {
+      await api('qualidade/ncs?id=' + id, {
         method: 'PUT',
         body: { status: novoStatus },
       });
@@ -394,7 +394,7 @@
   async function renderKpis() {
     let kpis;
     try {
-      kpis = await api('kpis.php');
+      kpis = await api('qualidade/kpis');
     } catch (err) {
       notify(err.message, false);
       return;
@@ -540,7 +540,7 @@
     btn.textContent = 'Salvando...';
 
     try {
-      await api('ncs.php', { method: 'POST', body: data });
+      await api('qualidade/ncs', { method: 'POST', body: data });
       notify('NC registrada com sucesso', true);
       resetarFormulario();
       await carregarNCs();
@@ -599,7 +599,7 @@
 
     $('#btn-logout').addEventListener('click', async () => {
       try {
-        await api('auth.php', { method: 'DELETE' });
+        await api('auth/logout', { method: 'DELETE' });
       } catch (e) { /* ignora */ }
       window.location.href = 'login.html';
     });

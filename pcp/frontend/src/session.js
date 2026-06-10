@@ -15,14 +15,14 @@ export function getCsrf() {
 
 /** Recupera a sessão atual; lança AuthError (401) se não autenticado. */
 export async function refreshSession() {
-  const data = await apiFetch('auth.php');
+  const data = await apiFetch('/auth/session');
   session.user = data.user;
   session.csrf = data.csrf_token;
   return session.user;
 }
 
 export async function login(username, password) {
-  const data = await apiFetch('auth.php', {
+  const data = await apiFetch('/auth/login', {
     method: 'POST',
     body: { username, password },
   });
@@ -33,7 +33,7 @@ export async function login(username, password) {
 
 export async function logout() {
   try {
-    await apiFetch('auth.php', { method: 'DELETE', csrf: session.csrf });
+    await apiFetch('/auth/logout', { method: 'DELETE', csrf: session.csrf });
   } catch {
     /* ignora erros de rede no logout */
   }

@@ -8,10 +8,10 @@ export default defineConfig({
   base: './',
   server: {
     port: 5173,
-    // Em dev, encaminha as chamadas de API para o backend PHP local.
+    // Em dev, encaminha as chamadas de API para o backend Node local (server/).
     proxy: {
       '/api': {
-        target: 'http://localhost:8090',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
     },

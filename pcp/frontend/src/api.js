@@ -5,7 +5,7 @@
  * - Em 401, dispara o handler de "não autenticado" (volta ao login).
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'api/';
+const API_PREFIX = import.meta.env.VITE_API_PREFIX || '/api';
 
 export class AuthError extends Error {}
 
@@ -26,7 +26,7 @@ export async function apiFetch(path, { method = 'GET', body, csrf } = {}) {
     headers['X-CSRF-Token'] = csrf;
   }
 
-  const res = await fetch(API_BASE + path, opts);
+  const res = await fetch(API_PREFIX + path, opts);
 
   if (res.status === 401) {
     if (onUnauthorized) onUnauthorized();

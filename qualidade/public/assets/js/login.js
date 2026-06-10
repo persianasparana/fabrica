@@ -1,6 +1,6 @@
 /**
  * Login - Persianas Paraná Qualidade
- * Submete credenciais para /api/auth.php e redireciona para o sistema.
+ * Submete credenciais para /api/auth/login e redireciona para o sistema.
  */
 (function () {
   'use strict';
@@ -29,7 +29,7 @@
     const password = document.getElementById('password').value;
 
     try {
-      const res = await fetch('api/auth.php', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

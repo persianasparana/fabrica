@@ -22,39 +22,54 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  php-backends:
-    name: Backends PHP (lint + smoke test)
+  server:
+    name: Backend (Node + PostgreSQL)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fabrica
+          POSTGRES_PASSWORD: fabrica
+          POSTGRES_DB: fabrica
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fabrica"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: fabrica
+      PGPASSWORD: fabrica
+      PGDATABASE: fabrica
+      SESSION_SECRET: ci-secret
+      PORT: 8090
+      SERVE_STATIC: '0'
+      FABRICA_ADMIN_USER: ci
+      FABRICA_ADMIN_PASSWORD: senha12345
+      FABRICA_ADMIN_NAME: CI
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/setup-node@v4
         with:
-          php-version: '8.3'
-          extensions: pdo, pdo_sqlite, mbstring, json
-
-      - name: Lint PHP (php -l)
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run install-app
+      - name: Smoke test (auth + PCP + Qualidade)
         run: |
-          find pcp/api qualidade -name '*.php' -print0 | xargs -0 -n1 php -l
-
-      - name: Smoke test do backend do PCP
-        run: |
-          cd pcp/api
-          cat > config/config.php <<'PHP'
-          <?php
-          return [
-            'app' => ['name'=>'ci','version'=>'1.0.0','environment'=>'development','timezone'=>'America/Sao_Paulo','debug'=>true],
-            'database' => ['driver'=>'sqlite','sqlite'=>['path'=>'/tmp/ci_pcp.db'],'mysql'=>[]],
-            'security' => ['secret_key'=>'ci','session_lifetime'=>28800,'session_secure_cookie'=>false,'max_login_attempts'=>5,'lockout_duration'=>900],
-          ];
-          PHP
-          php -r 'require "src/Database.php"; require "src/Auth.php"; $c=require "config/config.php"; $db=Database::getInstance($c["database"]); (new Auth($db,$c["security"]))->createUser("ci","senha12345","CI","admin"); echo "user ok\n";'
-          php -S 127.0.0.1:8090 -t public &
-          sleep 2
-          JAR=/tmp/jar.txt
-          LOGIN=$(curl -s -c $JAR -b $JAR -X POST -H 'Content-Type: application/json' -d '{"username":"ci","password":"senha12345"}' http://127.0.0.1:8090/api/auth.php)
-          echo "$LOGIN"
-          CSRF=$(echo "$LOGIN" | php -r '$d=json_decode(stream_get_contents(STDIN),true); echo $d["csrf_token"]??"";')
+          node src/server.js &
+          sleep 3
+          B=http://127.0.0.1:8090; J=/tmp/j.txt
+          L=$(curl -s -c $J -b $J -X POST -H 'Content-Type: application/json' -d '{"username":"ci","password":"senha12345"}' $B/api/auth/login)
+          echo "$L"
+          CSRF=$(echo "$L" | node -e 'process.stdin.on("data",d=>{try{console.log(JSON.parse(d).csrf_token||"")}catch{}})')
           test -n "$CSRF" || { echo "login falhou"; exit 1; }
-          curl -s -c $JAR -b $JAR -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"value":"{\"id\":1}"}' "http://127.0.0.1:8090/api/storage.php?key=pedido:1" | grep -q '"ok":true' || { echo "set falhou"; exit 1; }
-          curl -s -c $JAR -b $JAR "http://127.0.0.1:8090/api/storage.php?prefix=pedido:" | grep -q 'pedido:1' || { echo "list falhou"; exit 1; }
+          curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"value":"{\"id\":1}"}' "$B/api/pcp/storage?key=pedido:1" | grep -q '"ok":true' || { echo "pcp set falhou"; exit 1; }
+          curl -s -c $J -b $J "$B/api/pcp/storage?prefix=pedido:" | grep -q 'pedido:1' || { echo "pcp list falhou"; exit 1; }
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' "$B/api/qualidade/ncs" | grep -q '"id"' || { echo "qualidade create falhou"; exit 1; }
           echo "Smoke test OK"

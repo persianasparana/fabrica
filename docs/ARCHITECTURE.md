@@ -1,69 +1,71 @@
 # Arquitetura — fabrica
 
-Monorepo com dois sistemas independentes que compartilham apenas a identidade
-visual. Ambos rodam no mesmo servidor de aplicativos.
+Monorepo com dois sistemas (PCP e Qualidade) servidos por **um único backend
+Node**, atrás do **Nginx**, usando **PostgreSQL** — o mesmo padrão dos demais
+apps da Persianas Paraná.
 
 ```
-┌───────────────────────────── Servidor (Apache/PHP) ─────────────────────────────┐
+┌──────────────────────── Servidor "aplicativos" (Ubuntu) ────────────────────────┐
 │                                                                                  │
-│   pcp.persianas… (vhost)                  qualidade.persianas… (vhost)           │
-│   ┌──────────────────────────┐            ┌──────────────────────────┐          │
-│   │  PCP frontend (estático)  │            │  Qualidade (PHP + HTML)   │          │
-│   │  React/Vite build (dist)  │            │  public/ servido direto   │          │
-│   │        │  fetch /api       │            │        │  fetch api/*      │          │
-│   │        ▼                   │            │        ▼                   │          │
-│   │  PCP API (PHP/PDO)         │            │  API NCs (PHP/PDO)        │          │
-│   │  kv_store + users          │            │  nao_conformidades+users  │          │
-│   └──────────┬───────────────┘            └──────────┬───────────────┘          │
-│              ▼                                         ▼                          │
-│        SQLite/MySQL (data/)                      SQLite/MySQL (data/)            │
+│   Nginx (80/443)  ── outros apps (3000/3010/3011) ── intactos                    │
+│        │ server block novo: fabrica.persianas…                                   │
+│        ▼                                                                          │
+│   fabrica-server  (Node/Express, systemd)  127.0.0.1:8080                         │
+│        ├─ /pcp/*           → SPA React (estático: pcp/frontend/dist)              │
+│        ├─ /qualidade/*     → estático (qualidade/public)                          │
+│        ├─ /api/auth/*      → login/logout/sessão (compartilhado)                  │
+│        ├─ /api/pcp/*       → armazenamento chave-valor do PCP                     │
+│        └─ /api/qualidade/* → não conformidades + KPIs                             │
+│                  │                                                                │
+│                  ▼                                                                │
+│        PostgreSQL (5432) · banco `fabrica` (role própria)                         │
 └──────────────────────────────────────────────────────────────────────────────┘
             ▲ identidade visual compartilhada (shared/brand)
 ```
 
-## Sistema PCP
+## Componentes
 
-- **Frontend** (`pcp/frontend`): SPA React (Vite + Tailwind). Concentra TODA a
-  lógica de negócio (fórmulas de corte, estrutura de produto/BOM, indicadores,
-  plano-mestre). Compilado para estático.
-- **Backend** (`pcp/api`): API PHP que expõe um armazenamento chave-valor
-  autenticado (`kv_store`). O frontend grava documentos JSON por chave
-  (`pedido:<id>`, `estoque:<sku>`, `apontamento:<id>`, `config:default`),
-  tornando os dados compartilhados entre usuários.
-- **Persistência no cliente:** a interface `window.storage` usada pelo
-  componente é implementada em `src/storage.js` sobre a API. Trocar a estratégia
-  de persistência (ex.: normalizar em tabelas) afeta apenas o backend + esse
-  módulo.
+| Pasta | Papel |
+|---|---|
+| `server/` | Backend único (Node + Express + `pg`). Serve as duas APIs e, opcionalmente, os dois frontends estáticos. |
+| `pcp/frontend/` | SPA React (Vite + Tailwind). Toda a lógica de negócio do PCP. |
+| `qualidade/public/` | Frontend do Qualidade (HTML/CSS/JS + Chart.js local). |
+| `shared/brand/` | Design tokens + logotipo (fonte única). |
+| `infra/` | `nginx/` (server block) e `systemd/` (unit). |
 
-### Por que armazenamento chave-valor?
+## Modelo de dados (PostgreSQL, banco `fabrica`)
 
-Preserva integralmente a lógica de cálculo já validada do frontend (baixo risco)
-e entrega dados compartilhados de imediato. A evolução natural é normalizar as
-entidades de maior consulta (pedidos, estoque) em tabelas dedicadas, mantendo o
-mesmo contrato de API.
+| Tabela | Uso |
+|---|---|
+| `users` | Login compartilhado pelos dois sistemas (bcrypt). |
+| `login_attempts` | Rate limiting persistido (usuário + IP). |
+| `audit_log` | Auditoria (coluna `app` distingue pcp/qualidade). |
+| `pcp_kv_store` | Documentos JSON do PCP por chave (`pedido:<id>`, `estoque:<sku>`…). |
+| `nao_conformidades` | NCs do Qualidade (`setores`/`origens` em JSONB). |
+| `session` | Sessões (criada por `connect-pg-simple`). |
 
-## Sistema Qualidade
+## Decisões
 
-- App PHP clássico (sem build): `public/` (HTML/CSS/JS + `api/*.php`),
-  `src/` (domínio), `config/`, `data/`.
-- Repositório de não conformidades, KPIs (Chart.js local) e sugestões de
-  treinamento. Detalhes em `qualidade/docs/ARCHITECTURE.md`.
+- **Um serviço, um login.** PCP e Qualidade compartilham `users` e a sessão
+  (cookie por domínio). Papéis (`role`) permitem restringir acesso por sistema
+  no futuro.
+- **PCP via chave-valor.** Preserva 100% da lógica do frontend (baixo risco) e
+  entrega dados compartilhados. Evolução natural: normalizar entidades de maior
+  consulta mantendo o mesmo contrato de API.
+- **Frontends estáticos.** O PCP mantém o `window.storage` original, agora
+  reimplementado sobre a API (`pcp/frontend/src/storage.js`).
 
-## Camada compartilhada (`shared/brand`)
+## Segurança
 
-`palette.json` (canônico) + `tokens.css` + logotipos. `sync.sh` copia os ativos
-para dentro de cada app. O PCP ainda lê `palette.json` no `tailwind.config.js`.
+- Sessão por cookie HttpOnly + SameSite=Lax; `Secure` sob HTTPS (via Nginx +
+  `trust proxy`).
+- CSRF por token de sessão (header `X-CSRF-Token` nas escritas).
+- Rate limiting de login persistido no banco (OWASP A04/A07).
+- Cabeçalhos de segurança via `helmet` (CSP compatível com os frontends).
+- Senhas com bcrypt; queries parametrizadas (`pg`) — anti-SQLi (A03).
 
-## Segurança (comum aos dois backends)
+## Convivência no servidor
 
-- PDO com prepared statements (OWASP A03).
-- Sessão por cookie HttpOnly + SameSite=Lax; CSRF nas escritas (A07).
-- Rate limiting de login **persistido em banco** por usuário+IP (A04/A07).
-- Cabeçalhos de segurança (A05) via PHP e `.htaccess`.
-- `src/`, `config/`, `data/` fora do document root / bloqueados por `.htaccess`.
-
-## Fluxo de autenticação
-
-1. `GET /api/auth.php` → 401 se não logado; o frontend exibe o login.
-2. `POST /api/auth.php` (usuário/senha) → cria sessão, devolve `csrf_token`.
-3. Escritas enviam `X-CSRF-Token`; sessão expira por inatividade.
+O `fabrica` **não toca** nos apps existentes: processo Node próprio (systemd) em
+porta local dedicada, banco PostgreSQL próprio (`fabrica`), e um **novo** server
+block no Nginx — nenhuma configuração existente é alterada. Ver `docs/DEPLOYMENT.md`.

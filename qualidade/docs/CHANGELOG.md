@@ -6,6 +6,23 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ---
 
+## [1.2.0] — 2026-06-10
+
+### Alterado
+
+- **Backend migrado para Node + PostgreSQL** (serviço unificado em `server/`),
+  alinhado ao servidor de aplicativos da empresa (Node/Postgres/Nginx). O
+  frontend passou a consumir `/api/qualidade/*` e `/api/auth/*`.
+- Autenticação, CSRF e rate limiting (persistido em banco) agora no backend Node,
+  com login compartilhado entre PCP e Qualidade.
+
+### Removido
+
+- Backend PHP (PDO/SQLite/Apache) e artefatos de Docker/Apache — substituídos
+  pelo serviço Node. O frontend (HTML/CSS/JS) foi preservado.
+
+---
+
 ## [1.1.0] — 2026-06-09
 
 ### Adicionado
