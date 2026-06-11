@@ -33,7 +33,7 @@ export default {
         stone: ink, // superfícies/texto escuros -> preto da marca
       },
       fontFamily: {
-        sans: ["'Manrope'", "'Helvetica Neue'", 'Arial', 'sans-serif'],
+        sans: ["'Galano Grotesque'", "'Manrope'", "'Helvetica Neue'", 'Arial', 'sans-serif'],
         mono: ["'JetBrains Mono'", 'ui-monospace', 'monospace'],
       },
     },

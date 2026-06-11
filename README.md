@@ -79,9 +79,12 @@ bloqueio por tentativas) e gestão de usuários:
 
 Identidade **oficial** da Persianas Paraná aplicada: preto `#1D1D1B` + branco,
 vermelho `#C1212D` (acento do Qualidade) e dourado `#C6B784` (acento do PCP),
-tipografia **Manrope** e logotipos oficiais — tudo centralizado em
-[`shared/brand/`](shared/brand/). Para ajustar, edite a pasta e rode
-`bash shared/brand/sync.sh`.
+tipografia oficial **Galano Grotesque** (OTFs licenciados — no servidor, rode
+`bash shared/brand/install-galano.sh`) com fallback **Manrope**, e logotipos
+oficiais — tudo centralizado em [`shared/brand/`](shared/brand/).
+Referência canônica da marca (cores, fontes, regras de logo):
+**[`shared/brand/IDENTIDADE-VISUAL.md`](shared/brand/IDENTIDADE-VISUAL.md)**.
+Para ajustar, edite a pasta e rode `bash shared/brand/sync.sh`.
 
 ---
 

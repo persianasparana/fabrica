@@ -1,0 +1,58 @@
+/* ============================================================================
+   Galano Grotesque — fonte OFICIAL da Persianas Paraná (brandguide).
+   ----------------------------------------------------------------------------
+   Os arquivos OTF são licenciados e NÃO são versionados no git. No servidor,
+   rode `bash shared/brand/install-galano.sh` para copiá-los a partir de
+   /var/www/agenda/shared/brand-assets/fonts/ (pasta compartilhada da Agenda).
+   Sem os arquivos, os navegadores caem no fallback Manrope (visual próximo).
+   Hierarquia do manual: Light 300 · Regular 400 · Medium 500 · SemiBold 600
+   (logotipo) · Bold 700 · ExtraBold 800 (títulos/destaques).
+   ============================================================================ */
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-300.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-400.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-500.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-600.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-700.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Galano Grotesque';
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+  src: url('./galano/galano-800.otf') format('opentype');
+}

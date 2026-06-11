@@ -151,6 +151,7 @@ banco e (subpath) uma linha de `include` no vhost.
 
 ```bash
 cd /var/www/fabrica && git pull
+bash shared/brand/install-galano.sh   # fonte oficial Galano (idempotente; pula se a origem não existir)
 cd server && npm ci --omit=dev
 cd ../pcp/frontend && npm ci && VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build   # (subpath)
 pm2 delete fabrica-server && pm2 start ../../deploy/ecosystem.config.js --only fabrica-server && pm2 save

@@ -5,7 +5,10 @@
 
 /* Tokens da marca compartilhada (identidade visual unificada do monorepo). */
 @import url("../brand/tokens.css");
-/* Fonte oficial Manrope (auto-hospedada, sem CDN). */
+/* Fonte OFICIAL Galano Grotesque (OTFs licenciados, instalados no servidor
+   via shared/brand/install-galano.sh; sem eles, cai no fallback Manrope). */
+@import url("../brand/fonts/galano.css");
+/* Manrope auto-hospedada (fallback open-source, sem CDN). */
 @import url("../fonts/manrope.css");
 
 /* Mapeia os nomes locais para os tokens da marca (--pp-*). Assim o sistema

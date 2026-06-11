@@ -30,6 +30,10 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# --- Fontes licenciadas (Galano Grotesque — instaladas no servidor via
+#     shared/brand/install-galano.sh; NUNCA versionar os OTFs) ---
+**/fonts/galano/*.otf
+
 # --- Build / temporários ---
 *.tgz
 *.zip

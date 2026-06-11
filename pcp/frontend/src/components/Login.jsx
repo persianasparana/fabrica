@@ -25,7 +25,7 @@ export default function Login({ onSuccess }) {
   return (
     <div
       className="min-h-screen bg-stone-950 text-stone-100 flex items-center justify-center p-4"
-      style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}
+      style={{ fontFamily: "'Galano Grotesque', 'Manrope', system-ui, sans-serif" }}
     >
       <form
         onSubmit={submit}

@@ -19,9 +19,12 @@
   --pp-dourado:        #C6B784;
   --pp-dourado-dark:   #A89760;
 
-  /* ---- Tipografia ---- */
-  --pp-font-sans: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
-  --pp-font-body: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  /* ---- Tipografia ----
+     Galano Grotesque = fonte OFICIAL do brandguide (OTFs licenciados, só no
+     servidor — ver fonts/galano.css). Manrope = fallback open-source
+     empacotado. Arial = fallback de sistema previsto no manual. */
+  --pp-font-sans: 'Galano Grotesque', 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  --pp-font-body: 'Galano Grotesque', 'Manrope', 'Helvetica Neue', Arial, sans-serif;
   --pp-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* ---- Raio / sombra ---- */

@@ -51,16 +51,18 @@ mesmo usuário e senha.
 
 ## 3. Usuários e papéis
 
-- Papéis: `admin` e `user` (coluna `role`). Usuários inativos
-  (`active = FALSE`) não conseguem entrar.
+- Papéis: `admin` (gerencia usuários) e `user` (coluna `role`). Usuários
+  inativos (`active = FALSE`) não conseguem entrar.
 - **Primeiro admin:** criado na instalação com `npm run install-app` (no
   diretório `server/`), interativo ou via variáveis `FABRICA_ADMIN_USER`,
   `FABRICA_ADMIN_PASSWORD` e `FABRICA_ADMIN_NAME`.
-- **Demais usuários:** ainda **não há tela de gestão de usuários** — criar via
-  script no servidor (Node REPL chamando `createUser()` de `server/src/auth.js`)
-  ou SQL com hash bcrypt. Senha mínima: **8 caracteres**.
-  > Pendência conhecida: UI de administração de usuários (a exemplo de
-  > `usuarios.html` da Logística).
+- **Demais usuários:** pela tela **Usuários** do PCP (visível só para admins):
+  criar usuário, redefinir senha, promover/rebaixar papel e ativar/desativar.
+  Senha mínima: **8 caracteres**. Não há exclusão — desativar bloqueia o acesso
+  preservando o histórico de auditoria. Um admin não consegue desativar nem
+  rebaixar a si mesmo (proteção contra perda de acesso).
+- API correspondente: `GET/POST /api/users` e `PATCH /api/users/:id`
+  (admin + CSRF).
 
 ## 4. Telas de login (padrão visual)
 
@@ -76,8 +78,11 @@ apps da empresa (Agenda e Logística):
 7. Rodapé de ajuda ("Problemas com o acesso? Fale com o administrador") + versão.
 
 Identidade visual: tokens oficiais em `shared/brand/` (preto `#1D1D1B`,
-vermelho `#C1212D`, dourado `#C6B784`, tipografia **Manrope** auto-hospedada).
-Inputs de login com fonte **16px** para evitar zoom automático no iOS.
+vermelho `#C1212D`, dourado `#C6B784`). Tipografia oficial **Galano Grotesque**
+(OTFs licenciados instalados no servidor via `shared/brand/install-galano.sh`)
+com fallback **Manrope** auto-hospedado — referência completa da marca em
+`shared/brand/IDENTIDADE-VISUAL.md`. Inputs de login com fonte **16px** para
+evitar zoom automático no iOS.
 
 ## 5. Uso no dia a dia (resumo)
 

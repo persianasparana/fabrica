@@ -14,6 +14,7 @@ import helmet from 'helmet';
 
 import { pool, migrate } from './db.js';
 import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
 import pcpRoutes from './routes/pcp.js';
 import qualidadeRoutes from './routes/qualidade.js';
 
@@ -74,6 +75,7 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 
 // APIs
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/pcp', pcpRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
 

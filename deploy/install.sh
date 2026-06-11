@@ -72,17 +72,22 @@ fi
 echo "==> Backend (dependências, schema e admin)"
 ( cd "$ROOT/server" && npm ci --omit=dev && npm run install-app )
 
-# 5) Frontend do PCP: build para o subpath /fabrica/ --------------------------
+# 5) Fonte oficial Galano (OTFs licenciados da pasta compartilhada da Agenda;
+#    idempotente — se a origem não existir, segue com o fallback Manrope) -----
+echo "==> Fonte oficial Galano Grotesque"
+bash "$ROOT/shared/brand/install-galano.sh"
+
+# 6) Frontend do PCP: build para o subpath /fabrica/ --------------------------
 echo "==> Build do PCP (subpath /fabrica/)"
 ( cd "$ROOT/pcp/frontend" && npm ci && VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build )
 
-# 6) PM2 ----------------------------------------------------------------------
+# 7) PM2 ----------------------------------------------------------------------
 echo "==> Serviço PM2 (fabrica-server)"
 pm2 delete fabrica-server >/dev/null 2>&1 || true
 pm2 start "$ROOT/deploy/ecosystem.config.js" --only fabrica-server
 pm2 save
 
-# 7) Verificação --------------------------------------------------------------
+# 8) Verificação --------------------------------------------------------------
 sleep 1
 if curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
   echo "==> OK: backend respondendo em 127.0.0.1:${PORT}"

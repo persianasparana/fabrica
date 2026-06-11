@@ -7,8 +7,9 @@ import {
   Hash, Ruler, Eye, Copy, ChevronLeft, ListChecks, AlertCircle, Info,
   Truck, Gauge, Target, Play, Square, RotateCw, Tag, FileBarChart,
   CalendarDays, ArrowDownToLine, ArrowUpFromLine, Award, History,
-  Sliders, FileCheck, LogOut, Menu
+  Sliders, FileCheck, LogOut, Menu, Users
 } from "lucide-react";
+import UsersView from "./components/UsersView.jsx";
 
 /* =====================================================================
  * CATÁLOGO DE PRODUTOS — extraído das planilhas oficiais da empresa.
@@ -2284,7 +2285,7 @@ function EstoqueView({ estoque, skuMap, onSave, onDelete, onMovimento, orders })
     <div className="space-y-5">
       <header className="flex items-center justify-between pb-3 border-b border-stone-800">
         <div>
-          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Estoque de Componentes</h2>
+          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', sans-serif" }}>Estoque de Componentes</h2>
           <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mt-1">
             Cadastro de itens, saldo, estoque mínimo e ponto de reposição
           </div>
@@ -2630,7 +2631,7 @@ function ApontamentoView({ orders, onSave }) {
   return (
     <div className="space-y-5">
       <header className="pb-3 border-b border-stone-800">
-        <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Apontamento de Produção</h2>
+        <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', sans-serif" }}>Apontamento de Produção</h2>
         <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mt-1">
           Registro de início/fim por peça — alimenta indicadores de OEE e tempo-padrão
         </div>
@@ -2853,7 +2854,7 @@ function IndicadoresView({ orders, apontamentos, config }) {
   return (
     <div className="space-y-6">
       <header className="pb-3 border-b border-stone-800">
-        <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Indicadores de PCP</h2>
+        <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', sans-serif" }}>Indicadores de PCP</h2>
         <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mt-1">
           OTIF · Lead Time Real · OEE · Aderência ao Plano · Curva ABC
         </div>
@@ -3074,7 +3075,7 @@ function PlanoMestreView({ orders, config }) {
     <div className="space-y-5">
       <header className="flex items-center justify-between pb-3 border-b border-stone-800">
         <div>
-          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Plano-Mestre Semanal</h2>
+          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', sans-serif" }}>Plano-Mestre Semanal</h2>
           <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mt-1">
             Capacidade vs carga · S&OP simplificado
           </div>
@@ -3198,7 +3199,7 @@ function ConfigView({ config, onSave }) {
     <div className="space-y-5">
       <header className="flex items-center justify-between pb-3 border-b border-stone-800">
         <div>
-          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Configurações</h2>
+          <h2 className="text-xl font-bold text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', sans-serif" }}>Configurações</h2>
           <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500 mt-1">
             Tempos-padrão · Lead times · Capacidade
           </div>
@@ -3501,6 +3502,8 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
     { k: "indicadores", label: "Indicadores", icon: BarChart3 },
     { k: "catalogo", label: "Catálogo", icon: Archive },
     { k: "config", label: "Configurações", icon: Sliders },
+    // Gestão de usuários: somente administradores (base compartilhada com o Qualidade)
+    ...(currentUser?.role === "admin" ? [{ k: "usuarios", label: "Usuários", icon: Users }] : []),
   ];
 
   // Contadores rápidos
@@ -3512,10 +3515,11 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
   const estoqueAlerta = Object.values(estoque).filter((i) => i.saldo < (i.minimo || 0)).length;
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', system-ui, sans-serif" }}>
       <style>{`
-        /* Fontes carregadas via @fontsource em src/index.css (sem CDN) */
-        * { font-family: 'Manrope', system-ui, sans-serif; }
+        /* Galano Grotesque = fonte oficial (OTFs só no servidor); Manrope =
+           fallback empacotado via @fontsource em src/index.css (sem CDN) */
+        * { font-family: 'Galano Grotesque', 'Manrope', system-ui, sans-serif; }
         .font-mono, table, input, select, textarea, button { font-family: 'JetBrains Mono', monospace; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0a0a0a; }
@@ -3667,6 +3671,7 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
               {view === "indicadores" && <IndicadoresView orders={orders} apontamentos={apontamentos} config={config} />}
               {view === "catalogo" && <CatalogView />}
               {view === "config" && <ConfigView config={config} onSave={saveConfig} />}
+              {view === "usuarios" && currentUser?.role === "admin" && <UsersView currentUser={currentUser} />}
             </>
           )}
         </main>

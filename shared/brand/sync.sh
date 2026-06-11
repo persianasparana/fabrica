@@ -12,10 +12,16 @@ SRC="$ROOT/shared/brand"
 
 copy() {
   local dest="$1"
-  mkdir -p "$dest/logos"
+  mkdir -p "$dest/logos" "$dest/fonts/galano"
   cp "$SRC/tokens.css" "$dest/tokens.css"
   cp "$SRC/palette.json" "$dest/palette.json"
   cp "$SRC/logos/"*.png "$dest/logos/"
+  # Fonte oficial Galano: o CSS sempre vai; os OTFs só existem no servidor
+  # (instalados via install-galano.sh — fonte licenciada, fora do git).
+  cp "$SRC/fonts/galano.css" "$dest/fonts/galano.css"
+  if compgen -G "$SRC/fonts/galano/*.otf" > /dev/null; then
+    cp "$SRC/fonts/galano/"*.otf "$dest/fonts/galano/"
+  fi
   echo "  → $dest"
 }
 

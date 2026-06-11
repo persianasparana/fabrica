@@ -2,7 +2,7 @@
   "$schema": "https://persianasparana.com.br/brand/palette.schema.json",
   "name": "Persianas Paraná — Design Tokens (oficiais)",
   "version": "2.0.0",
-  "note": "Cores oficiais da marca (brand-guide): preto #1D1D1B, branco, vermelho #C1212D, dourado #C6B784. Fonte Manrope (substituta open-source da Galano Grotesque). Espelha logistica/css/pp-brand.css do pacote de identidade. Consumido por tokens.css e tailwind.config.js.",
+  "note": "Cores oficiais da marca (brand-guide): preto #1D1D1B, branco, vermelho #C1212D, dourado #C6B784. Fonte oficial Galano Grotesque (OTFs licenciados, instalados no servidor) com fallback Manrope (open-source). Espelha logistica/css/pp-brand.css do pacote de identidade. Consumido por tokens.css e tailwind.config.js.",
   "color": {
     "brand": {
       "50":  "#FCEAEB",
@@ -70,8 +70,8 @@
     }
   },
   "font": {
-    "sans": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
-    "body": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
+    "sans": "'Galano Grotesque', 'Manrope', 'Helvetica Neue', Arial, sans-serif",
+    "body": "'Galano Grotesque', 'Manrope', 'Helvetica Neue', Arial, sans-serif",
     "mono": "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
   },
   "radius": { "xs": "4px", "sm": "6px", "md": "8px", "lg": "12px", "xl": "16px", "pill": "999px" },
