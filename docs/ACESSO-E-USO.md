@@ -88,6 +88,14 @@ evitar zoom automático no iOS.
 
 - **PCP:** pedidos, produção, apontamento, estoque, suprimentos, plano-mestre,
   indicadores e catálogo — dados compartilhados entre todos os usuários.
+- **Leitura (código de barras):** cada unidade de peça tem um código único
+  (`PP-<pedido>-<peça>-<nº>`, Code128) impresso na tela **Leitura → Gerar →
+  Imprimir etiquetas**. Bipar a etiqueta no modo **1 · Entrada em produção**
+  marca a unidade como em produção (pedido pendente vira Em Corte); bipar no
+  modo **2 · Baixa** marca como embalada — quando todas as unidades do pedido
+  são embaladas, o pedido vira **Pronto** automaticamente. Funciona com leitor
+  USB (modo teclado, basta o cursor estar no campo de leitura) e, em
+  navegadores compatíveis (Chrome/Android), com a câmera do aparelho.
 - **Qualidade:** registro de não conformidades, planos de ação, KPIs e
   treinamentos. Manual completo em `qualidade/docs/USER_MANUAL.md`.
 - Sessão expirada → o sistema volta para a tela de login; basta entrar de novo.

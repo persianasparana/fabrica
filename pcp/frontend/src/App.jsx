@@ -7,9 +7,10 @@ import {
   Hash, Ruler, Eye, Copy, ChevronLeft, ListChecks, AlertCircle, Info,
   Truck, Gauge, Target, Play, Square, RotateCw, Tag, FileBarChart,
   CalendarDays, ArrowDownToLine, ArrowUpFromLine, Award, History,
-  Sliders, FileCheck, LogOut, Menu, Users
+  Sliders, FileCheck, LogOut, Menu, Users, ScanLine
 } from "lucide-react";
 import UsersView from "./components/UsersView.jsx";
+import ScannerView from "./components/ScannerView.jsx";
 
 /* =====================================================================
  * CATÁLOGO DE PRODUTOS — extraído das planilhas oficiais da empresa.
@@ -58,7 +59,8 @@ const varetasRomanaTeto = (A) => {
 };
 
 // CATÁLOGO COMPLETO
-const PRODUCT_CATALOG = {
+// Exportado p/ a tela de Leitura (etiquetas e identificação de peças)
+export const PRODUCT_CATALOG = {
   // ============ FAMÍLIA SOFT (Tubo 32mm) ============
   "soft-lisa-sem-plus": {
     family: "SOFT",
@@ -3415,6 +3417,15 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
     if (viewingOrder?.id === id) setViewingOrder(upd);
   };
 
+  // Atualização vinda da tela de Leitura (rastreio por código de barras):
+  // atualiza o pedido em memória SEM loadAll — o loadAll liga o `loading`
+  // global e remonta a tela, o que resetaria o modo de leitura entre bipes.
+  const registrarLeitura = async (o) => {
+    await storageSet(`pedido:${o.id}`, o);
+    setOrders((prev) => prev.map((x) => (x.id === o.id ? o : x)));
+    if (viewingOrder?.id === o.id) setViewingOrder(o);
+  };
+
   // ============ HANDLERS ESTOQUE ============
   const saveEstoqueItem = async (item) => {
     await storageSet(`estoque:${item.sku}`, item);
@@ -3499,6 +3510,7 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
     { k: "pedidos", label: "Pedidos", icon: ClipboardList },
     { k: "producao", label: "Produção", icon: Activity },
     { k: "apontamento", label: "Apontamento", icon: Play },
+    { k: "leitura", label: "Leitura", icon: ScanLine },
     { k: "suprimentos", label: "Suprimentos", icon: Layers },
     { k: "estoque", label: "Estoque", icon: Package },
     { k: "plano", label: "Plano-Mestre", icon: CalendarDays },
@@ -3670,6 +3682,7 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
               )}
               {view === "producao" && <ProductionPanel orders={orders} />}
               {view === "apontamento" && <ApontamentoView orders={orders} onSave={saveApontamento} />}
+              {view === "leitura" && <ScannerView orders={orders} onUpdate={registrarLeitura} currentUser={currentUser} />}
               {view === "suprimentos" && <SupplyPanel orders={orders} estoque={estoque} skuMap={skuMap} />}
               {view === "estoque" && <EstoqueView estoque={estoque} skuMap={skuMap} onSave={saveEstoqueItem} onDelete={deleteEstoqueItem} onMovimento={registrarMovimento} orders={orders} />}
               {view === "plano" && <PlanoMestreView orders={orders} config={config} />}
