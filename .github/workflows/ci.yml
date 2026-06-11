@@ -99,6 +99,19 @@ jobs:
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"codigo":"CI-ETQ-1"}' $B/api/pcp/bip | grep -q '"acao":"jafoi"' || { echo "jafoi falhou"; exit 1; }
 
+          # Pedido com etiqueta bipada na criação (fluxo do formulário Novo Pedido)
+          R=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"itens":[{"pedido":"99002","produto":"ROMANA","data_cliente":"2026-12-05","qnt":1,"etiqueta":"CI-ETQ-3"}]}' \
+            $B/api/pcp/itens/lote)
+          echo "$R" | grep -q '"count":1' || { echo "lote com etiqueta falhou: $R"; exit 1; }
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-ETQ-3"}' $B/api/pcp/bip | grep -q '"acao":"baixa"' || { echo "baixa pós-criação falhou"; exit 1; }
+          # Etiqueta duplicada -> 409
+          C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"itens":[{"pedido":"99003","produto":"ROMANA","data_cliente":"2026-12-05","etiqueta":"CI-ETQ-3"}]}' \
+            $B/api/pcp/itens/lote)
+          test "$C" = "409" || { echo "esperava 409 para etiqueta duplicada, veio $C"; exit 1; }
+
           # Qualidade segue funcionando
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' $B/api/qualidade/ncs | grep -q '"id"' || { echo "qualidade falhou"; exit 1; }

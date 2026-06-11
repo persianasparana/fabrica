@@ -67,6 +67,8 @@ function validarItem(d, partial = false) {
   if (d.qnt != null && Number(d.qnt) > 500) throw new HttpError(422, 'Quantidade máxima por item: 500 peças');
   if (d.produto && String(d.produto).length > 160) throw new HttpError(422, 'Nome de produto muito longo');
   if (d.observacoes && String(d.observacoes).length > 5000) throw new HttpError(422, 'Observações muito longas');
+  if (d.etiqueta != null && String(d.etiqueta).trim().length > 64)
+    throw new HttpError(422, 'Etiqueta muito longa (máx. 64 caracteres)');
 }
 
 const orNull = (v) => (v === undefined || v === null || v === '' ? null : v);
@@ -85,23 +87,28 @@ async function sincronizarConclusaoItem(exec, itemId) {
   );
 }
 
-/** Insere item + suas peças (dentro da transação do chamador). */
+/** Insere item + suas peças (dentro da transação do chamador).
+ *  `etiqueta` (opcional) é vinculada à peça 1 — bipada no cadastro do pedido;
+ *  nesse caso a chegada ao PCP é registrada automaticamente se não informada. */
 async function inserirItem(client, d, userId) {
   const exec = client.query.bind(client);
   const conclusao = orNull(d.conclusao);
   const qnt = Number(d.qnt) || 1;
+  const etiqueta = d.etiqueta != null && String(d.etiqueta).trim() ? String(d.etiqueta).trim() : null;
   const { rows } = await exec(
     `INSERT INTO pcp_itens
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
         conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     VALUES ($1,$2,$3,$4,
+             COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
+             $6,$7,$8,$9,$10,$11,$12,$13,$14)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
       qnt, orNull(d.chegada_pcp), orNull(d.prev_inicial),
       orNull(d.prev_producao), conclusao, orNull(d.data_cliente),
       d.tipo || 'Produção nova', d.motivo_atraso || '', (d.observacoes || '').trim(),
-      d.especial === true, userId,
+      d.especial === true, userId, etiqueta,
     ]
   );
   const id = Number(rows[0].id);
@@ -110,7 +117,22 @@ async function inserirItem(client, d, userId) {
      SELECT $1, gs.n, $2::date FROM generate_series(1, $3::int) AS gs(n)`,
     [id, conclusao, qnt]
   );
+  if (etiqueta) {
+    await exec(
+      'UPDATE pcp_pecas SET cod_barras = $2, vinculada_em = now() WHERE item_id = $1 AND numero = 1',
+      [id, etiqueta]
+    );
+  }
   return id;
+}
+
+/** Converte violação de unicidade da etiqueta em erro 409 legível. */
+function trataEtiquetaDuplicada(e) {
+  if (e && e.code === '23505' && /cod_barras/.test(e.constraint || e.detail || '')) {
+    const m = /\((?:cod_barras)\)=\(([^)]+)\)/.exec(e.detail || '');
+    return new HttpError(409, `Etiqueta ${m ? m[1] + ' ' : ''}já está vinculada a outra peça.`);
+  }
+  return e;
 }
 
 /** Executa fn dentro de uma transação. */
@@ -145,7 +167,10 @@ r.post(
   ah(async (req, res) => {
     const d = req.body || {};
     validarItem(d);
-    const id = await emTransacao((exec, client) => inserirItem(client, d, req.session.user.id));
+    let id;
+    try {
+      id = await emTransacao((exec, client) => inserirItem(client, d, req.session.user.id));
+    } catch (e) { throw trataEtiquetaDuplicada(e); }
     await audit(req.session.user.id, 'pcp', 'item.create', { entityType: 'pcp_item', entityId: id });
     res.status(201).json({ id, item: await fmtItem(id) });
   })
@@ -165,13 +190,22 @@ r.post(
     itens.forEach((d, i) => {
       try { validarItem(d); } catch (e) { throw new HttpError(422, `Item ${i + 1}: ${e.message}`); }
     });
+    // etiquetas repetidas dentro do próprio lote
+    const etiquetas = itens
+      .map((d) => (d.etiqueta != null ? String(d.etiqueta).trim() : ''))
+      .filter(Boolean);
+    const repetida = etiquetas.find((e, i) => etiquetas.indexOf(e) !== i);
+    if (repetida) throw new HttpError(422, `Etiqueta repetida no pedido: ${repetida}`);
 
-    const ids = await emTransacao(async (exec, client) => {
-      if (substituir) await exec('DELETE FROM pcp_itens');
-      const out = [];
-      for (const d of itens) out.push(await inserirItem(client, d, req.session.user.id));
-      return out;
-    });
+    let ids;
+    try {
+      ids = await emTransacao(async (exec, client) => {
+        if (substituir) await exec('DELETE FROM pcp_itens');
+        const out = [];
+        for (const d of itens) out.push(await inserirItem(client, d, req.session.user.id));
+        return out;
+      });
+    } catch (e) { throw trataEtiquetaDuplicada(e); }
     await audit(req.session.user.id, 'pcp', substituir ? 'item.lote.substituir' : 'item.lote', {
       entityType: 'pcp_item',
       entityId: ids[0],

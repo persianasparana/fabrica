@@ -255,18 +255,9 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="9" y1="8" x2="9" y2="16" stroke-width="3"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="3"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
             </div>
             <div>
-              <div style="font-size:14px;font-weight:700">Leitor de código de barras</div>
-              <div style="font-size:11px;color:var(--text3)" id="bip-help">Embalagem: bipe a etiqueta da peça produzida para dar baixa</div>
+              <div style="font-size:14px;font-weight:700">Baixa de produção — Embalagem</div>
+              <div style="font-size:11px;color:var(--text3)">Bipe a etiqueta da peça produzida — campo sempre ativo</div>
             </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button id="bip-modo-baixa" class="btn btn-red" style="flex:1;font-size:11px" onclick="setBipModo('baixa')">📦 Embalagem — baixa</button>
-            <button id="bip-modo-entrada" class="btn btn-outline" style="flex:1;font-size:11px" onclick="setBipModo('entrada')">📥 Entrada PCP — vincular</button>
-          </div>
-          <div id="bip-entrada-pedido-wrap" style="display:none;margin-bottom:10px">
-            <input type="text" id="bip-entrada-pedido" placeholder="Nº do pedido para vincular as etiquetas"
-              style="width:100%;padding:10px 12px;font-size:14px;border:2px solid #1976D2;border-radius:8px;outline:none;background:var(--blue-bg);color:var(--text);font-family:inherit">
-            <div id="bip-entrada-progresso" style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center"></div>
           </div>
           <input type="text" id="bip-input"
             placeholder="Aguardando leitura..."
@@ -275,7 +266,7 @@
             oninput="bipDigitado()"
             onkeydown="if(event.key==='Enter') processBip()">
           <div style="margin-top:8px;font-size:11px;color:var(--text3);text-align:center">
-            Pressione Enter ou aguarde 1,5s para processar automaticamente
+            Cada bip dá baixa em UMA peça. O pedido conclui quando todas as peças tiverem baixa.
           </div>
         </div>
 
@@ -308,15 +299,10 @@
 
     <!-- NOVO PEDIDO -->
     <div class="section" id="sec-novo">
-      <div class="card" style="max-width:600px">
-        <div class="card-title">Cadastrar novo pedido</div>
-        <div class="form-grid" id="form-novo-content">
-          <div class="form-group" style="grid-column:1/-1"><label>Produto * <span style="font-weight:400;text-transform:none;color:var(--text3)">(da Estrutura do Produto)</span></label>
-            <select id="fn-produto" onchange="toggleProdutoLivre()"><option value="">Carregando...</option></select>
-            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px">
-          </div>
+      <div class="card" style="max-width:680px">
+        <div class="card-title">1 · Dados do pedido</div>
+        <div class="form-grid">
           <div class="form-group"><label>Nº Pedido *</label><input type="text" id="fn-pedido" placeholder="Ex: 18500"></div>
-          <div class="form-group"><label>Quantidade</label><input type="number" id="fn-qnt" value="1" min="1"></div>
           <div class="form-group"><label>Data do cliente *</label><input type="date" id="fn-data-cliente"></div>
           <div class="form-group"><label>Chegada PCP</label><input type="date" id="fn-chegada"></div>
           <div class="form-group"><label>Prev. produção</label><input type="date" id="fn-prev-prod"></div>
@@ -335,18 +321,40 @@
               <option>Aviso ao cliente pendente</option><option>Peça showroom</option><option>Outros</option>
             </select>
           </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+          <div class="form-group" style="grid-column:1/-1"><label>Observações do pedido</label><textarea id="fn-obs" rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:680px">
+        <div class="card-title">2 · Produtos do pedido</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+          Selecione o produto e <strong>bipe a etiqueta da peça</strong> (gerada pelo sistema de pedidos) — a leitura adiciona o produto automaticamente. Cada produto/etiqueta é individual. Sem leitor, deixe a etiqueta em branco e vincule depois.
+        </div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:1/-1"><label>Produto <span style="font-weight:400;text-transform:none;color:var(--text3)">(da Estrutura do Produto)</span></label>
+            <select id="fn-produto" onchange="toggleProdutoLivre()"><option value="">Carregando...</option></select>
+            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px">
+          </div>
+          <div class="form-group"><label>Etiqueta da peça (bipe aqui)</label>
+            <input type="text" id="fn-etiqueta" placeholder="Aguardando leitura..." autocomplete="off"
+              style="font-family:monospace;letter-spacing:.05em;border-color:var(--red)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarProdutoPedido();}">
+          </div>
+          <div class="form-group"><label>&nbsp;</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px;padding-top:9px">
               <input type="checkbox" id="fn-especial" style="width:15px;height:15px;accent-color:var(--red)">
-              <span>★ <strong>Peça especial</strong> — atenção redobrada ao prazo (ex.: pintura personalizada)</span>
+              <span>★ <strong>Peça especial</strong> — atenção ao prazo</span>
             </label>
           </div>
-          <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="fn-obs" rows="2"></textarea></div>
         </div>
-        <div style="margin-top:16px;display:flex;gap:8px">
-          <button class="btn btn-red" onclick="salvarNovo()">Salvar pedido</button>
-          <button class="btn btn-outline" onclick="limparForm()">Limpar</button>
-        </div>
+        <button class="btn btn-black" style="margin-top:10px" onclick="adicionarProdutoPedido()">+ Adicionar produto</button>
+
+        <div id="fn-lista-produtos" style="margin-top:14px"></div>
+      </div>
+
+      <div style="max-width:680px;display:flex;gap:8px">
+        <button class="btn btn-red" onclick="salvarNovo()" id="fn-salvar">Salvar pedido</button>
+        <button class="btn btn-outline" onclick="limparForm()">Limpar tudo</button>
       </div>
     </div>
 

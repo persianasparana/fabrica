@@ -167,6 +167,7 @@ function goTo(page) {
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
+  if (page === 'novo') renderProdutosPedido();
   if (page === 'bip') setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100);
 }
 
@@ -641,6 +642,7 @@ function openDetail(id) {
             <span style="flex:1;font-family:monospace;min-width:120px">${p.cod_barras ? esc(p.cod_barras) : '<span style="color:var(--text3)">sem etiqueta</span>'}</span>
             ${p.conclusao ? `<span class="st st-ok">✓ ${fmtDate(p.conclusao)}</span>` : '<span class="st st-producao">pendente</span>'}
             ${p.cod_barras && !p.conclusao ? `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px" onclick="desvincularPeca(${p.id})">desvincular</button>` : ''}
+            ${!p.cod_barras && !p.conclusao ? `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px;color:var(--blue);border-color:var(--blue)" onclick="vincularPecaManual(${p.id})">vincular etiqueta</button>` : ''}
             ${!p.conclusao
               ? `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px;color:var(--green);border-color:var(--green)" onclick="baixaPeca(${p.id})">dar baixa</button>`
               : `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px" onclick="reabrirPeca(${p.id})">reabrir</button>`}
@@ -667,6 +669,11 @@ async function atualizarPeca(id, body, msg) {
     if (editingId) openDetail(editingId);
     toast(msg);
   } catch (e) { toast('Erro: ' + e.message); }
+}
+function vincularPecaManual(id) {
+  const cod = prompt('Bipe ou digite o código da etiqueta:');
+  if (!cod || !cod.trim()) return;
+  atualizarPeca(id, { cod_barras: cod.trim() }, 'Etiqueta vinculada à peça.');
 }
 function desvincularPeca(id) {
   if (confirm('Desvincular a etiqueta desta peça?')) atualizarPeca(id, { cod_barras: null }, 'Etiqueta desvinculada.');
@@ -731,50 +738,119 @@ async function excluir(id) {
 }
 
 // ─── NOVO PEDIDO ─────────────────────────────────────────────────────────────
-async function salvarNovo() {
+// ─── NOVO PEDIDO: vários produtos, etiqueta bipada na adição ─────────────────
+let pedidoProdutos = [];
+
+function adicionarProdutoPedido() {
   const sel = document.getElementById('fn-produto');
   const livre = document.getElementById('fn-produto-livre');
-  let produto = sel.value === '__livre__' ? livre.value.trim().toUpperCase() : sel.value;
+  const etiquetaEl = document.getElementById('fn-etiqueta');
+  const produto = sel.value === '__livre__' ? livre.value.trim().toUpperCase() : sel.value;
   let produto_id = null;
   if (sel.value && sel.value !== '__livre__') {
     const opt = sel.options[sel.selectedIndex];
     produto_id = opt && opt.dataset.id ? Number(opt.dataset.id) : null;
   }
-  const pedido = document.getElementById('fn-pedido').value.trim();
-  const dataCliente = document.getElementById('fn-data-cliente').value;
-  if (!produto || !pedido || !dataCliente) { toast('Preencha produto, pedido e data do cliente.'); return; }
-  const payload = {
+  if (!produto) { toast('Selecione o produto antes de adicionar.'); sel.focus(); return; }
+
+  const etiqueta = etiquetaEl.value.trim();
+  if (etiqueta && pedidoProdutos.some(p => p.etiqueta === etiqueta)) {
+    toast('Esta etiqueta já foi bipada neste pedido.');
+    etiquetaEl.select();
+    return;
+  }
+  if (etiqueta && DB.some(i => (i.pecas || []).some(p => p.cod_barras === etiqueta))) {
+    toast('Esta etiqueta já está vinculada a uma peça de outro pedido.');
+    etiquetaEl.select();
+    return;
+  }
+
+  pedidoProdutos.push({
     produto,
     produto_id,
+    etiqueta: etiqueta || null,
+    especial: document.getElementById('fn-especial').checked,
+  });
+  etiquetaEl.value = '';
+  document.getElementById('fn-especial').checked = false;
+  renderProdutosPedido();
+  etiquetaEl.focus(); // próxima leitura (mesmo produto selecionado = sequência rápida)
+}
+
+function removerProdutoPedido(ix) {
+  pedidoProdutos.splice(ix, 1);
+  renderProdutosPedido();
+}
+
+function renderProdutosPedido() {
+  const el = document.getElementById('fn-lista-produtos');
+  if (!el) return;
+  if (!pedidoProdutos.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Nenhum produto adicionado ainda.</div>';
+  } else {
+    el.innerHTML = `
+      <table style="width:100%">
+        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Etiqueta</th><th style="width:70px"></th></tr></thead>
+        <tbody>
+          ${pedidoProdutos.map((p, ix) => `
+            <tr>
+              <td>${ix + 1}</td>
+              <td class="td-produto">${p.especial ? '<span class="st st-especial">★ ESPECIAL</span> ' : ''}${esc(p.produto)}</td>
+              <td style="font-family:monospace">${p.etiqueta ? esc(p.etiqueta) : '<span style="color:var(--text3)">— vincular depois</span>'}</td>
+              <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="removerProdutoPedido(${ix})">remover</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+  const btn = document.getElementById('fn-salvar');
+  if (btn) btn.textContent = pedidoProdutos.length
+    ? `Salvar pedido (${pedidoProdutos.length} produto${pedidoProdutos.length > 1 ? 's' : ''})`
+    : 'Salvar pedido';
+}
+
+async function salvarNovo() {
+  const pedido = document.getElementById('fn-pedido').value.trim();
+  const dataCliente = document.getElementById('fn-data-cliente').value;
+  if (!pedido || !dataCliente) { toast('Preencha o nº do pedido e a data do cliente.'); return; }
+  if (!pedidoProdutos.length) { toast('Adicione pelo menos um produto ao pedido.'); return; }
+
+  const base = {
     pedido,
-    qnt: parseInt(document.getElementById('fn-qnt').value)||1,
+    qnt: 1,
     data_cliente: dataCliente,
     chegada_pcp: document.getElementById('fn-chegada').value || null,
     prev_producao: document.getElementById('fn-prev-prod').value || null,
     tipo: document.getElementById('fn-tipo').value,
     motivo_atraso: document.getElementById('fn-motivo').value,
     observacoes: document.getElementById('fn-obs').value.trim(),
-    especial: document.getElementById('fn-especial').checked,
   };
+  const itens = pedidoProdutos.map(p => Object.assign({}, base, {
+    produto: p.produto,
+    produto_id: p.produto_id,
+    especial: p.especial,
+    etiqueta: p.etiqueta || undefined,
+  }));
+
   try {
-    const r = await api('pcp/itens', { method: 'POST', body: payload });
-    DB.push(normalizarItem(r.item));
+    const r = await api('pcp/itens/lote', { method: 'POST', body: { itens } });
+    await carregarDados();
     renderAll();
     limparForm();
-    toast(`Pedido ${pedido} cadastrado com sucesso.`);
+    toast(`Pedido ${pedido} cadastrado com ${r.count} produto(s).`);
     goTo('fila');
   } catch (e) { toast('Erro ao cadastrar: ' + e.message); }
 }
 
 function limparForm() {
-  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre'].forEach(id => document.getElementById(id).value = '');
+  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fn-produto').value = '';
   document.getElementById('fn-produto-livre').style.display = 'none';
-  document.getElementById('fn-qnt').value = 1;
   document.getElementById('fn-data-cliente').value = '';
   document.getElementById('fn-tipo').value = 'Produção nova';
   document.getElementById('fn-motivo').value = '';
   document.getElementById('fn-especial').checked = false;
+  pedidoProdutos = [];
+  renderProdutosPedido();
 }
 
 function toggleProdutoLivre() {
@@ -1283,27 +1359,14 @@ document.getElementById('pdf-modal-overlay').addEventListener('click', e => {
 // ─── BIPAGEM ─────────────────────────────────────────────────────────────────
 let bipTimer = null;
 let bipSessao = [];
-let bipModo = 'baixa'; // 'baixa' (embalagem) | 'entrada' (vincular etiquetas no PCP)
-
-function setBipModo(m) {
-  bipModo = m;
-  document.getElementById('bip-modo-baixa').className = 'btn ' + (m === 'baixa' ? 'btn-red' : 'btn-outline');
-  document.getElementById('bip-modo-entrada').className = 'btn ' + (m === 'entrada' ? 'btn-red' : 'btn-outline');
-  document.getElementById('bip-entrada-pedido-wrap').style.display = m === 'entrada' ? 'block' : 'none';
-  document.getElementById('bip-help').textContent = m === 'baixa'
-    ? 'Embalagem: bipe a etiqueta da peça produzida para dar baixa'
-    : 'Entrada PCP: informe o pedido e bipe as etiquetas para vincular às peças';
-  document.getElementById('bip-resultado').innerHTML = '';
-  const alvo = m === 'entrada' && !document.getElementById('bip-entrada-pedido').value.trim()
-    ? 'bip-entrada-pedido' : 'bip-input';
-  setTimeout(() => document.getElementById(alvo)?.focus(), 50);
-}
 
 function bipDigitado() {
   clearTimeout(bipTimer);
   bipTimer = setTimeout(processBip, 1500);
 }
 
+// Embalagem: cada bip dá baixa em UMA peça (a vinculação da etiqueta é feita
+// no cadastro do pedido, pelo operador do PCP).
 async function processBip() {
   clearTimeout(bipTimer);
   const input = document.getElementById('bip-input');
@@ -1312,13 +1375,18 @@ async function processBip() {
   input.value = '';
   input.focus();
 
-  if (bipModo === 'entrada') return processBipEntrada(codigo);
-
-  // Modo embalagem: etiqueta vinculada -> baixa da peça
   try {
     const r = await api('pcp/bip', { method: 'POST', body: { codigo } });
     if (r.acao === 'desconhecido') {
-      showBipVinculacao(codigo);
+      const res = document.getElementById('bip-resultado');
+      if (res) res.innerHTML = `
+        <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:16px 20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Etiqueta não vinculada</div>
+          <div style="font-size:12px;color:var(--text2)">
+            O código <strong>${esc(codigo)}</strong> não está vinculado a nenhuma peça.<br>
+            Procure o operador do PCP para vincular a etiqueta no cadastro do pedido.
+          </div>
+        </div>`;
       return;
     }
     const item = aplicarItemAtualizado(r.item);
@@ -1328,43 +1396,15 @@ async function processBip() {
   } catch (e) { toast('Erro na bipagem: ' + e.message); }
 }
 
-// Modo entrada PCP: cada bip vincula a etiqueta à próxima peça livre do pedido
-async function processBipEntrada(codigo) {
-  const pedidoEl = document.getElementById('bip-entrada-pedido');
-  const pedido = pedidoEl.value.trim();
-  if (!pedido) {
-    toast('Informe o número do pedido antes de bipar as etiquetas.');
-    pedidoEl.focus();
-    return;
-  }
-  try {
-    const r = await api('pcp/bip/vincular', { method: 'POST', body: { codigo, pedido } });
-    const item = aplicarItemAtualizado(r.item);
-    document.getElementById('bip-entrada-progresso').innerHTML =
-      `Pedido <strong>${esc(pedido)}</strong>: ${r.progresso.vinculadas} de ${r.progresso.total} etiquetas vinculadas`;
-    showBipResultado('vinculada', item, codigo, r.peca_numero);
-    addBipHistorico('vinculada', item, r.peca_numero);
-    renderAll();
-  } catch (e) {
-    const res = document.getElementById('bip-resultado');
-    if (res) res.innerHTML = `
-      <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:14px 18px;margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ ${esc(e.message)}</div>
-      </div>`;
-  }
-}
-
 function showBipResultado(tipo, item, codigo, pecaNumero) {
   const res = document.getElementById('bip-resultado');
   if (!res) return;
   const done = pecasConcluidas(item), total = pecasTotal(item);
   const cfg = {
-    vinculada: { bg:'var(--blue-bg)',  border:'#1976D2',       icon:'🏷️', cor:'var(--blue)',
-                 titulo:'Etiqueta vinculada — entrada no PCP registrada' },
-    baixa:     { bg:'var(--green-bg)', border:'var(--green)',  icon:'✅', cor:'var(--green)',
-                 titulo: done >= total ? 'Baixa registrada — todas as peças do item concluídas!' : 'Baixa de produção registrada' },
-    jafoi:     { bg:'var(--gray-bg)',  border:'var(--border)', icon:'ℹ️', cor:'var(--text3)',
-                 titulo:'Esta peça já teve baixa' },
+    baixa: { bg:'var(--green-bg)', border:'var(--green)',  icon:'✅', cor:'var(--green)',
+             titulo: done >= total ? 'Baixa registrada — todas as peças do item concluídas!' : 'Baixa de produção registrada' },
+    jafoi: { bg:'var(--gray-bg)',  border:'var(--border)', icon:'ℹ️', cor:'var(--text3)',
+             titulo:'Esta peça já teve baixa' },
   };
   const c = cfg[tipo] || cfg.jafoi;
   res.innerHTML = `
@@ -1376,48 +1416,8 @@ function showBipResultado(tipo, item, codigo, pecaNumero) {
         Pedido ${esc(item.pedido)} · ${done}/${total} peças com baixa · Cliente: ${fmtDate(item.data_cliente)}
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px">Cód: ${esc(codigo)}</div>
-      ${tipo !== 'jafoi' ? `<button class="btn btn-outline" style="margin-top:10px;font-size:11px" onclick="openDetail(${item.id})">✏ Ver peças / editar item</button>` : ''}
     </div>`;
   setTimeout(() => { if (res) res.innerHTML = ''; }, 6000);
-}
-
-// Etiqueta desconhecida no modo embalagem: oferece vinculação rápida
-function showBipVinculacao(codigo) {
-  const res = document.getElementById('bip-resultado');
-  if (!res) return;
-  res.innerHTML = `
-    <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:16px 20px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Etiqueta não vinculada</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-        O código <strong>${esc(codigo)}</strong> não está vinculado a nenhuma peça.<br>
-        Informe o pedido para vincular agora (ou use o modo Entrada PCP):
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="text" id="bip-vin-pedido" placeholder="Nº do pedido (ex: 19195)"
-          style="flex:1;min-width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit"
-          onkeydown="if(event.key==='Enter') confirmarVinculacao('${esc(codigo)}')">
-        <button class="btn btn-red" onclick="confirmarVinculacao('${esc(codigo)}')">Vincular etiqueta</button>
-        <button class="btn btn-outline" onclick="document.getElementById('bip-resultado').innerHTML=''">Cancelar</button>
-      </div>
-      <div id="bip-vin-erro" style="color:var(--red);font-size:11px;margin-top:6px;display:none"></div>
-    </div>`;
-  setTimeout(() => document.getElementById('bip-vin-pedido')?.focus(), 50);
-}
-
-async function confirmarVinculacao(codigo) {
-  const pedidoVal = document.getElementById('bip-vin-pedido')?.value.trim();
-  const erroEl = document.getElementById('bip-vin-erro');
-  if (!pedidoVal) { erroEl.textContent='Digite o número do pedido.'; erroEl.style.display='block'; return; }
-  try {
-    const r = await api('pcp/bip/vincular', { method: 'POST', body: { codigo, pedido: pedidoVal } });
-    const item = aplicarItemAtualizado(r.item);
-    showBipResultado('vinculada', item, codigo, r.peca_numero);
-    addBipHistorico('vinculada', item, r.peca_numero);
-    renderAll();
-  } catch (e) {
-    erroEl.textContent = e.message;
-    erroEl.style.display = 'block';
-  }
 }
 
 function addBipHistorico(tipo, item, pecaNumero) {
@@ -1425,21 +1425,16 @@ function addBipHistorico(tipo, item, pecaNumero) {
   bipSessao.unshift({tipo, item:{...item}, pecaNumero, hora});
   const el = document.getElementById('bip-historico');
   if (!el) return;
-  const icons = {vinculada:'🏷️', baixa:'✅', jafoi:'ℹ️'};
-  const labels = {vinculada:'Etiqueta vinculada', baixa:'Baixa registrada', jafoi:'Já tinha baixa'};
+  const icons = {baixa:'✅', jafoi:'ℹ️'};
+  const labels = {baixa:'Baixa registrada', jafoi:'Já tinha baixa'};
   el.innerHTML = bipSessao.slice(0,20).map((b) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px"
-      onclick="openDetail(${b.item.id})"
-      onmouseover="this.style.background='var(--gray-bg)'" onmouseout="this.style.background='transparent'">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);border-radius:4px">
       <span style="font-size:15px">${icons[b.tipo]||'•'}</span>
       <div style="flex:1">
         <div style="font-weight:700;font-size:12px">${b.item.especial ? '★ ' : ''}${esc(b.item.produto)}${b.pecaNumero ? ` — peça #${b.pecaNumero}` : ''}</div>
         <div style="font-size:11px;color:var(--text3)">Ped. ${esc(b.item.pedido)} · ${labels[b.tipo]||b.tipo}</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:11px;color:var(--text3)">${b.hora}</div>
-        <div style="font-size:10px;color:var(--red);margin-top:2px">Editar ›</div>
-      </div>
+      <div style="font-size:11px;color:var(--text3)">${b.hora}</div>
     </div>`).join('');
 }
 

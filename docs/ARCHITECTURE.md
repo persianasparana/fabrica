@@ -51,12 +51,13 @@ apps da Persianas Paraná.
 - **Um serviço, um login.** PCP e Qualidade compartilham `users` e a sessão
   (cookie por domínio). Papéis (`role`) permitem restringir acesso por sistema
   no futuro.
-- **PCP em tabelas reais, com peças individuais.** Cada item de planejamento
-  (produto + qnt) gera `qnt` peças (`pcp_pecas`). A etiqueta — gerada pelo
-  sistema de pedidos — é vinculada à peça na entrada do PCP; a embalagem bipa
-  para dar baixa daquela peça (atômico). A conclusão do item é **derivada**:
-  fecha quando todas as peças têm baixa. Importação em lote roda em transação
-  única.
+- **PCP em tabelas reais, com peças individuais.** Cada produto adicionado a um
+  pedido é um item individual com sua peça (`pcp_pecas`). A etiqueta — gerada
+  pelo sistema de pedidos — é **bipada no cadastro do pedido** (ou vinculada
+  depois no detalhe do item); a tela de Bipagem é exclusiva da **embalagem**,
+  que bipa para dar baixa daquela peça (atômico). A conclusão do item é
+  **derivada**: fecha quando todas as peças têm baixa. Importação em lote roda
+  em transação única.
 - **Estrutura do produto como fonte.** O cadastro de novo pedido seleciona o
   produto da estrutura (vínculo `produto_id`); fórmulas de corte ficam como
   texto legível (`L - 2.2`) e os cálculos especiais das PH (cordas/furos) são

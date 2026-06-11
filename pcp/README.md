@@ -19,9 +19,9 @@ fórmulas de corte e componentes/BOM).
 | **Alertas** | Pedidos vencidos e prestes a vencer |
 | **Buscar Pedido** | Busca por número de pedido, produto ou observações |
 | **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
-| **Bipagem** | Dois modos: **Entrada PCP** (vincula a etiqueta de cada peça — gerada pelo sistema de pedidos — à próxima peça livre do pedido) e **Embalagem** (bipar a etiqueta dá baixa individual daquela peça). O item conclui automaticamente quando todas as peças têm baixa |
+| **Bipagem** | Exclusiva da **embalagem**: bipar a etiqueta dá **baixa individual** daquela peça. O item conclui automaticamente quando todas as peças têm baixa |
 | **Estrutura do Produto** | Catálogo oficial: fórmulas de corte (`L − 2.2`, `A + 15`…) e componentes (BOM) por família — alimenta a lista de produtos do novo pedido. Produtos podem ser criados/editados/desativados |
-| **Novo Pedido** | Cadastro com produto selecionado da Estrutura do Produto (ou texto livre); cada item gera `qnt` peças individuais; marcação **★ peça especial** (ex.: pintura personalizada) com destaque e prioridade |
+| **Novo Pedido** | Em 2 etapas: dados do pedido → adição de **vários produtos**, um a um, **bipando a etiqueta** (do sistema de pedidos) na adição para vincular individualmente; **★ peça especial** por produto. Etiqueta pode ficar pendente e ser vinculada depois no detalhe do item |
 | **Importação** | PDF da ordem de produção (pdf.js local), Excel/CSV (SheetJS local) e JSON colado — com tela de revisão antes de salvar |
 | **Exportação** | CSV compatível com Excel |
 
