@@ -13,7 +13,7 @@ Nginx, no subpath `/fabrica/`:
 
 | Sistema | URL | Público-alvo |
 |---|---|---|
-| **PCP — Produção** | `https://192.168.0.207/fabrica/pcp/` | Chão de fábrica / planejamento (tema escuro, acento dourado) |
+| **PCP — Produção** | `https://192.168.0.207/fabrica/pcp/` | Chão de fábrica / planejamento (tema claro, acento dourado) |
 | **Qualidade** | `https://192.168.0.207/fabrica/qualidade/` | Gestão de não conformidades (tema claro, acento vermelho) |
 | API (interna) | `https://192.168.0.207/fabrica/api/...` | Consumida pelos dois frontends |
 

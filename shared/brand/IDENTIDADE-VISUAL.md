@@ -36,7 +36,8 @@
 
 **Regra nos sistemas:** roxo é banido. Verde/âmbar/azul apenas como cores
 semânticas de status (ver `tokens.css`). Acentos por sistema: Agenda = dourado,
-Logística/Qualidade = vermelho, PCP = dourado sobre preto.
+Logística/Qualidade = vermelho, PCP = dourado (escurecido `#87794C` quando for
+texto/botão sobre fundo claro, para manter contraste).
 
 ## 3. Tipografia (oficial)
 

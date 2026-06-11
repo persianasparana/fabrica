@@ -903,30 +903,33 @@ const PRODUCT_CATALOG = {
 function ph25NumLaminas(A) { return Math.max(0, Math.round(A * 46 + 1)); }
 function ph50NumLaminas(A) { return Math.max(0, Math.round((A - 0.05) / 0.044)); }
 
+// Cores p/ FUNDO CLARO, alinhadas aos tokens da marca (roxo é banido pelo
+// brandguide — Motorizada usa o azul institucional).
 const FAMILY_META = {
-  SOFT:          { label: "Soft", color: "#d97706", icon: "S" },
-  PREMIUM:       { label: "Premium", color: "#0891b2", icon: "P" },
-  MOTORIZADAS:   { label: "Motorizada", color: "#7c3aed", icon: "M" },
-  INTERMEDIARIO: { label: "Intermediária", color: "#65a30d", icon: "I" },
-  ACOPLADA:      { label: "Acoplada", color: "#0d9488", icon: "A" },
-  ROMANA:        { label: "Romana/Painel", color: "#c2410c", icon: "R" },
+  SOFT:          { label: "Soft", color: "#B45309", icon: "S" },
+  PREMIUM:       { label: "Premium", color: "#0E7490", icon: "P" },
+  MOTORIZADAS:   { label: "Motorizada", color: "#1E40AF", icon: "M" },
+  INTERMEDIARIO: { label: "Intermediária", color: "#4D7C0F", icon: "I" },
+  ACOPLADA:      { label: "Acoplada", color: "#0F766E", icon: "A" },
+  ROMANA:        { label: "Romana/Painel", color: "#C2410C", icon: "R" },
   HORIZONTAL:    { label: "Horizontal (PH)", color: "#475569", icon: "H" },
 };
 
+// Texto escuro sobre tinta clara (tokens semânticos); Expedido = dourado da marca.
 const STATUS_META = {
-  pendente:    { label: "Pendente",     color: "#94a3b8", bg: "#1e293b" },
-  cortando:    { label: "Em Corte",     color: "#fbbf24", bg: "#451a03" },
-  montando:    { label: "Em Montagem",  color: "#60a5fa", bg: "#1e3a8a" },
-  pronto:      { label: "Pronto",       color: "#34d399", bg: "#064e3b" },
-  expedido:    { label: "Expedido",     color: "#a78bfa", bg: "#2e1065" },
-  cancelado:   { label: "Cancelado",    color: "#f87171", bg: "#450a0a" },
+  pendente:    { label: "Pendente",     color: "#606060", bg: "#F0F1F3" },
+  cortando:    { label: "Em Corte",     color: "#B45309", bg: "#FEF3C7" },
+  montando:    { label: "Em Montagem",  color: "#1E40AF", bg: "#DBEAFE" },
+  pronto:      { label: "Pronto",       color: "#15803D", bg: "#DCFCE7" },
+  expedido:    { label: "Expedido",     color: "#87794C", bg: "#F1E9CF" },
+  cancelado:   { label: "Cancelado",    color: "#B91C1C", bg: "#FEE2E2" },
 };
 
 const PRIORITY_META = {
-  baixa:    { label: "Baixa",    color: "#64748b" },
-  normal:   { label: "Normal",   color: "#f59e0b" },
-  alta:     { label: "Alta",     color: "#ef4444" },
-  urgente:  { label: "Urgente",  color: "#dc2626" },
+  baixa:    { label: "Baixa",    color: "#606060" },
+  normal:   { label: "Normal",   color: "#87794C" },
+  alta:     { label: "Alta",     color: "#C1212D" },
+  urgente:  { label: "Urgente",  color: "#82131C" },
 };
 
 const BARRA_PADRAO_CM = 600; // 6 metros
@@ -1149,7 +1152,7 @@ const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(3
 // =====================================================================
 //                          COMPONENTES
 // =====================================================================
-function Badge({ children, color = "#f59e0b", bg }) {
+function Badge({ children, color = "#87794C", bg }) {
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded-sm border"
@@ -1166,7 +1169,7 @@ function StatusBadge({ status }) {
 }
 
 function FamilyChip({ family }) {
-  const m = FAMILY_META[family] || { label: family, color: "#94a3b8", icon: "?" };
+  const m = FAMILY_META[family] || { label: family, color: "#606060", icon: "?" };
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] font-mono">
       <span
@@ -1552,7 +1555,7 @@ function OrderDetail({ order, onBack, onEdit, onChangeStatus, onDelete }) {
               <span className="text-amber-500 font-mono">#</span>{order.orderNumber}
             </h2>
             <StatusBadge status={order.status} />
-            <Badge color={PRIORITY_META[order.priority]?.color || "#94a3b8"}>
+            <Badge color={PRIORITY_META[order.priority]?.color || "#606060"}>
               {PRIORITY_META[order.priority]?.label || order.priority}
             </Badge>
           </div>
@@ -2207,7 +2210,7 @@ function OrderList({ orders, onOpen, onNew }) {
                     <td className="py-2 px-3 text-stone-200">{o.client || <span className="text-stone-600">—</span>}</td>
                     <td className="text-center py-2 px-3"><StatusBadge status={o.status} /></td>
                     <td className="text-center py-2 px-3">
-                      <Badge color={PRIORITY_META[o.priority]?.color || "#94a3b8"}>
+                      <Badge color={PRIORITY_META[o.priority]?.color || "#606060"}>
                         {PRIORITY_META[o.priority]?.label || o.priority}
                       </Badge>
                     </td>
@@ -2865,25 +2868,25 @@ function IndicadoresView({ orders, apontamentos, config }) {
           icon={Target} label="OTIF"
           value={otif.pct !== null ? `${fmt(otif.pct, 1)}%` : "—"}
           sub={`${otif.no_prazo} / ${otif.total} pedidos no prazo`}
-          color={otif.pct === null ? "#64748b" : otif.pct >= 95 ? "#34d399" : otif.pct >= 80 ? "#fbbf24" : "#f87171"}
+          color={otif.pct === null ? "#606060" : otif.pct >= 95 ? "#15803D" : otif.pct >= 80 ? "#B45309" : "#C1212D"}
         />
         <KpiCard
           icon={Clock} label="Lead Time Real"
           value={leadTimeReal !== null ? `${fmt(leadTimeReal, 1)} d` : "—"}
           sub="Criação → Expedição (média)"
-          color="#60a5fa"
+          color="#1E40AF"
         />
         <KpiCard
           icon={Gauge} label="OEE"
           value={oee ? `${fmt(oee.oee, 1)}%` : "—"}
           sub={oee ? `Q ${fmt(oee.qualidade, 0)}% · E ${fmt(oee.eficiencia, 0)}% · D ${fmt(oee.disponibilidade, 0)}%` : "Sem apontamentos"}
-          color={!oee ? "#64748b" : oee.oee >= 75 ? "#34d399" : oee.oee >= 60 ? "#fbbf24" : "#f87171"}
+          color={!oee ? "#606060" : oee.oee >= 75 ? "#15803D" : oee.oee >= 60 ? "#B45309" : "#C1212D"}
         />
         <KpiCard
           icon={FileCheck} label="Aderência Plano"
           value={aderencia.pct !== null ? `${fmt(aderencia.pct, 0)}%` : "—"}
           sub={`${aderencia.realizado} / ${aderencia.planejado} peças na semana`}
-          color={aderencia.pct === null ? "#64748b" : aderencia.pct >= 90 ? "#34d399" : aderencia.pct >= 70 ? "#fbbf24" : "#f87171"}
+          color={aderencia.pct === null ? "#606060" : aderencia.pct >= 90 ? "#15803D" : aderencia.pct >= 70 ? "#B45309" : "#C1212D"}
         />
       </div>
 
@@ -3155,7 +3158,7 @@ function PlanoMestreView({ orders, config }) {
 
 function CapKpi({ label, carga, cap }) {
   const pct = cap > 0 ? (carga / cap) * 100 : 0;
-  const color = pct > 100 ? "#f87171" : pct > 85 ? "#fbbf24" : "#34d399";
+  const color = pct > 100 ? "#C1212D" : pct > 85 ? "#B45309" : "#15803D";
   return (
     <div className="border border-stone-800 p-3 rounded-sm bg-stone-950">
       <div className="text-[10px] font-mono uppercase tracking-wider text-stone-500">{label}</div>
@@ -3518,13 +3521,15 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
     <div className="min-h-screen bg-stone-950 text-stone-100" style={{ fontFamily: "'Galano Grotesque', 'Manrope', system-ui, sans-serif" }}>
       <style>{`
         /* Galano Grotesque = fonte oficial (OTFs só no servidor); Manrope =
-           fallback empacotado via @fontsource em src/index.css (sem CDN) */
+           fallback empacotado via @fontsource em src/index.css (sem CDN).
+           Tudo na fonte da marca — JetBrains Mono fica só em dados numéricos
+           pontuais (cronômetro), alinhado ao visual dos demais sistemas. */
         * { font-family: 'Galano Grotesque', 'Manrope', system-ui, sans-serif; }
-        .font-mono, table, input, select, textarea, button { font-family: 'JetBrains Mono', monospace; }
+        table { font-variant-numeric: tabular-nums; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0a0a0a; }
-        ::-webkit-scrollbar-thumb { background: #44403c; border-radius: 0; }
-        ::-webkit-scrollbar-thumb:hover { background: #78716c; }
+        ::-webkit-scrollbar-track { background: #F0F1F3; }
+        ::-webkit-scrollbar-thumb { background: #CCCCCC; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
         .tabular-nums { font-variant-numeric: tabular-nums; }
         @media print {
           aside, header.main-header, .no-print { display: none !important; }
@@ -3544,7 +3549,7 @@ export default function App({ currentUser = null, onLogout = () => {} }) {
             >
               <Menu size={20} />
             </button>
-            <img src="./brand/logos/logo-branco.png" alt="Persianas Paraná" className="h-7 w-auto" />
+            <img src="./brand/logos/logo-preto.png" alt="Persianas Paraná" className="h-7 w-auto" />
             <div>
               <h1 className="text-base font-bold leading-tight text-stone-100">
                 PCP <span className="text-amber-500">/</span> Produção

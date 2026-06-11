@@ -32,7 +32,7 @@ export default function Login({ onSuccess }) {
         className="w-full max-w-sm bg-stone-900/60 border border-stone-800 rounded-lg p-8"
       >
         <div className="flex flex-col items-center mb-6 text-center">
-          <img src="./brand/logos/logo-branco.png" alt="Persianas Paraná" className="h-9 w-auto mb-4" />
+          <img src="./brand/logos/logo-preto.png" alt="Persianas Paraná" className="h-9 w-auto mb-4" />
           <h1 className="text-lg font-bold tracking-tight">
             PCP <span className="text-amber-500">/</span> Produção
           </h1>

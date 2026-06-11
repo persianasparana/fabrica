@@ -5,8 +5,9 @@
    dourado #C6B784. Tipografia Manrope (substituta open-source da Galano
    Grotesque). Espelha shared/brand/palette.json e o pp-brand.css oficial.
 
-   Tema claro (Qualidade): acento VERMELHO (linha operacional).
-   Tema escuro (PCP):       acento DOURADO sobre preto; vermelho p/ alertas.
+   Tema claro (padrão dos sistemas): Qualidade = acento VERMELHO; PCP =
+   acento DOURADO (escurecido p/ contraste); vermelho p/ alertas.
+   O bloco de tema escuro segue disponível via [data-theme="dark"].
    ============================================================================ */
 
 :root {
