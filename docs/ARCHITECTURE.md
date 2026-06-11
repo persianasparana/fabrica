@@ -40,7 +40,8 @@ apps da Persianas Paraná.
 | `users` | Login compartilhado pelos dois sistemas (bcrypt). |
 | `login_attempts` | Rate limiting persistido (usuário + IP). |
 | `audit_log` | Auditoria (coluna `app` distingue pcp/qualidade). |
-| `pcp_itens` | Fila de produção do PCP (itens de pedido: datas, tipo, motivo, código de barras). |
+| `pcp_itens` | Fila de produção do PCP (itens de pedido: datas, tipo, motivo, ★ especial). |
+| `pcp_pecas` | Peças individuais por item (etiqueta única por peça + baixa própria). |
 | `pcp_produtos` | Estrutura do produto: fórmulas de corte e componentes (BOM) em JSONB. |
 | `nao_conformidades` | NCs do Qualidade (`setores`/`origens` em JSONB). |
 | `session` | Sessões (criada por `connect-pg-simple`). |
@@ -50,10 +51,12 @@ apps da Persianas Paraná.
 - **Um serviço, um login.** PCP e Qualidade compartilham `users` e a sessão
   (cookie por domínio). Papéis (`role`) permitem restringir acesso por sistema
   no futuro.
-- **PCP em tabelas reais.** A fila de produção (`pcp_itens`) e a estrutura do
-  produto (`pcp_produtos`) são tabelas normalizadas; a bipagem é atômica no
-  servidor (1º bip = entrada, 2º bip = conclusão) e a importação em lote roda
-  em transação única.
+- **PCP em tabelas reais, com peças individuais.** Cada item de planejamento
+  (produto + qnt) gera `qnt` peças (`pcp_pecas`). A etiqueta — gerada pelo
+  sistema de pedidos — é vinculada à peça na entrada do PCP; a embalagem bipa
+  para dar baixa daquela peça (atômico). A conclusão do item é **derivada**:
+  fecha quando todas as peças têm baixa. Importação em lote roda em transação
+  única.
 - **Estrutura do produto como fonte.** O cadastro de novo pedido seleciona o
   produto da estrutura (vínculo `produto_id`); fórmulas de corte ficam como
   texto legível (`L - 2.2`) e os cálculos especiais das PH (cordas/furos) são

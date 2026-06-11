@@ -104,7 +104,7 @@ export async function migrate() {
       tipo          VARCHAR(40) NOT NULL DEFAULT 'Produção nova',
       motivo_atraso VARCHAR(80) NOT NULL DEFAULT '',
       observacoes   TEXT NOT NULL DEFAULT '',
-      cod_barras    VARCHAR(64),
+      especial      BOOLEAN NOT NULL DEFAULT FALSE,
       created_by    BIGINT,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -112,7 +112,56 @@ export async function migrate() {
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_pedido ON pcp_itens (pedido)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_data_cliente ON pcp_itens (data_cliente)`);
-  await q(`CREATE INDEX IF NOT EXISTS idx_itens_cod_barras ON pcp_itens (cod_barras)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS especial BOOLEAN NOT NULL DEFAULT FALSE`);
+
+  // PCP: peças individuais — cada peça tem etiqueta própria (gerada pelo
+  // sistema de pedidos) e baixa de produção própria. O item agrega qnt peças.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_pecas (
+      id           BIGSERIAL PRIMARY KEY,
+      item_id      BIGINT NOT NULL REFERENCES pcp_itens(id) ON DELETE CASCADE,
+      numero       INTEGER NOT NULL,
+      cod_barras   VARCHAR(64) UNIQUE,
+      conclusao    DATE,
+      concluida_por BIGINT,
+      vinculada_em TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (item_id, numero)
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_pecas_item ON pcp_pecas (item_id)`);
+
+  // Upgrade do modelo anterior (etiqueta ficava no item): move o código para a
+  // peça 1 e gera as peças de itens que ainda não têm. Idempotente.
+  const { rows: temCodBarras } = await q(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'pcp_itens' AND column_name = 'cod_barras'
+  `);
+  if (temCodBarras.length) {
+    await q(`
+      INSERT INTO pcp_pecas (item_id, numero, cod_barras, conclusao)
+      SELECT i.id, gs.n,
+             CASE WHEN gs.n = 1 AND m.id IS NOT NULL THEN i.cod_barras END,
+             i.conclusao
+      FROM pcp_itens i
+      LEFT JOIN (
+        SELECT DISTINCT ON (cod_barras) id, cod_barras
+        FROM pcp_itens WHERE cod_barras IS NOT NULL ORDER BY cod_barras, id
+      ) m ON m.id = i.id
+      CROSS JOIN LATERAL generate_series(1, GREATEST(i.qnt, 1)) AS gs(n)
+      WHERE NOT EXISTS (SELECT 1 FROM pcp_pecas p WHERE p.item_id = i.id)
+    `);
+    await q(`ALTER TABLE pcp_itens DROP COLUMN cod_barras`);
+  } else {
+    await q(`
+      INSERT INTO pcp_pecas (item_id, numero, conclusao)
+      SELECT i.id, gs.n, i.conclusao
+      FROM pcp_itens i
+      CROSS JOIN LATERAL generate_series(1, GREATEST(i.qnt, 1)) AS gs(n)
+      WHERE NOT EXISTS (SELECT 1 FROM pcp_pecas p WHERE p.item_id = i.id)
+    `);
+  }
 
   // Qualidade: não conformidades
   await q(`

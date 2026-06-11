@@ -19,9 +19,9 @@ fórmulas de corte e componentes/BOM).
 | **Alertas** | Pedidos vencidos e prestes a vencer |
 | **Buscar Pedido** | Busca por número de pedido, produto ou observações |
 | **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
-| **Bipagem** | Leitor de código de barras: 1º bip = entrada no PCP, 2º bip = conclusão; vinculação de códigos a pedidos |
+| **Bipagem** | Dois modos: **Entrada PCP** (vincula a etiqueta de cada peça — gerada pelo sistema de pedidos — à próxima peça livre do pedido) e **Embalagem** (bipar a etiqueta dá baixa individual daquela peça). O item conclui automaticamente quando todas as peças têm baixa |
 | **Estrutura do Produto** | Catálogo oficial: fórmulas de corte (`L − 2.2`, `A + 15`…) e componentes (BOM) por família — alimenta a lista de produtos do novo pedido. Produtos podem ser criados/editados/desativados |
-| **Novo Pedido** | Cadastro com produto selecionado da Estrutura do Produto (ou texto livre) |
+| **Novo Pedido** | Cadastro com produto selecionado da Estrutura do Produto (ou texto livre); cada item gera `qnt` peças individuais; marcação **★ peça especial** (ex.: pintura personalizada) com destaque e prioridade |
 | **Importação** | PDF da ordem de produção (pdf.js local), Excel/CSV (SheetJS local) e JSON colado — com tela de revisão antes de salvar |
 | **Exportação** | CSV compatível com Excel |
 
@@ -40,7 +40,8 @@ pcp/public/
 
 ## Dados (PostgreSQL — ver `../server`)
 
-- `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, código de barras)
+- `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, ★ especial)
+- `pcp_pecas` — peças individuais de cada item (etiqueta única + baixa própria); a conclusão do item é derivada das peças
 - `pcp_produtos` — estrutura do produto (fórmulas de corte e BOM em JSONB)
 
 O seed inicial carrega a planilha oficial de planejamento (186 itens) e o

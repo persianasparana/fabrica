@@ -117,6 +117,11 @@
             <option value="Carry-over 2025">Carry-over 2025</option>
             <option value="Showroom">Showroom</option>
           </select>
+          <select id="fila-especial" onchange="renderFila()">
+            <option value="">Especiais e comuns</option>
+            <option value="especial">★ Somente especiais</option>
+            <option value="comum">Somente comuns</option>
+          </select>
           <select id="fila-situacao" onchange="renderFila()">
             <option value="">Concluídos + abertos</option>
             <option value="aberto">Somente em aberto</option>
@@ -178,7 +183,7 @@
               <tr>
                 <th style="width:180px;cursor:pointer" onclick="sortFila('produto')"><span id="sh-produto">Produto</span></th>
                 <th style="cursor:pointer" onclick="sortFila('pedido')"><span id="sh-pedido">Pedido</span></th>
-                <th>Qtd</th>
+                <th title="Peças com baixa / total">Peças</th>
                 <th style="cursor:pointer" onclick="sortFila('data_cliente')"><span id="sh-data_cliente">Data cliente</span></th>
                 <th style="cursor:pointer" onclick="sortFila('prev_producao')"><span id="sh-prev_producao">Prev. prod.</span></th>
                 <th style="cursor:pointer" onclick="sortFila('conclusao')"><span id="sh-conclusao">Conclusão</span></th>
@@ -251,8 +256,17 @@
             </div>
             <div>
               <div style="font-size:14px;font-weight:700">Leitor de código de barras</div>
-              <div style="font-size:11px;color:var(--text3)">Bipe a etiqueta — campo sempre ativo</div>
+              <div style="font-size:11px;color:var(--text3)" id="bip-help">Embalagem: bipe a etiqueta da peça produzida para dar baixa</div>
             </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="bip-modo-baixa" class="btn btn-red" style="flex:1;font-size:11px" onclick="setBipModo('baixa')">📦 Embalagem — baixa</button>
+            <button id="bip-modo-entrada" class="btn btn-outline" style="flex:1;font-size:11px" onclick="setBipModo('entrada')">📥 Entrada PCP — vincular</button>
+          </div>
+          <div id="bip-entrada-pedido-wrap" style="display:none;margin-bottom:10px">
+            <input type="text" id="bip-entrada-pedido" placeholder="Nº do pedido para vincular as etiquetas"
+              style="width:100%;padding:10px 12px;font-size:14px;border:2px solid #1976D2;border-radius:8px;outline:none;background:var(--blue-bg);color:var(--text);font-family:inherit">
+            <div id="bip-entrada-progresso" style="font-size:11px;color:var(--text2);margin-top:6px;text-align:center"></div>
           </div>
           <input type="text" id="bip-input"
             placeholder="Aguardando leitura..."
@@ -320,6 +334,12 @@
               <option>Solicitação do cliente</option><option>Aguardando material</option>
               <option>Aviso ao cliente pendente</option><option>Peça showroom</option><option>Outros</option>
             </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+              <input type="checkbox" id="fn-especial" style="width:15px;height:15px;accent-color:var(--red)">
+              <span>★ <strong>Peça especial</strong> — atenção redobrada ao prazo (ex.: pintura personalizada)</span>
+            </label>
           </div>
           <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="fn-obs" rows="2"></textarea></div>
         </div>

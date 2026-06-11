@@ -160,6 +160,7 @@ tbody td { padding: 8px 10px; white-space: nowrap; }
 .st-atencao { background: var(--amber-bg); color: var(--amber); }
 .st-producao { background: var(--blue-bg); color: var(--blue); }
 .st-gray { background: var(--gray-bg); color: var(--text3); }
+.st-especial { background: var(--black); color: var(--gold); border: 1px solid var(--gold); letter-spacing: .03em; }
 
 /* Tipo badges */
 .tp { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10px; white-space: nowrap; }

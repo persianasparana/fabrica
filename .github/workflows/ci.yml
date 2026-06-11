@@ -76,15 +76,28 @@ jobs:
           N=$(curl -s -c $J -b $J $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.length))')
           test "$N" = "186" || { echo "itens: esperado 186, veio $N"; exit 1; }
 
-          # Criar item + bipagem (vincular -> entrada -> conclusão)
-          ID=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"produto":"ROLO SOFT LISA","pedido":"99001","qnt":1,"data_cliente":"2026-12-01"}' \
-            $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
-          test -n "$ID" || { echo "criar item falhou"; exit 1; }
+          # Criar item especial com 2 peças + bipagem por peça
+          # (vincular etiqueta -> baixa da 1ª peça -> item segue aberto -> baixa da 2ª -> item concluído)
+          R=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"produto":"ROLO SOFT LISA","pedido":"99001","qnt":2,"data_cliente":"2026-12-01","especial":true}' \
+            $B/api/pcp/itens)
+          echo "$R" | grep -q '"especial":true' || { echo "criar item especial falhou: $R"; exit 1; }
+          N=$(echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).item.pecas.length))')
+          test "$N" = "2" || { echo "esperava 2 peças, veio $N"; exit 1; }
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"codigo":"CI-TESTE-1","pedido":"99001"}' $B/api/pcp/bip/vincular | grep -q '"acao":"entrada"' || { echo "vincular falhou"; exit 1; }
+            -d '{"codigo":"CI-ETQ-1","pedido":"99001"}' $B/api/pcp/bip/vincular | grep -q '"acao":"vinculada"' || { echo "vincular 1 falhou"; exit 1; }
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"codigo":"CI-TESTE-1"}' $B/api/pcp/bip | grep -q '"acao":"conclusao"' || { echo "bip conclusão falhou"; exit 1; }
+            -d '{"codigo":"CI-ETQ-2","pedido":"99001"}' $B/api/pcp/bip/vincular | grep -q '"acao":"vinculada"' || { echo "vincular 2 falhou"; exit 1; }
+          R=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-ETQ-1"}' $B/api/pcp/bip)
+          echo "$R" | grep -q '"acao":"baixa"' || { echo "baixa 1 falhou: $R"; exit 1; }
+          echo "$R" | grep -q '"conclusao":null' || { echo "item não deveria estar concluído (1/2): $R"; exit 1; }
+          R=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-ETQ-2"}' $B/api/pcp/bip)
+          echo "$R" | grep -q '"acao":"baixa"' || { echo "baixa 2 falhou"; exit 1; }
+          echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.item.conclusao ? 0 : 1)})' || { echo "item deveria estar concluído (2/2)"; exit 1; }
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-ETQ-1"}' $B/api/pcp/bip | grep -q '"acao":"jafoi"' || { echo "jafoi falhou"; exit 1; }
 
           # Qualidade segue funcionando
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \

@@ -47,7 +47,19 @@ function normalizarItem(i) {
     id: Number(i.id),
     produto_id: i.produto_id != null ? Number(i.produto_id) : null,
     qnt: Number(i.qnt) || 1,
+    especial: i.especial === true,
+    pecas: (i.pecas || []).map((p) => Object.assign({}, p, { id: Number(p.id) })),
   });
+}
+
+function pecasConcluidas(item) {
+  return (item.pecas || []).filter((p) => p.conclusao).length;
+}
+function pecasTotal(item) {
+  return (item.pecas || []).length || Number(item.qnt) || 1;
+}
+function badgeEspecial(item, estilo) {
+  return item.especial ? `<span class="st st-especial" style="${estilo || ''}">★ ESPECIAL</span> ` : '';
 }
 
 function aplicarItemAtualizado(item) {
@@ -128,8 +140,9 @@ function priorityOrder(item) {
   const o = {vencido:0,atencao:1,producao:2,atraso:3,ok:4,gray:5};
   const base = o[s] ?? 5;
   const dc = parseDate(item.data_cliente);
-  const ts = dc ? dc.getTime() : 9e15;
-  return base * 1e13 + ts;
+  // dias desde a época (inteiro pequeno) — peças especiais vêm antes no mesmo status
+  const dias = dc ? Math.round(dc.getTime() / 86400000) : 99999999;
+  return base * 1e10 + (item.especial ? 0 : 5e9) + dias;
 }
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -189,6 +202,7 @@ function renderPainel() {
     <div class="metric warn"><div class="metric-label">Atenção</div><div class="metric-value">${totalAtencao}</div><div class="metric-sub">vence em ≤3 dias</div></div>
     <div class="metric info"><div class="metric-label">Em produção</div><div class="metric-value">${totalAberto - totalVencido - totalAtencao}</div><div class="metric-sub">dentro do prazo</div></div>
     <div class="metric"><div class="metric-label">Concluídos</div><div class="metric-value">${concluidos.toLocaleString('pt-BR')}</div><div class="metric-sub">com data de conclusão</div></div>
+    <div class="metric warn"><div class="metric-label">★ Especiais</div><div class="metric-value">${DB.filter(i=>i.especial && !i.conclusao).length}</div><div class="metric-sub">em aberto — atenção ao prazo</div></div>
   `;
 
   function alertHTML(items, cls, dotCls, badgeCls, limit) {
@@ -201,7 +215,7 @@ function renderPainel() {
       return `<div class="alert-item ${cls}" onclick="openDetail(${item.id})">
         <div class="alert-dot ${dotCls}"></div>
         <div class="alert-content">
-          <div class="alert-produto">${esc(item.produto)}</div>
+          <div class="alert-produto">${badgeEspecial(item)}${esc(item.produto)}</div>
           <div class="alert-meta">Pedido ${esc(item.pedido)} · Cliente: ${dc} · Qtd: ${item.qnt}</div>
         </div>
         <span class="alert-badge ${badgeCls}">${diasTxt}</span>
@@ -237,7 +251,7 @@ function renderAlertas() {
       return `<div class="alert-item ${cls}" onclick="openDetail(${item.id})">
         <div class="alert-dot ${dotCls}"></div>
         <div class="alert-content">
-          <div class="alert-produto">${esc(item.produto)}</div>
+          <div class="alert-produto">${badgeEspecial(item)}${esc(item.produto)}</div>
           <div class="alert-meta">Ped. ${esc(item.pedido)} · Cliente: ${dc} · Qtd: ${item.qnt} · Tipo: ${esc(item.tipo)}</div>
           ${item.motivo_atraso ? `<div class="alert-meta" style="color:var(--amber)">Motivo: ${esc(item.motivo_atraso)}</div>` : ''}
         </div>
@@ -400,6 +414,7 @@ function renderFila() {
   const fs = document.getElementById('fila-status').value;
   const ft = document.getElementById('fila-tipo').value;
   const fsi = document.getElementById('fila-situacao').value;
+  const fe = document.getElementById('fila-especial').value;
 
   const dateRange = getDateFilterRange();
   let items = DB.filter(item => {
@@ -409,6 +424,8 @@ function renderFila() {
     if (ft && item.tipo !== ft) return false;
     if (fsi === 'aberto' && item.conclusao) return false;
     if (fsi === 'concluido' && !item.conclusao) return false;
+    if (fe === 'especial' && !item.especial) return false;
+    if (fe === 'comum' && item.especial) return false;
     if (!applyDateFilter(item, dateRange)) return false;
     return true;
   }).sort((a,b) => priorityOrder(a) - priorityOrder(b));
@@ -426,10 +443,11 @@ function renderFila() {
     const s = calcStatus(item);
     const sc = statusClass(s);
     const tc = tipoClass(item.tipo);
+    const done = pecasConcluidas(item), tot = pecasTotal(item);
     return `<tr>
-      <td class="td-produto">${esc(item.produto)}</td>
+      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)}</td>
       <td>${esc(item.pedido)}</td>
-      <td style="text-align:center">${item.qnt}</td>
+      <td style="text-align:center">${done > 0 && done < tot ? `<b style="color:var(--blue)">${done}/${tot}</b>` : tot}</td>
       <td>${fmtDate(item.data_cliente)}</td>
       <td>${fmtDate(item.prev_producao)}</td>
       <td>${fmtDate(item.conclusao)}</td>
@@ -457,10 +475,9 @@ function renderFila() {
 async function concluir(id) {
   const item = DB.find(i => i.id === id);
   if (!item) return;
-  const hoje = hojeISO();
   try {
-    await api('pcp/itens?id=' + id, { method: 'PUT', body: { conclusao: hoje } });
-    item.conclusao = hoje;
+    const r = await api('pcp/itens?id=' + id, { method: 'PUT', body: { conclusao: hojeISO() } });
+    aplicarItemAtualizado(r.item);
     renderFila();
     renderPainel();
     toast(`Pedido ${item.pedido} marcado como concluído.`);
@@ -498,7 +515,7 @@ function renderBusca() {
     const tc = tipoClass(item.tipo);
     return `<div class="search-result" onclick="openDetail(${item.id})">
       <div class="sr-header">
-        <div class="sr-produto">${esc(item.produto)}</div>
+        <div class="sr-produto">${badgeEspecial(item)}${esc(item.produto)}</div>
         <div style="display:flex;gap:6px">
           <span class="tp ${tc}">${esc(item.tipo)}</span>
           <span class="st ${sc}">${statusLabel(s)}</span>
@@ -607,8 +624,30 @@ function openDetail(id) {
         ${['Falta de material','Defeito de material','Ausência de colaborador','Pedido esquecido','Solicitação do cliente','Aguardando material','Aviso ao cliente pendente','Peça showroom','Outros'].map(m=>`<option ${item.motivo_atraso===m?'selected':''}>${m}</option>`).join('')}
       </select>
     </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+        <input type="checkbox" id="ed-especial" ${item.especial ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--red)">
+        <span>★ <strong>Peça especial</strong> — atenção redobrada ao prazo (ex.: pintura personalizada)</span>
+      </label>
+    </div>
     <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="ed-obs" rows="2">${esc(item.observacoes||'')}</textarea></div>
     <div class="form-group"><label>Status atual</label><div style="margin-top:4px"><span class="st ${sc}">${statusLabel(s)}</span></div></div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label>Peças e etiquetas (${pecasConcluidas(item)}/${pecasTotal(item)} com baixa)</label>
+      <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden">
+        ${(item.pecas || []).map(p => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px;flex-wrap:wrap">
+            <span style="font-weight:700;min-width:26px">#${p.numero}</span>
+            <span style="flex:1;font-family:monospace;min-width:120px">${p.cod_barras ? esc(p.cod_barras) : '<span style="color:var(--text3)">sem etiqueta</span>'}</span>
+            ${p.conclusao ? `<span class="st st-ok">✓ ${fmtDate(p.conclusao)}</span>` : '<span class="st st-producao">pendente</span>'}
+            ${p.cod_barras && !p.conclusao ? `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px" onclick="desvincularPeca(${p.id})">desvincular</button>` : ''}
+            ${!p.conclusao
+              ? `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px;color:var(--green);border-color:var(--green)" onclick="baixaPeca(${p.id})">dar baixa</button>`
+              : `<button class="btn btn-outline" style="padding:2px 7px;font-size:10px" onclick="reabrirPeca(${p.id})">reabrir</button>`}
+          </div>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">A etiqueta é vinculada na tela de Bipagem (modo Entrada PCP). A conclusão do item é automática quando todas as peças têm baixa.</div>
+    </div>
   `;
 
   document.getElementById('modal-footer').innerHTML = `
@@ -617,6 +656,26 @@ function openDetail(id) {
     <button class="btn btn-red" onclick="salvarEdicao()">Salvar alterações</button>
   `;
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function atualizarPeca(id, body, msg) {
+  try {
+    const r = await api('pcp/pecas?id=' + id, { method: 'PUT', body });
+    aplicarItemAtualizado(r.item);
+    renderAll();
+    if (currentPage === 'fila') renderFila();
+    if (editingId) openDetail(editingId);
+    toast(msg);
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+function desvincularPeca(id) {
+  if (confirm('Desvincular a etiqueta desta peça?')) atualizarPeca(id, { cod_barras: null }, 'Etiqueta desvinculada.');
+}
+function baixaPeca(id) {
+  atualizarPeca(id, { conclusao: hojeISO() }, 'Baixa registrada na peça.');
+}
+function reabrirPeca(id) {
+  if (confirm('Reabrir esta peça (remover a baixa)?')) atualizarPeca(id, { conclusao: null }, 'Peça reaberta.');
 }
 
 function openModal() {
@@ -647,10 +706,11 @@ async function salvarEdicao() {
     tipo: document.getElementById('ed-tipo').value,
     motivo_atraso: document.getElementById('ed-motivo').value,
     observacoes: document.getElementById('ed-obs').value.trim(),
+    especial: document.getElementById('ed-especial').checked,
   };
   try {
-    await api('pcp/itens?id=' + editingId, { method: 'PUT', body: payload });
-    Object.assign(item, payload);
+    const r = await api('pcp/itens?id=' + editingId, { method: 'PUT', body: payload });
+    aplicarItemAtualizado(r.item);
     renderAll();
     if (currentPage === 'fila') renderFila();
     closeModal();
@@ -694,10 +754,11 @@ async function salvarNovo() {
     tipo: document.getElementById('fn-tipo').value,
     motivo_atraso: document.getElementById('fn-motivo').value,
     observacoes: document.getElementById('fn-obs').value.trim(),
+    especial: document.getElementById('fn-especial').checked,
   };
   try {
     const r = await api('pcp/itens', { method: 'POST', body: payload });
-    DB.push(normalizarItem(Object.assign({ id: r.id, prev_inicial: null, conclusao: null, cod_barras: null }, payload)));
+    DB.push(normalizarItem(r.item));
     renderAll();
     limparForm();
     toast(`Pedido ${pedido} cadastrado com sucesso.`);
@@ -713,6 +774,7 @@ function limparForm() {
   document.getElementById('fn-data-cliente').value = '';
   document.getElementById('fn-tipo').value = 'Produção nova';
   document.getElementById('fn-motivo').value = '';
+  document.getElementById('fn-especial').checked = false;
 }
 
 function toggleProdutoLivre() {
@@ -724,9 +786,9 @@ function toggleProdutoLivre() {
 
 // ─── EXPORT EXCEL ─────────────────────────────────────────────────────────────
 function exportXLSX() {
-  const rows = [['Produto','Pedido','Qtd','Chegada PCP','Prev. Produção','Data Conclusão','Data Cliente','Tipo','Status','Motivo Atraso','Observações']];
+  const rows = [['Produto','Pedido','Qtd','Peças c/ baixa','Especial','Chegada PCP','Prev. Produção','Data Conclusão','Data Cliente','Tipo','Status','Motivo Atraso','Observações']];
   DB.forEach(i => {
-    rows.push([i.produto,i.pedido,i.qnt,i.chegada_pcp||'',i.prev_producao||'',i.conclusao||'',i.data_cliente||'',i.tipo,statusLabel(calcStatus(i)),i.motivo_atraso||'',i.observacoes||'']);
+    rows.push([i.produto,i.pedido,i.qnt,`${pecasConcluidas(i)}/${pecasTotal(i)}`,i.especial?'Sim':'',i.chegada_pcp||'',i.prev_producao||'',i.conclusao||'',i.data_cliente||'',i.tipo,statusLabel(calcStatus(i)),i.motivo_atraso||'',i.observacoes||'']);
   });
   // CSV with BOM for Excel compatibility
   const bom = '\uFEFF';
@@ -1044,6 +1106,7 @@ function processImportedRows(rows, sheetName) {
     tipo:          ['TIPO','Tipo','tipo'],
     motivo_atraso: ['MOTIVO ATRASO','Motivo Atraso','motivo_atraso'],
     observacoes:   ['OBSERVAÇÕES','Observações','observacoes'],
+    especial:      ['ESPECIAL','Especial','especial'],
   };
 
   function get(row, field) {
@@ -1072,6 +1135,7 @@ function processImportedRows(rows, sheetName) {
       tipo:          String(get(row,'tipo')||'Produção nova').trim() || 'Produção nova',
       motivo_atraso: String(get(row,'motivo_atraso')||'').trim(),
       observacoes:   String(get(row,'observacoes')||'').trim(),
+      especial:      /^(s|sim|x|1|true)$/i.test(String(get(row,'especial')||'').trim()),
     });
   });
 
@@ -1219,6 +1283,21 @@ document.getElementById('pdf-modal-overlay').addEventListener('click', e => {
 // ─── BIPAGEM ─────────────────────────────────────────────────────────────────
 let bipTimer = null;
 let bipSessao = [];
+let bipModo = 'baixa'; // 'baixa' (embalagem) | 'entrada' (vincular etiquetas no PCP)
+
+function setBipModo(m) {
+  bipModo = m;
+  document.getElementById('bip-modo-baixa').className = 'btn ' + (m === 'baixa' ? 'btn-red' : 'btn-outline');
+  document.getElementById('bip-modo-entrada').className = 'btn ' + (m === 'entrada' ? 'btn-red' : 'btn-outline');
+  document.getElementById('bip-entrada-pedido-wrap').style.display = m === 'entrada' ? 'block' : 'none';
+  document.getElementById('bip-help').textContent = m === 'baixa'
+    ? 'Embalagem: bipe a etiqueta da peça produzida para dar baixa'
+    : 'Entrada PCP: informe o pedido e bipe as etiquetas para vincular às peças';
+  document.getElementById('bip-resultado').innerHTML = '';
+  const alvo = m === 'entrada' && !document.getElementById('bip-entrada-pedido').value.trim()
+    ? 'bip-entrada-pedido' : 'bip-input';
+  setTimeout(() => document.getElementById(alvo)?.focus(), 50);
+}
 
 function bipDigitado() {
   clearTimeout(bipTimer);
@@ -1233,6 +1312,9 @@ async function processBip() {
   input.value = '';
   input.focus();
 
+  if (bipModo === 'entrada') return processBipEntrada(codigo);
+
+  // Modo embalagem: etiqueta vinculada -> baixa da peça
   try {
     const r = await api('pcp/bip', { method: 'POST', body: { codigo } });
     if (r.acao === 'desconhecido') {
@@ -1240,50 +1322,81 @@ async function processBip() {
       return;
     }
     const item = aplicarItemAtualizado(r.item);
-    showBipResultado(r.acao, item, codigo);
-    addBipHistorico(r.acao, item);
+    showBipResultado(r.acao, item, codigo, r.peca_numero);
+    addBipHistorico(r.acao, item, r.peca_numero);
     if (r.acao !== 'jafoi') renderAll();
   } catch (e) { toast('Erro na bipagem: ' + e.message); }
 }
 
-function showBipResultado(tipo, item, codigo) {
+// Modo entrada PCP: cada bip vincula a etiqueta à próxima peça livre do pedido
+async function processBipEntrada(codigo) {
+  const pedidoEl = document.getElementById('bip-entrada-pedido');
+  const pedido = pedidoEl.value.trim();
+  if (!pedido) {
+    toast('Informe o número do pedido antes de bipar as etiquetas.');
+    pedidoEl.focus();
+    return;
+  }
+  try {
+    const r = await api('pcp/bip/vincular', { method: 'POST', body: { codigo, pedido } });
+    const item = aplicarItemAtualizado(r.item);
+    document.getElementById('bip-entrada-progresso').innerHTML =
+      `Pedido <strong>${esc(pedido)}</strong>: ${r.progresso.vinculadas} de ${r.progresso.total} etiquetas vinculadas`;
+    showBipResultado('vinculada', item, codigo, r.peca_numero);
+    addBipHistorico('vinculada', item, r.peca_numero);
+    renderAll();
+  } catch (e) {
+    const res = document.getElementById('bip-resultado');
+    if (res) res.innerHTML = `
+      <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:14px 18px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ ${esc(e.message)}</div>
+      </div>`;
+  }
+}
+
+function showBipResultado(tipo, item, codigo, pecaNumero) {
   const res = document.getElementById('bip-resultado');
   if (!res) return;
+  const done = pecasConcluidas(item), total = pecasTotal(item);
   const cfg = {
-    entrada:  { bg:'var(--blue-bg)',  border:'#1976D2',      icon:'📥', titulo:'Entrada no PCP registrada', cor:'var(--blue)'  },
-    conclusao:{ bg:'var(--green-bg)', border:'var(--green)',  icon:'✅', titulo:'Produção concluída!',        cor:'var(--green)' },
-    jafoi:    { bg:'var(--gray-bg)',  border:'var(--border)', icon:'ℹ️', titulo:'Pedido já concluído',        cor:'var(--text3)' },
+    vinculada: { bg:'var(--blue-bg)',  border:'#1976D2',       icon:'🏷️', cor:'var(--blue)',
+                 titulo:'Etiqueta vinculada — entrada no PCP registrada' },
+    baixa:     { bg:'var(--green-bg)', border:'var(--green)',  icon:'✅', cor:'var(--green)',
+                 titulo: done >= total ? 'Baixa registrada — todas as peças do item concluídas!' : 'Baixa de produção registrada' },
+    jafoi:     { bg:'var(--gray-bg)',  border:'var(--border)', icon:'ℹ️', cor:'var(--text3)',
+                 titulo:'Esta peça já teve baixa' },
   };
-  const c = cfg[tipo];
+  const c = cfg[tipo] || cfg.jafoi;
   res.innerHTML = `
     <div style="background:${c.bg};border:2px solid ${c.border};border-radius:8px;padding:16px 20px;margin-bottom:16px;animation:fadeIn .2s ease">
       <div style="font-size:24px;margin-bottom:6px">${c.icon}</div>
       <div style="font-size:15px;font-weight:700;color:${c.cor};margin-bottom:6px">${c.titulo}</div>
-      <div style="font-size:13px;font-weight:700">${esc(item.produto)}</div>
+      <div style="font-size:13px;font-weight:700">${badgeEspecial(item)}${esc(item.produto)} — peça #${pecaNumero || '?'}</div>
       <div style="font-size:12px;color:var(--text2);margin-top:4px">
-        Pedido ${esc(item.pedido)} · Qtd: ${item.qnt} · Cliente: ${fmtDate(item.data_cliente)}
+        Pedido ${esc(item.pedido)} · ${done}/${total} peças com baixa · Cliente: ${fmtDate(item.data_cliente)}
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px">Cód: ${esc(codigo)}</div>
-      ${tipo !== 'jafoi' ? `<button class="btn btn-outline" style="margin-top:10px;font-size:11px" onclick="openDetail(${item.id})">✏ Editar / Programar produção</button>` : ''}
+      ${tipo !== 'jafoi' ? `<button class="btn btn-outline" style="margin-top:10px;font-size:11px" onclick="openDetail(${item.id})">✏ Ver peças / editar item</button>` : ''}
     </div>`;
-  setTimeout(() => { if (res) res.innerHTML = ''; }, 5000);
+  setTimeout(() => { if (res) res.innerHTML = ''; }, 6000);
 }
 
+// Etiqueta desconhecida no modo embalagem: oferece vinculação rápida
 function showBipVinculacao(codigo) {
   const res = document.getElementById('bip-resultado');
   if (!res) return;
   res.innerHTML = `
     <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:16px 20px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Código não encontrado</div>
+      <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Etiqueta não vinculada</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-        Código <strong>${esc(codigo)}</strong> não está vinculado a nenhum pedido.<br>
-        Informe o número do pedido para vincular:
+        O código <strong>${esc(codigo)}</strong> não está vinculado a nenhuma peça.<br>
+        Informe o pedido para vincular agora (ou use o modo Entrada PCP):
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="text" id="bip-vin-pedido" placeholder="Nº do pedido (ex: 19195)"
-          style="flex:1;min-width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:Arial"
+          style="flex:1;min-width:140px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit"
           onkeydown="if(event.key==='Enter') confirmarVinculacao('${esc(codigo)}')">
-        <button class="btn btn-red" onclick="confirmarVinculacao('${esc(codigo)}')">Vincular e dar entrada</button>
+        <button class="btn btn-red" onclick="confirmarVinculacao('${esc(codigo)}')">Vincular etiqueta</button>
         <button class="btn btn-outline" onclick="document.getElementById('bip-resultado').innerHTML=''">Cancelar</button>
       </div>
       <div id="bip-vin-erro" style="color:var(--red);font-size:11px;margin-top:6px;display:none"></div>
@@ -1298,8 +1411,8 @@ async function confirmarVinculacao(codigo) {
   try {
     const r = await api('pcp/bip/vincular', { method: 'POST', body: { codigo, pedido: pedidoVal } });
     const item = aplicarItemAtualizado(r.item);
-    showBipResultado('entrada', item, codigo);
-    addBipHistorico('entrada', item);
+    showBipResultado('vinculada', item, codigo, r.peca_numero);
+    addBipHistorico('vinculada', item, r.peca_numero);
     renderAll();
   } catch (e) {
     erroEl.textContent = e.message;
@@ -1307,20 +1420,21 @@ async function confirmarVinculacao(codigo) {
   }
 }
 
-function addBipHistorico(tipo, item) {
+function addBipHistorico(tipo, item, pecaNumero) {
   const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  bipSessao.unshift({tipo, item:{...item}, hora});
+  bipSessao.unshift({tipo, item:{...item}, pecaNumero, hora});
   const el = document.getElementById('bip-historico');
   if (!el) return;
-  const icons = {entrada:'📥', conclusao:'✅', jafoi:'ℹ️'};
-  el.innerHTML = bipSessao.slice(0,20).map((b,idx) => `
+  const icons = {vinculada:'🏷️', baixa:'✅', jafoi:'ℹ️'};
+  const labels = {vinculada:'Etiqueta vinculada', baixa:'Baixa registrada', jafoi:'Já tinha baixa'};
+  el.innerHTML = bipSessao.slice(0,20).map((b) => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px"
       onclick="openDetail(${b.item.id})"
       onmouseover="this.style.background='var(--gray-bg)'" onmouseout="this.style.background='transparent'">
       <span style="font-size:15px">${icons[b.tipo]||'•'}</span>
       <div style="flex:1">
-        <div style="font-weight:700;font-size:12px">${esc(b.item.produto)}</div>
-        <div style="font-size:11px;color:var(--text3)">Ped. ${esc(b.item.pedido)} · ${b.tipo==='conclusao'?'Concluído':b.tipo==='entrada'?'Entrada PCP':'Já concluído'}</div>
+        <div style="font-weight:700;font-size:12px">${b.item.especial ? '★ ' : ''}${esc(b.item.produto)}${b.pecaNumero ? ` — peça #${b.pecaNumero}` : ''}</div>
+        <div style="font-size:11px;color:var(--text3)">Ped. ${esc(b.item.pedido)} · ${labels[b.tipo]||b.tipo}</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:11px;color:var(--text3)">${b.hora}</div>
