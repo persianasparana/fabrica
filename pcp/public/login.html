@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Login — PCP Persianas Paraná</title>
+<link rel="icon" type="image/png" href="assets/brand/logos/favicon.png">
+<link rel="stylesheet" href="assets/fonts/manrope.css">
+<style>
+:root { --black:#1D1D1B; --red:#C1212D; --gold:#C6B784; --bg:#F4F4F2; --border:#E0E0E0; --text:#1D1D1B; --text3:#999; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Manrope', Arial, sans-serif; background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.login-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 36px 32px; width: 100%; max-width: 380px; box-shadow: 0 6px 24px rgba(0,0,0,.07);
+}
+.login-logo { width: 180px; height: auto; display: block; margin: 0 auto 6px; }
+.login-title { font-size: 17px; font-weight: 800; text-align: center; margin-top: 10px; }
+.login-sub { font-size: 11px; color: var(--gold); text-align: center; text-transform: uppercase; letter-spacing: .1em; margin: 2px 0 24px; font-weight: 700; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .04em; }
+.field input {
+  border: 1px solid var(--border); border-radius: 8px; padding: 11px 12px;
+  font-size: 14px; font-family: inherit; outline: none;
+}
+.field input:focus { border-color: var(--red); }
+.btn-entrar {
+  width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--red); color: #fff; font-size: 14px; font-weight: 700; font-family: inherit;
+  margin-top: 6px; transition: opacity .12s;
+}
+.btn-entrar:hover { opacity: .88; }
+.btn-entrar:disabled { opacity: .5; cursor: default; }
+.erro { color: var(--red); font-size: 12px; margin-top: 12px; text-align: center; display: none; }
+.rodape { font-size: 10px; color: var(--text3); text-align: center; margin-top: 22px; }
+</style>
+</head>
+<body>
+<main>
+  <form class="login-card" id="login-form" autocomplete="off">
+    <img class="login-logo" src="assets/brand/logos/logo-preto.png" alt="Persianas Paraná">
+    <h1 class="login-title">PCP — Planejamento da Produção</h1>
+    <p class="login-sub">Sistema PCP</p>
+
+    <div class="field">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" required autofocus autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="password">Senha</label>
+      <input type="password" id="password" required autocomplete="current-password">
+    </div>
+
+    <button type="submit" class="btn-entrar" id="btn-entrar">Entrar</button>
+    <div class="erro" id="login-erro"></div>
+    <div class="rodape">Persianas Paraná — uso interno</div>
+  </form>
+</main>
+<script src="assets/js/login.js" defer></script>
+</body>
+</html>

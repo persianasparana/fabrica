@@ -34,6 +34,9 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
+        // o PCP usa handlers de evento inline (onclick) — atributos apenas;
+        // blocos <script> inline continuam bloqueados (scriptSrc 'self')
+        scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:'],
         fontSrc: ["'self'"],
@@ -79,16 +82,12 @@ app.use('/api/qualidade', qualidadeRoutes);
 
 // Frontends estáticos (opcional — o Nginx também pode servir diretamente)
 if (process.env.SERVE_STATIC !== '0') {
-  const pcpDist = process.env.PCP_DIST || path.join(root, 'pcp', 'frontend', 'dist');
+  const pcpDir = process.env.PCP_DIR || path.join(root, 'pcp', 'public');
   const qualidadeDir = process.env.QUALIDADE_DIR || path.join(root, 'qualidade', 'public');
 
-  // PCP (SPA): assets + fallback para index.html
-  app.use('/pcp', express.static(pcpDist));
+  // PCP (estático)
+  app.use('/pcp', express.static(pcpDir));
   app.get('/pcp', (req, res) => res.redirect('/pcp/'));
-  app.get('/pcp/*', (req, res, next) => {
-    if (req.path.includes('.')) return next(); // arquivos: deixa o static/404
-    res.sendFile(path.join(pcpDist, 'index.html'), (err) => err && next());
-  });
 
   // Qualidade (estático)
   app.use('/qualidade', express.static(qualidadeDir));

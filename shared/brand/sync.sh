@@ -21,5 +21,5 @@ copy() {
 
 echo "Sincronizando identidade visual a partir de shared/brand/ ..."
 copy "$ROOT/qualidade/public/assets/brand"
-copy "$ROOT/pcp/frontend/public/brand"
-echo "Concluído. (palette.json é lido diretamente pelo tailwind.config.js do PCP.)"
+copy "$ROOT/pcp/public/assets/brand"
+echo "Concluído."

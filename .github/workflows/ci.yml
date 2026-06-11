@@ -6,21 +6,20 @@ on:
   pull_request:
 
 jobs:
-  pcp-frontend:
-    name: PCP frontend (build)
+  frontends:
+    name: Frontends (sintaxe JS)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: pcp/frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: pcp/frontend/package-lock.json
-      - run: npm ci
-      - run: npm run build
+      - name: node --check em todos os JS dos frontends
+        run: |
+          set -e
+          for f in pcp/public/assets/js/*.js qualidade/public/assets/js/*.js; do
+            node --check "$f" && echo "OK $f"
+          done
 
   server:
     name: Backend (Node + PostgreSQL)
@@ -60,16 +59,34 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - run: npm run install-app
-      - name: Smoke test (auth + PCP + Qualidade)
+      - name: Smoke test (auth + PCP itens/estrutura/bip + Qualidade)
         run: |
           node src/server.js &
           sleep 3
           B=http://127.0.0.1:8090; J=/tmp/j.txt
           L=$(curl -s -c $J -b $J -X POST -H 'Content-Type: application/json' -d '{"username":"ci","password":"senha12345"}' $B/api/auth/login)
-          echo "$L"
           CSRF=$(echo "$L" | node -e 'process.stdin.on("data",d=>{try{console.log(JSON.parse(d).csrf_token||"")}catch{}})')
-          test -n "$CSRF" || { echo "login falhou"; exit 1; }
-          curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"value":"{\"id\":1}"}' "$B/api/pcp/storage?key=pedido:1" | grep -q '"ok":true' || { echo "pcp set falhou"; exit 1; }
-          curl -s -c $J -b $J "$B/api/pcp/storage?prefix=pedido:" | grep -q 'pedido:1' || { echo "pcp list falhou"; exit 1; }
-          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' "$B/api/qualidade/ncs" | grep -q '"id"' || { echo "qualidade create falhou"; exit 1; }
+          test -n "$CSRF" || { echo "login falhou: $L"; exit 1; }
+
+          # Estrutura do produto carregada pelo seed (34 produtos)
+          N=$(curl -s -c $J -b $J $B/api/pcp/estrutura | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.length))')
+          test "$N" = "34" || { echo "estrutura: esperado 34, veio $N"; exit 1; }
+
+          # Fila seeded (186 itens)
+          N=$(curl -s -c $J -b $J $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.length))')
+          test "$N" = "186" || { echo "itens: esperado 186, veio $N"; exit 1; }
+
+          # Criar item + bipagem (vincular -> entrada -> conclusão)
+          ID=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"produto":"ROLO SOFT LISA","pedido":"99001","qnt":1,"data_cliente":"2026-12-01"}' \
+            $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          test -n "$ID" || { echo "criar item falhou"; exit 1; }
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-TESTE-1","pedido":"99001"}' $B/api/pcp/bip/vincular | grep -q '"acao":"entrada"' || { echo "vincular falhou"; exit 1; }
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"codigo":"CI-TESTE-1"}' $B/api/pcp/bip | grep -q '"acao":"conclusao"' || { echo "bip conclusão falhou"; exit 1; }
+
+          # Qualidade segue funcionando
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' $B/api/qualidade/ncs | grep -q '"id"' || { echo "qualidade falhou"; exit 1; }
           echo "Smoke test OK"

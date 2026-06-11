@@ -31,9 +31,9 @@ bash deploy/install.sh
 ```
 
 O script pergunta o usuário/senha do admin e a senha do banco e cuida de:
-dependências do backend, banco próprio (`fabrica_db`), schema + admin, build do
-PCP (subpath) e o processo PM2 `fabrica-server`. Ao final, imprime o **único
-passo manual** (Nginx). Os passos detalhados (caso prefira manual) seguem abaixo.
+dependências do backend, banco próprio (`fabrica_db`), schema + seeds (estrutura
+do produto e fila inicial) + admin e o processo PM2 `fabrica-server`. Ao final,
+imprime o **único passo manual** (Nginx). Os passos detalhados seguem abaixo.
 
 ---
 
@@ -77,19 +77,11 @@ npm run install-app        # cria schema + admin (idempotente)
 
 `SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
-## 5. Frontend do PCP (build)
+## 5. Frontends (estáticos — sem build)
 
-**Subpath `/fabrica/`** (opção A):
-
-```bash
-cd /var/www/fabrica/pcp/frontend && npm ci
-VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build
-```
-
-**Hostname dedicado** (opção B): `npm ci && npm run build` (padrão).
-
-> O Qualidade é estático e usa caminhos relativos — não precisa de build e
-> funciona nas duas opções sem alteração.
+`pcp/public/` e `qualidade/public/` são servidos diretamente pelo backend
+(ou pelo Nginx). Usam caminhos relativos, então funcionam tanto na raiz
+quanto sob o subpath `/fabrica/` sem nenhuma etapa de build.
 
 ## 6. Processo (PM2)
 
@@ -152,7 +144,6 @@ banco e (subpath) uma linha de `include` no vhost.
 ```bash
 cd /var/www/fabrica && git pull
 cd server && npm ci --omit=dev
-cd ../pcp/frontend && npm ci && VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build   # (subpath)
 pm2 delete fabrica-server && pm2 start ../../deploy/ecosystem.config.js --only fabrica-server && pm2 save
 ```
 
@@ -173,5 +164,5 @@ entrar, um nome MagicDNS para o fabrica habilita a opção B com HTTPS válido
 
 ## Identidade visual
 
-Paleta provisória. Ao definir a marca oficial, atualize `shared/brand/`, rode
-`bash shared/brand/sync.sh` e recompile o PCP.
+Identidade oficial aplicada (preto/vermelho/dourado + Manrope + logotipos).
+Para ajustar: edite `shared/brand/` e rode `bash shared/brand/sync.sh`.

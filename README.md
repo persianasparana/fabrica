@@ -12,7 +12,7 @@ controle da produção (PCP) e gestão da qualidade (não conformidades).
 
 | Sistema | Pasta | Descrição |
 |---|---|---|
-| **PCP** | [`pcp/frontend/`](pcp/) | SPA React (Vite + Tailwind): pedidos, produção, apontamento, estoque, suprimentos, plano-mestre, indicadores e catálogo. Dados compartilhados (multiusuário). |
+| **PCP** | [`pcp/`](pcp/) | Planejamento da produção: fila com prazos, alertas, bipagem por código de barras, importação de ordens (PDF/Excel), indicadores e Estrutura do Produto (fórmulas de corte + BOM). |
 | **Qualidade** | [`qualidade/`](qualidade/) | Frontend HTML/CSS/JS: não conformidades, planos de ação, KPIs e treinamentos. |
 | **Backend** | [`server/`](server/) | Node + Express + PostgreSQL — APIs dos dois sistemas + autenticação compartilhada. |
 | **Marca** | [`shared/brand/`](shared/brand/) | Design tokens, cores, tipografia e logotipo (fonte única). |
@@ -24,12 +24,12 @@ controle da produção (PCP) e gestão da qualidade (não conformidades).
 ```
 fabrica/
 ├── server/            # Backend único Node + Express + PostgreSQL (APIs + auth)
-├── pcp/frontend/      # SPA React + Vite + Tailwind
+├── pcp/public/        # Frontend do PCP (HTML/CSS/JS, sem build)
 ├── qualidade/public/  # Frontend estático (HTML/CSS/JS)
 ├── shared/brand/      # Design tokens + logotipo (fonte única da marca)
 ├── infra/             # nginx/ (server block) e systemd/ (unit)
 ├── docs/              # Arquitetura e implantação
-└── .github/workflows/ # CI (build do PCP + smoke test do backend)
+└── .github/workflows/ # CI (sintaxe dos frontends + smoke test do backend)
 ```
 
 Um processo Node serve `/pcp`, `/qualidade` e `/api/*`, atrás do Nginx, com
@@ -40,21 +40,17 @@ PostgreSQL — o mesmo padrão dos demais apps da empresa. Detalhes em
 
 ## Desenvolvimento
 
-Requer Node 20+ e um PostgreSQL local (banco `fabrica`).
+Requer Node 20+ e um PostgreSQL local (banco `fabrica_db`).
 
 ```bash
-# 1. Backend
 cd server
 cp .env.example .env          # ajuste PG*, SESSION_SECRET, FABRICA_ADMIN_*
 npm install
-npm run install-app           # cria schema + usuário admin
-npm run dev                   # API em http://127.0.0.1:3020 (serve /pcp e /qualidade)
-
-# 2. Frontend do PCP (hot reload, opcional)
-cd ../pcp/frontend
-npm install
-npm run dev                   # http://localhost:5173 (proxy /api -> :3020)
+npm run install-app           # cria schema + seeds (estrutura/fila) + admin
+npm run dev                   # serve /pcp, /qualidade e /api em http://127.0.0.1:3020
 ```
+
+Os frontends são estáticos (sem build) — basta editar e recarregar a página.
 
 - PCP: http://localhost:3020/pcp/ · Qualidade: http://localhost:3020/qualidade/
 

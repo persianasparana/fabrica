@@ -11,14 +11,14 @@ apps da Persianas Paraná.
 │        │ server block novo: fabrica.persianas…                                   │
 │        ▼                                                                          │
 │   fabrica-server  (Node/Express · PM2)  127.0.0.1:3020                            │
-│        ├─ /pcp/*           → SPA React (estático: pcp/frontend/dist)              │
+│        ├─ /pcp/*           → PCP (estático: pcp/public)                           │
 │        ├─ /qualidade/*     → estático (qualidade/public)                          │
 │        ├─ /api/auth/*      → login/logout/sessão (compartilhado)                  │
-│        ├─ /api/pcp/*       → armazenamento chave-valor do PCP                     │
+│        ├─ /api/pcp/*       → fila de produção, bipagem, estrutura do produto      │
 │        └─ /api/qualidade/* → não conformidades + KPIs                             │
 │                  │                                                                │
 │                  ▼                                                                │
-│        PostgreSQL (5432) · banco `fabrica` (role própria)                         │
+│        PostgreSQL (5432) · banco `fabrica_db` (role própria)                      │
 └──────────────────────────────────────────────────────────────────────────────┘
             ▲ identidade visual compartilhada (shared/brand)
 ```
@@ -28,7 +28,7 @@ apps da Persianas Paraná.
 | Pasta | Papel |
 |---|---|
 | `server/` | Backend único (Node + Express + `pg`). Serve as duas APIs e, opcionalmente, os dois frontends estáticos. |
-| `pcp/frontend/` | SPA React (Vite + Tailwind). Toda a lógica de negócio do PCP. |
+| `pcp/public/` | Frontend do PCP (HTML/CSS/JS): fila, alertas, bipagem, importação e Estrutura do Produto. |
 | `qualidade/public/` | Frontend do Qualidade (HTML/CSS/JS + Chart.js local). |
 | `shared/brand/` | Design tokens + logotipo (fonte única). |
 | `infra/` | `nginx/` (server block) e `systemd/` (unit). |
@@ -40,7 +40,8 @@ apps da Persianas Paraná.
 | `users` | Login compartilhado pelos dois sistemas (bcrypt). |
 | `login_attempts` | Rate limiting persistido (usuário + IP). |
 | `audit_log` | Auditoria (coluna `app` distingue pcp/qualidade). |
-| `pcp_kv_store` | Documentos JSON do PCP por chave (`pedido:<id>`, `estoque:<sku>`…). |
+| `pcp_itens` | Fila de produção do PCP (itens de pedido: datas, tipo, motivo, código de barras). |
+| `pcp_produtos` | Estrutura do produto: fórmulas de corte e componentes (BOM) em JSONB. |
 | `nao_conformidades` | NCs do Qualidade (`setores`/`origens` em JSONB). |
 | `session` | Sessões (criada por `connect-pg-simple`). |
 
@@ -49,11 +50,16 @@ apps da Persianas Paraná.
 - **Um serviço, um login.** PCP e Qualidade compartilham `users` e a sessão
   (cookie por domínio). Papéis (`role`) permitem restringir acesso por sistema
   no futuro.
-- **PCP via chave-valor.** Preserva 100% da lógica do frontend (baixo risco) e
-  entrega dados compartilhados. Evolução natural: normalizar entidades de maior
-  consulta mantendo o mesmo contrato de API.
-- **Frontends estáticos.** O PCP mantém o `window.storage` original, agora
-  reimplementado sobre a API (`pcp/frontend/src/storage.js`).
+- **PCP em tabelas reais.** A fila de produção (`pcp_itens`) e a estrutura do
+  produto (`pcp_produtos`) são tabelas normalizadas; a bipagem é atômica no
+  servidor (1º bip = entrada, 2º bip = conclusão) e a importação em lote roda
+  em transação única.
+- **Estrutura do produto como fonte.** O cadastro de novo pedido seleciona o
+  produto da estrutura (vínculo `produto_id`); fórmulas de corte ficam como
+  texto legível (`L - 2.2`) e os cálculos especiais das PH (cordas/furos) são
+  preservados em `calculo_extra_fonte`.
+- **Frontends estáticos, sem build.** PCP e Qualidade são HTML/CSS/JS puros com
+  caminhos relativos — funcionam na raiz e sob o subpath `/fabrica/`.
 
 ## Segurança
 

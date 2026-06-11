@@ -9,8 +9,10 @@ server/
 │   ├── server.js          # app Express (helmet, sessão, rotas, estáticos)
 │   ├── db.js              # pool pg + schema (migração idempotente)
 │   ├── auth.js            # sessão, bcrypt, CSRF, rate limiting em banco
+│   ├── seed.js            # seeds: estrutura do produto + fila inicial
 │   ├── util.js            # HttpError + asyncHandler
 │   └── routes/{auth,pcp,qualidade}.js
+├── data/                  # estrutura-produtos.json + seed-itens.json
 └── bin/{install.js, migrate.js}
 ```
 
@@ -21,8 +23,12 @@ server/
 | POST | `/api/auth/login` | Login (`{username, password}`) → `{user, csrf_token}` |
 | GET | `/api/auth/session` | Sessão atual + CSRF (401 se anônimo) |
 | POST/DELETE | `/api/auth/logout` | Encerra a sessão |
-| GET | `/api/pcp/storage?prefix=` \| `?key=` | Lista chaves / lê valor |
-| PUT/POST/DELETE | `/api/pcp/storage?key=` | Grava / remove (CSRF) |
+| GET | `/api/pcp/itens` | Fila de produção completa |
+| POST/PUT/DELETE | `/api/pcp/itens` | Cria / atualiza / exclui item (CSRF) |
+| POST | `/api/pcp/itens/lote` | Importação em lote, opcional `substituir` (CSRF) |
+| POST | `/api/pcp/bip` \| `/bip/vincular` | Bipagem por código de barras (CSRF) |
+| GET | `/api/pcp/estrutura` | Estrutura do produto (catálogo: cortes + BOM) |
+| POST/PUT/DELETE | `/api/pcp/estrutura` | Mantém produtos da estrutura (CSRF) |
 | GET | `/api/qualidade/ncs` \| `?id=` | Lista (com filtros) / lê NC |
 | POST/PUT/DELETE | `/api/qualidade/ncs` | Cria / atualiza / remove NC (CSRF) |
 | GET | `/api/qualidade/kpis` | Indicadores agregados |

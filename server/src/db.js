@@ -66,15 +66,53 @@ export async function migrate() {
     )
   `);
 
-  // PCP: armazenamento chave-valor compartilhado
+  // PCP: limpeza do modelo antigo (kv-store substituído por tabelas reais)
+  await q(`DROP TABLE IF EXISTS pcp_kv_store`);
+
+  // PCP: estrutura do produto (catálogo oficial — fórmulas de corte + BOM)
   await q(`
-    CREATE TABLE IF NOT EXISTS pcp_kv_store (
-      k          VARCHAR(255) PRIMARY KEY,
-      v          TEXT NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_by BIGINT
+    CREATE TABLE IF NOT EXISTS pcp_produtos (
+      id          BIGSERIAL PRIMARY KEY,
+      chave       VARCHAR(64) UNIQUE NOT NULL,
+      nome        VARCHAR(160) NOT NULL,
+      familia     VARCHAR(40) NOT NULL,
+      tubo        VARCHAR(40),
+      unidade     VARCHAR(10) NOT NULL DEFAULT 'cm',
+      cortes      JSONB NOT NULL DEFAULT '[]',
+      componentes JSONB NOT NULL DEFAULT '[]',
+      calculo_extra_fonte TEXT,
+      ativo       BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_prod_familia ON pcp_produtos (familia)`);
+
+  // PCP: fila de produção (itens de pedido — modelo de negócio do planejamento)
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_itens (
+      id            BIGSERIAL PRIMARY KEY,
+      produto       VARCHAR(160) NOT NULL,
+      produto_id    BIGINT REFERENCES pcp_produtos(id) ON DELETE SET NULL,
+      pedido        VARCHAR(64) NOT NULL,
+      qnt           INTEGER NOT NULL DEFAULT 1,
+      chegada_pcp   DATE,
+      prev_inicial  DATE,
+      prev_producao DATE,
+      conclusao     DATE,
+      data_cliente  DATE,
+      tipo          VARCHAR(40) NOT NULL DEFAULT 'Produção nova',
+      motivo_atraso VARCHAR(80) NOT NULL DEFAULT '',
+      observacoes   TEXT NOT NULL DEFAULT '',
+      cod_barras    VARCHAR(64),
+      created_by    BIGINT,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_itens_pedido ON pcp_itens (pedido)`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_itens_data_cliente ON pcp_itens (data_cliente)`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_itens_cod_barras ON pcp_itens (cod_barras)`);
 
   // Qualidade: não conformidades
   await q(`

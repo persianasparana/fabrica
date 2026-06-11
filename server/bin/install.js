@@ -10,9 +10,15 @@ import readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { migrate, pool, q } from '../src/db.js';
 import { createUser } from '../src/auth.js';
+import { seedEstrutura, seedItens } from '../src/seed.js';
 
 await migrate();
 console.log('Schema aplicado.');
+
+const nProdutos = await seedEstrutura();
+if (nProdutos) console.log(`Estrutura do produto: ${nProdutos} produtos carregados.`);
+const nItens = await seedItens();
+if (nItens) console.log(`Fila de produção: ${nItens} itens carregados da planilha.`);
 
 const { rows } = await q('SELECT COUNT(*)::int AS c FROM users');
 if (rows[0].c > 0) {

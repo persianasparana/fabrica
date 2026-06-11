@@ -1,0 +1,2273 @@
+{
+  "familias": {
+    "SOFT": {
+      "rotulo": "Soft",
+      "cor": "#d97706",
+      "icone": "S"
+    },
+    "PREMIUM": {
+      "rotulo": "Premium",
+      "cor": "#0891b2",
+      "icone": "P"
+    },
+    "MOTORIZADAS": {
+      "rotulo": "Motorizada",
+      "cor": "#7c3aed",
+      "icone": "M"
+    },
+    "INTERMEDIARIO": {
+      "rotulo": "Intermediária",
+      "cor": "#65a30d",
+      "icone": "I"
+    },
+    "ACOPLADA": {
+      "rotulo": "Acoplada",
+      "cor": "#0d9488",
+      "icone": "A"
+    },
+    "ROMANA": {
+      "rotulo": "Romana/Painel",
+      "cor": "#c2410c",
+      "icone": "R"
+    },
+    "HORIZONTAL": {
+      "rotulo": "Horizontal (PH)",
+      "cor": "#475569",
+      "icone": "H"
+    }
+  },
+  "produtos": [
+    {
+      "chave": "soft-lisa-sem-plus",
+      "nome": "Soft Lisa Novus — Sem Plus",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "soft-lisa-com-plus",
+      "nome": "Soft Lisa Novus — Trilho Plus",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "soft-lisa-bando-vision",
+      "nome": "Soft Lisa Novus — Bandô Vision",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.8",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 3.0",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.0",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa (Tampa do Bandô Vision)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "soft-lisa-box-70",
+      "nome": "Soft Lisa Novus — Box 70mm",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Box 70mm (Perfil L 70)",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Média",
+          "formula": "L - 5",
+          "dim": "L"
+        },
+        {
+          "nome": "Guia Lateral (esq + dir)",
+          "formula": "A - 7",
+          "dim": "A",
+          "qtd": 2
+        },
+        {
+          "nome": "Guia Inferior",
+          "formula": "L - 12",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Superior/Inferior",
+          "formula": "L - 10.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Lateral",
+          "formula": "A - 0.4",
+          "dim": "A"
+        },
+        {
+          "nome": "Tampa Box 70",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Lateral Box 70 (E/D)",
+          "qtd": 1,
+          "obs": "Verificar lado de comando"
+        },
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "soft-sheer-trilho-plus",
+      "nome": "Soft Sheer Arco-Íris — Trilho Plus",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 2.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete da Base Duo",
+          "formula": "L - 2.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "soft-sheer-bando-vision",
+      "nome": "Soft Sheer Arco-Íris — Bandô Vision",
+      "familia": "SOFT",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.8",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Sheer (Duo)",
+          "formula": "L - 2.8",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete da Base Duo",
+          "formula": "L - 3.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.0",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa (Tampa do Bandô Vision)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-lisa-bando-vision",
+      "nome": "Premium Lisa — Bandô Vision",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 3.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 3.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-lisa-trilho-plus",
+      "nome": "Premium Lisa — Trilho Plus",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-vision-bando-vision",
+      "nome": "Premium Vision — Bandô Vision",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 3.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Vision",
+          "formula": "L - 3.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 12",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-vision-trilho-plus",
+      "nome": "Premium Vision — Trilho Plus",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Vision",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 12",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-sheer-bando-vision",
+      "nome": "Premium Sheer — Bandô Vision (C. Novus)",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 3.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 3.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo Rolete Duo",
+          "formula": "L - 3.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Novus 40",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-sheer-trilho-plus",
+      "nome": "Premium Sheer — Trilho Plus (C. Novus)",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo Rolete Duo",
+          "formula": "L - 2.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Novus 40",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "premium-lisa-box-90",
+      "nome": "Premium Lisa — Box 90mm",
+      "familia": "PREMIUM",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Box 90mm (Perfil L 90)",
+          "formula": "L - 0.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 3.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Média",
+          "formula": "L - 5",
+          "dim": "L"
+        },
+        {
+          "nome": "Guia Lateral (esq + dir)",
+          "formula": "A - 7.5",
+          "dim": "A",
+          "qtd": 2
+        },
+        {
+          "nome": "Guia Inferior",
+          "formula": "L - 12",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Superior/Inferior",
+          "formula": "L - 10.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Lateral",
+          "formula": "A - 0.4",
+          "dim": "A"
+        },
+        {
+          "nome": "Tampa Box 90",
+          "formula": "L - 0.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Lateral Box 90 (E/D)",
+          "qtd": 1,
+          "obs": "Verificar lado de comando"
+        },
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "motor-lisa-trilho-plus-47",
+      "nome": "Motorizada Lisa — Trilho Plus (Tubo 47mm)",
+      "familia": "MOTORIZADAS",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 3.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Média",
+          "formula": "L - 3.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Motor (conforme marca solicitada)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador Tubo 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Adaptador Suporte Cruz 2P (Morceguinha)",
+          "qtd": 1
+        },
+        {
+          "nome": "Roda do Motor - Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Coroa do Motor p/ Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Média",
+          "qtd": 2
+        },
+        {
+          "nome": "Emissor (conforme canais solicitados)",
+          "qtd": 1,
+          "obs": "Verificar pedido"
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "motor-lisa-bando-vision-47",
+      "nome": "Motorizada Lisa — Bandô Vision (Tubo 47mm)",
+      "familia": "MOTORIZADAS",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 4.0",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Média",
+          "formula": "L - 4.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 4.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa do Bandô Vision",
+          "qtd": 1
+        },
+        {
+          "nome": "Motor (conforme marca solicitada)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador Tubo 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Adaptador Suporte Cruz 2P (Morceguinha)",
+          "qtd": 1
+        },
+        {
+          "nome": "Roda do Motor - Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Coroa do Motor p/ Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Média",
+          "qtd": 1
+        },
+        {
+          "nome": "Emissor (conforme canais solicitados)",
+          "qtd": 1,
+          "obs": "Verificar pedido"
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "motor-sheer-trilho-plus-47",
+      "nome": "Motorizada Sheer — Trilho Plus (Tubo 47mm)",
+      "familia": "MOTORIZADAS",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 3.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 3.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete Base Duo",
+          "formula": "L - 3.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Motor (conforme marca solicitada)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador Tubo 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Adaptador Suporte Cruz 2P (Morceguinha)",
+          "qtd": 1
+        },
+        {
+          "nome": "Roda do Motor - Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Coroa do Motor p/ Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Emissor (conforme canais solicitados)",
+          "qtd": 1,
+          "obs": "Verificar pedido"
+        },
+        {
+          "nome": "Garra 40mm Branca",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "motor-sheer-bando-vision-47",
+      "nome": "Motorizada Sheer — Bandô Vision (Tubo 47mm)",
+      "familia": "MOTORIZADAS",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 4.0",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 4.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete Base Duo",
+          "formula": "L - 4.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 4.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa do Bandô Vision",
+          "qtd": 1
+        },
+        {
+          "nome": "Motor (conforme marca solicitada)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador Tubo 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Adaptador Suporte Cruz 2P (Morceguinha)",
+          "qtd": 1
+        },
+        {
+          "nome": "Roda do Motor - Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Coroa do Motor p/ Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Emissor (conforme canais solicitados)",
+          "qtd": 1,
+          "obs": "Verificar pedido"
+        },
+        {
+          "nome": "Garra p/ Bandô Vision",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ]
+    },
+    {
+      "chave": "motor-box-90-47",
+      "nome": "Motorizada Box 90mm (Tubo 47mm)",
+      "familia": "MOTORIZADAS",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Box 90mm (Perfil L 90)",
+          "formula": "L - 0.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 4.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Média",
+          "formula": "L - 5",
+          "dim": "L"
+        },
+        {
+          "nome": "Guia Lateral (esq + dir)",
+          "formula": "A - 7.5",
+          "dim": "A",
+          "qtd": 2
+        },
+        {
+          "nome": "Guia Inferior",
+          "formula": "L - 12",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Superior/Inferior",
+          "formula": "L - 10.2",
+          "dim": "L"
+        },
+        {
+          "nome": "Perfil Lateral",
+          "formula": "A - 0.4",
+          "dim": "A"
+        },
+        {
+          "nome": "Tampa Box 90",
+          "formula": "L - 0.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 4.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Lateral Box 90 (E/D)",
+          "qtd": 1,
+          "obs": "Verificar lado de comando"
+        },
+        {
+          "nome": "Motor (conforme marca solicitada)",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador Tubo 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Adaptador Suporte Cruz 2P (Morceguinha)",
+          "qtd": 1
+        },
+        {
+          "nome": "Roda do Motor - Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Coroa do Motor p/ Tubos 43 e 47mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Emissor (conforme canais solicitados)",
+          "qtd": 1,
+          "obs": "Verificar pedido"
+        }
+      ]
+    },
+    {
+      "chave": "intermed-plus-32-lisa",
+      "nome": "Intermediária Trilho Plus 32mm — Lisa",
+      "familia": "INTERMEDIARIO",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 1.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "intermed-plus-32-sheer",
+      "nome": "Intermediária Trilho Plus 32mm — Sheer",
+      "familia": "INTERMEDIARIO",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 1.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 1.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete Duo",
+          "formula": "L - 2.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "intermed-bv-32-lisa",
+      "nome": "Intermediária Bandô Vision 32mm — Lisa",
+      "familia": "INTERMEDIARIO",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "intermed-bv-32-sheer",
+      "nome": "Intermediária Bandô Vision 32mm — Sheer",
+      "familia": "INTERMEDIARIO",
+      "tubo": "32mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 32mm Natural",
+          "formula": "L - 2.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Duo",
+          "formula": "L - 2.3",
+          "dim": "L"
+        },
+        {
+          "nome": "Rolete Duo",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 15",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Mini",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 32mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa do Rolete Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Tampa Base Duo",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "intermed-plus-40-lisa",
+      "nome": "Intermediária Trilho Plus 40mm — Lisa",
+      "familia": "INTERMEDIARIO",
+      "tubo": "40mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 40mm Natural",
+          "formula": "L - 2.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando Médio s/ Redução",
+          "qtd": 1
+        },
+        {
+          "nome": "Ponta Oposta 40mm s/ Acionamento",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Pino Retrátil Médio",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "acoplada-bv-47-lisa",
+      "nome": "Acoplada Bandô Vision 47mm — Lisa",
+      "familia": "ACOPLADA",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Bandô Vision",
+          "formula": "L - 0.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 2.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 3.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 3.1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Tampa Vision Rolo 1720 Lisa",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando R20 Max c/ Redução e Guia Regulável",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador",
+          "qtd": 1
+        },
+        {
+          "nome": "Stop Plus (Roller Stop) 40,3mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Corrente s/ Fim Bola 10 (m)",
+          "qtd": 1,
+          "obs": "Verificar altura"
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "acoplada-plus-47-lisa",
+      "nome": "Acoplada Trilho Plus 47mm — Lisa",
+      "familia": "ACOPLADA",
+      "tubo": "47mm",
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Plus",
+          "formula": "L - 0.4",
+          "dim": "L"
+        },
+        {
+          "nome": "Tubo 47mm Natural",
+          "formula": "L - 2.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 2.7",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + 20",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando R20 Max c/ Redução e Guia Regulável",
+          "qtd": 1
+        },
+        {
+          "nome": "Comando Oposto Uniline s/ Acionador",
+          "qtd": 1
+        },
+        {
+          "nome": "Stop Plus (Roller Stop) 40,3mm",
+          "qtd": 1
+        },
+        {
+          "nome": "Corrente s/ Fim Bola 10 (m)",
+          "qtd": 1,
+          "obs": "Verificar altura"
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Suporte X10 Médio",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte Uniline Médio c/ Rolamento",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "romana-padrao",
+      "nome": "Romana — Padrão (parede)",
+      "familia": "ROMANA",
+      "tubo": null,
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Romana",
+          "formula": "L - 1.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Eixo Romana Sextavado 7mm",
+          "formula": "L - 4.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Vareta Romana",
+          "formula": "L - 1.2",
+          "dim": "L",
+          "qtdFormula": "varetasRomana(A)"
+        },
+        {
+          "nome": "Base Quadrada Baixa",
+          "formula": "L - 1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 1",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + varetasRomana(A) + 10",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Kit Romana Redutor (Comando Romana)",
+          "qtd": 1
+        },
+        {
+          "nome": "Corrente s/ Fim Bola 10 (m)",
+          "qtd": 1,
+          "obs": "Conforme altura do pedido"
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Tampa da Base Quadrada Baixa",
+          "qtd": 2
+        },
+        {
+          "nome": "Garra p/ Romana",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ],
+      "calculoExtraFonte": "({\n      \"Tamanho dos Gomos (cm)\": (A / (varetasRomana(A) + 1) + 1).toFixed(2),\n      \"Qtd de Varetas\": varetasRomana(A),\n    })"
+    },
+    {
+      "chave": "romana-teto",
+      "nome": "Romana de Teto",
+      "familia": "ROMANA",
+      "tubo": null,
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho — Largura",
+          "formula": "L - 1",
+          "dim": "L"
+        },
+        {
+          "nome": "Trilho — Altura",
+          "formula": "A - 4.7",
+          "dim": "A"
+        },
+        {
+          "nome": "Largura Base",
+          "formula": "L - 4.9",
+          "dim": "L"
+        },
+        {
+          "nome": "Vareta — Largura",
+          "formula": "L - 4.9",
+          "dim": "L",
+          "qtdFormula": "varetasRomanaTeto(A)"
+        },
+        {
+          "nome": "Tecido (Largura)",
+          "formula": "L - 5.5",
+          "dim": "L"
+        },
+        {
+          "nome": "Tecido (Altura)",
+          "formula": "A + varetasRomanaTeto(A) + 10",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Kit Romana Redutor (Comando Romana)",
+          "qtd": 1
+        },
+        {
+          "nome": "Corrente s/ Fim Bola 10 (m)",
+          "qtd": 1,
+          "obs": "Conforme altura do pedido"
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        },
+        {
+          "nome": "Garra p/ Romana",
+          "qtdFormula": "garrasPorLargura(L)"
+        }
+      ],
+      "calculoExtraFonte": "({\n      \"Qtd de Varetas\": varetasRomanaTeto(A),\n    })"
+    },
+    {
+      "chave": "painel-3-vias",
+      "nome": "Painel 3 Vias",
+      "familia": "ROMANA",
+      "tubo": null,
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Painel",
+          "formula": "L - 2.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Vias Painel (cada uma)",
+          "formula": "(L + 20) / 3",
+          "dim": "L",
+          "qtd": 3
+        },
+        {
+          "nome": "Base Chata (cada uma)",
+          "formula": "((L + 20) / 3) - 0.3",
+          "dim": "L",
+          "qtd": 3
+        },
+        {
+          "nome": "Tecido — Largura (cada via)",
+          "formula": "(L + 20) / 3",
+          "dim": "L",
+          "qtd": 3
+        },
+        {
+          "nome": "Tecido — Altura",
+          "formula": "A - 1.5",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando do Painel",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "painel-4-vias",
+      "nome": "Painel 4 Vias",
+      "familia": "ROMANA",
+      "tubo": null,
+      "unidade": "cm",
+      "cortes": [
+        {
+          "nome": "Trilho Painel",
+          "formula": "L - 2.6",
+          "dim": "L"
+        },
+        {
+          "nome": "Vias Painel (cada uma)",
+          "formula": "(L + 30) / 4",
+          "dim": "L",
+          "qtd": 4
+        },
+        {
+          "nome": "Base Chata (cada uma)",
+          "formula": "((L + 30) / 4) - 0.3",
+          "dim": "L",
+          "qtd": 4
+        },
+        {
+          "nome": "Tecido — Largura (cada via)",
+          "formula": "(L + 30) / 4",
+          "dim": "L",
+          "qtd": 4
+        },
+        {
+          "nome": "Tecido — Altura",
+          "formula": "A - 1.5",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Comando do Painel",
+          "qtd": 1
+        },
+        {
+          "nome": "Pingente Top Lux c/ Gravação",
+          "qtd": 1
+        }
+      ]
+    },
+    {
+      "chave": "ph-25mm",
+      "nome": "PH 25mm (Horizontal)",
+      "familia": "HORIZONTAL",
+      "tubo": "25mm",
+      "unidade": "m",
+      "cortes": [
+        {
+          "nome": "Cabeçalho 25mm",
+          "formula": "L",
+          "dim": "L"
+        },
+        {
+          "nome": "Lâmina 25mm (cada)",
+          "formula": "L",
+          "dim": "L",
+          "qtdFormula": "ph25NumLaminas(A)"
+        },
+        {
+          "nome": "Cadarço/Fita",
+          "formula": "A + 0.08",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Bastão de Comando",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte de Cabeçalho",
+          "qtd": 2,
+          "obs": "Pode variar com a largura"
+        },
+        {
+          "nome": "Furação lateral (m)",
+          "qtd": 0.1
+        }
+      ],
+      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.2) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.4).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.4 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph25NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+    },
+    {
+      "chave": "ph-50mm-aluminio",
+      "nome": "PH 50mm Alumínio",
+      "familia": "HORIZONTAL",
+      "tubo": "50mm",
+      "unidade": "m",
+      "cortes": [
+        {
+          "nome": "Cabeçalho 50mm Alumínio",
+          "formula": "L",
+          "dim": "L"
+        },
+        {
+          "nome": "Lâmina 50mm Alumínio (cada)",
+          "formula": "L",
+          "dim": "L",
+          "qtdFormula": "ph50NumLaminas(A)"
+        },
+        {
+          "nome": "Cadarço/Fita",
+          "formula": "A + 0.25",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Bastão de Comando",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte de Cabeçalho 50mm",
+          "qtd": 2,
+          "obs": "Pode variar com a largura"
+        },
+        {
+          "nome": "Furação lateral (m)",
+          "qtd": 0.15
+        }
+      ],
+      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.6).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (Z * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.5 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+    },
+    {
+      "chave": "ph-50mm-mad-sintetica",
+      "nome": "PH 50mm Madeira Sintética",
+      "familia": "HORIZONTAL",
+      "tubo": "50mm",
+      "unidade": "m",
+      "cortes": [
+        {
+          "nome": "Cabeçalho 50mm Mad. Sintética",
+          "formula": "L",
+          "dim": "L"
+        },
+        {
+          "nome": "Lâmina 50mm Mad. Sintética (cada)",
+          "formula": "L",
+          "dim": "L",
+          "qtdFormula": "ph50NumLaminas(A)"
+        },
+        {
+          "nome": "Cadarço/Fita",
+          "formula": "A + 0.25",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Bastão de Comando",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte de Cabeçalho 50mm",
+          "qtd": 2,
+          "obs": "Pode variar com a largura"
+        }
+      ],
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+    },
+    {
+      "chave": "ph-50mm-mad-natural",
+      "nome": "PH 50mm Madeira Natural",
+      "familia": "HORIZONTAL",
+      "tubo": "50mm",
+      "unidade": "m",
+      "cortes": [
+        {
+          "nome": "Cabeçalho 50mm Mad. Natural",
+          "formula": "L",
+          "dim": "L"
+        },
+        {
+          "nome": "Lâmina 50mm Mad. Natural (cada)",
+          "formula": "L",
+          "dim": "L",
+          "qtdFormula": "ph50NumLaminas(A)"
+        },
+        {
+          "nome": "Cadarço/Fita",
+          "formula": "A + 0.25",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Bastão de Comando",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte de Cabeçalho 50mm",
+          "qtd": 2
+        }
+      ],
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+    },
+    {
+      "chave": "ph-50mm-pvc",
+      "nome": "PH 50mm PVC",
+      "familia": "HORIZONTAL",
+      "tubo": "50mm",
+      "unidade": "m",
+      "cortes": [
+        {
+          "nome": "Cabeçalho 50mm PVC",
+          "formula": "L",
+          "dim": "L"
+        },
+        {
+          "nome": "Lâmina 50mm PVC (cada)",
+          "formula": "L",
+          "dim": "L",
+          "qtdFormula": "ph50NumLaminas(A)"
+        },
+        {
+          "nome": "Cadarço/Fita",
+          "formula": "A + 0.25",
+          "dim": "A"
+        }
+      ],
+      "componentes": [
+        {
+          "nome": "Bastão de Comando",
+          "qtd": 1
+        },
+        {
+          "nome": "Suporte de Cabeçalho 50mm",
+          "qtd": 2
+        }
+      ],
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+    }
+  ]
+}

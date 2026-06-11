@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>PCP — Persianas Paraná</title>
+<link rel="icon" type="image/png" href="assets/brand/logos/favicon.png">
+<link rel="apple-touch-icon" href="assets/brand/logos/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/fonts/manrope.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/vendor/pdf.min.js" defer></script>
+<script src="assets/js/app.js" defer></script>
+</head>
+<div id="app">
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="logo">
+    <img src="assets/brand/logos/logo-branco.png" alt="Persianas Paraná" style="width:140px;height:auto;display:block">
+    <div class="logo-sub">Sistema PCP</div>
+  </div>
+  <nav>
+    <a class="active" onclick="goTo('painel')" data-page="painel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>Painel</span>
+    </a>
+    <a onclick="goTo('fila')" data-page="fila">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>Fila de Produção</span>
+    </a>
+    <a onclick="goTo('alertas')" data-page="alertas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alertas</span>
+    </a>
+    <a onclick="goTo('busca')" data-page="busca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Buscar Pedido</span>
+    </a>
+    <a onclick="goTo('indicadores')" data-page="indicadores">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Indicadores</span>
+    </a>
+<a onclick="goTo('bip')" data-page="bip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="9" y1="8" x2="9" y2="16" stroke-width="3"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="3"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
+      <span>Bipagem</span>
+    </a>
+    <a onclick="goTo('estrutura')" data-page="estrutura">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>Estrutura do Produto</span>
+    </a>
+    <a onclick="goTo('novo')" data-page="novo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Novo Pedido</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer" id="sf-count"></div>
+  <div style="padding:10px 18px;border-top:1px solid #333;display:flex;align-items:center;gap:8px">
+    <div id="user-name" style="flex:1;min-width:0;font-size:11px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+    <button id="btn-sair" style="background:none;border:1px solid #444;color:#bbb;font-size:10px;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:700">Sair</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <div class="page-title" id="page-title">Painel</div>
+    <div class="today" id="today-label"></div>
+    <button class="btn btn-outline" onclick="atualizarDados()" style="font-size:11px" title="Recarregar dados do servidor">↻ Atualizar</button>
+    <button class="btn btn-outline" onclick="exportXLSX()" style="font-size:11px">⬇ Exportar CSV</button>
+    <button class="btn btn-outline" onclick="document.getElementById('import-file').click()" style="font-size:11px">⬆ Importar Excel</button>
+    <button class="btn btn-outline" onclick="document.getElementById('import-pdf-file').click()" style="font-size:11px;color:#C1212D;border-color:#C1212D">📄 Importar PDF</button>
+    <input type="file" id="import-pdf-file" accept=".pdf" style="display:none" onchange="importPDFDirect(event)">
+    <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFile(event)">
+    <button class="btn btn-red" onclick="openModal()">+ Novo Pedido</button>
+  </div>
+
+  <div id="content">
+
+    <!-- PAINEL -->
+    <div class="section active" id="sec-painel">
+      <div class="metrics" id="metrics-painel"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">🔴 Vencidos (prazo já passou)</div>
+          <div class="alert-list" id="painel-vencidos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚠ Atenção (vence em ≤ 3 dias)</div>
+          <div class="alert-list" id="painel-atencao"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">🔵 Em produção (mais próximos do prazo)</div>
+        <div class="alert-list" id="painel-producao"></div>
+      </div>
+    </div>
+
+    <!-- FILA -->
+    <div class="section" id="sec-fila">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div class="toolbar" style="margin-bottom:10px">
+          <input type="text" id="fila-search" placeholder="Buscar produto ou pedido..." oninput="renderFila()">
+          <select id="fila-status" onchange="renderFila()">
+            <option value="">Todos os status</option>
+            <option value="vencido">✗ Vencido</option>
+            <option value="atencao">⚠ Atenção</option>
+            <option value="producao">◌ Em produção</option>
+            <option value="ok">✓ No prazo</option>
+            <option value="atraso">✗ Atrasado</option>
+          </select>
+          <select id="fila-tipo" onchange="renderFila()">
+            <option value="">Todos os tipos</option>
+            <option value="Produção nova">Produção nova</option>
+            <option value="Retrabalho">Retrabalho</option>
+            <option value="Higienização">Higienização</option>
+            <option value="Carry-over 2025">Carry-over 2025</option>
+            <option value="Showroom">Showroom</option>
+          </select>
+          <select id="fila-situacao" onchange="renderFila()">
+            <option value="">Concluídos + abertos</option>
+            <option value="aberto">Somente em aberto</option>
+            <option value="concluido">Somente concluídos</option>
+          </select>
+          <div class="spacer"></div>
+          <span id="fila-count" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:10px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Filtrar por data:</span>
+
+          <select id="fila-campo-data" onchange="toggleDateFilter();renderFila()" style="font-size:11px">
+            <option value="">— Sem filtro de data —</option>
+            <option value="data_cliente">Data do cliente (prazo)</option>
+            <option value="conclusao">Data de conclusão</option>
+            <option value="chegada_pcp">Chegada no PCP</option>
+            <option value="prev_producao">Prev. produção</option>
+          </select>
+
+          <div id="date-filter-controls" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="fila-periodo" onchange="toggleDatePeriod();renderFila()" style="font-size:11px">
+              <option value="range">Período (de/até)</option>
+              <option value="mes">Mês específico</option>
+              <option value="semana">Esta semana</option>
+              <option value="proxima">Próxima semana</option>
+              <option value="hoje">Hoje</option>
+              <option value="proximos">Próximos N dias</option>
+              <option value="vencidos">Só vencidos</option>
+            </select>
+
+            <div id="date-range-inputs" style="display:flex;align-items:center;gap:6px">
+              <input type="date" id="fila-data-de" onchange="renderFila()"
+                style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;background:var(--surface);color:var(--text)">
+              <span style="font-size:11px;color:var(--text3)">até</span>
+              <input type="date" id="fila-data-ate" onchange="renderFila()"
+                style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;background:var(--surface);color:var(--text)">
+            </div>
+
+            <div id="date-mes-input" style="display:none">
+              <input type="month" id="fila-mes" onchange="renderFila()"
+                style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;background:var(--surface);color:var(--text)">
+            </div>
+
+            <div id="date-proximos-input" style="display:none;align-items:center;gap:4px">
+              <span style="font-size:11px;color:var(--text3)">Próximos</span>
+              <input type="number" id="fila-ndays" value="7" min="1" max="365" onchange="renderFila()"
+                style="width:50px;font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;background:var(--surface);color:var(--text)">
+              <span style="font-size:11px;color:var(--text3)">dias</span>
+            </div>
+
+            <button onclick="limparFiltroData()" style="font-size:10px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text2)">✕ Limpar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:180px;cursor:pointer" onclick="sortFila('produto')"><span id="sh-produto">Produto</span></th>
+                <th style="cursor:pointer" onclick="sortFila('pedido')"><span id="sh-pedido">Pedido</span></th>
+                <th>Qtd</th>
+                <th style="cursor:pointer" onclick="sortFila('data_cliente')"><span id="sh-data_cliente">Data cliente</span></th>
+                <th style="cursor:pointer" onclick="sortFila('prev_producao')"><span id="sh-prev_producao">Prev. prod.</span></th>
+                <th style="cursor:pointer" onclick="sortFila('conclusao')"><span id="sh-conclusao">Conclusão</span></th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Motivo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="fila-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pagination" id="fila-pag"></div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="section" id="sec-alertas">
+      <div class="metrics" id="metrics-alertas"></div>
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">Vencidos — pedidos em aberto com prazo já expirado</div>
+        <div class="alert-list" id="alertas-vencidos"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber)">Atenção — vence nos próximos 3 dias</div>
+        <div class="alert-list" id="alertas-atencao"></div>
+      </div>
+    </div>
+
+    <!-- BUSCA -->
+    <div class="section" id="sec-busca">
+      <div class="toolbar">
+        <input type="text" id="busca-input" placeholder="Digite o número do pedido ou nome do produto..." style="width:380px" oninput="renderBusca()">
+        <span id="busca-count" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="busca-results"></div>
+    </div>
+
+    <!-- INDICADORES -->
+    <div class="section" id="sec-indicadores">
+      <div class="metrics" id="metrics-ind"></div>
+      <div class="ind-grid">
+        <div class="card">
+          <div class="card-title">Top produtos com atraso</div>
+          <div class="bar-chart" id="chart-produtos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Motivos de atraso</div>
+          <div class="bar-chart" id="chart-motivos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mix de produção por tipo</div>
+          <div id="chart-tipos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Situação geral</div>
+          <div id="chart-situacao"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BIPAGEM -->
+    <div class="section" id="sec-bip">
+      <div style="max-width:540px;margin:0 auto">
+
+        <div class="card" style="border:2px solid var(--red)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div style="width:36px;height:36px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="9" y1="8" x2="9" y2="16" stroke-width="3"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="3"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700">Leitor de código de barras</div>
+              <div style="font-size:11px;color:var(--text3)">Bipe a etiqueta — campo sempre ativo</div>
+            </div>
+          </div>
+          <input type="text" id="bip-input"
+            placeholder="Aguardando leitura..."
+            autocomplete="off"
+            style="width:100%;padding:14px 16px;font-size:18px;font-family:monospace;border:2px solid var(--border);border-radius:8px;outline:none;background:var(--gray-bg);color:var(--text);letter-spacing:.1em"
+            oninput="bipDigitado()"
+            onkeydown="if(event.key==='Enter') processBip()">
+          <div style="margin-top:8px;font-size:11px;color:var(--text3);text-align:center">
+            Pressione Enter ou aguarde 1,5s para processar automaticamente
+          </div>
+        </div>
+
+        <div id="bip-resultado"></div>
+
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Histórico desta sessão</span>
+            <button onclick="limparBipHistorico()" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text3)">✕ Limpar</button>
+          </div>
+          <div id="bip-historico" style="font-size:12px;color:var(--text3)">Nenhum bip registrado ainda.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ESTRUTURA DO PRODUTO -->
+    <div class="section" id="sec-estrutura">
+      <div class="toolbar">
+        <input type="text" id="estrutura-busca" placeholder="Buscar produto ou família..." oninput="renderEstrutura()">
+        <div class="spacer"></div>
+        <span id="estrutura-count" style="font-size:11px;color:var(--text3)"></span>
+        <button class="btn btn-red" onclick="abrirProdutoModal()">+ Novo produto</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+        Estrutura oficial dos produtos: fórmulas de corte e componentes (BOM). L = largura, A = altura — medidas em centímetros, exceto PH 25/PH 50 (metros). A lista de produtos do novo pedido vem daqui.
+      </div>
+      <div id="estrutura-lista"></div>
+    </div>
+
+    <!-- NOVO PEDIDO -->
+    <div class="section" id="sec-novo">
+      <div class="card" style="max-width:600px">
+        <div class="card-title">Cadastrar novo pedido</div>
+        <div class="form-grid" id="form-novo-content">
+          <div class="form-group" style="grid-column:1/-1"><label>Produto * <span style="font-weight:400;text-transform:none;color:var(--text3)">(da Estrutura do Produto)</span></label>
+            <select id="fn-produto" onchange="toggleProdutoLivre()"><option value="">Carregando...</option></select>
+            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px">
+          </div>
+          <div class="form-group"><label>Nº Pedido *</label><input type="text" id="fn-pedido" placeholder="Ex: 18500"></div>
+          <div class="form-group"><label>Quantidade</label><input type="number" id="fn-qnt" value="1" min="1"></div>
+          <div class="form-group"><label>Data do cliente *</label><input type="date" id="fn-data-cliente"></div>
+          <div class="form-group"><label>Chegada PCP</label><input type="date" id="fn-chegada"></div>
+          <div class="form-group"><label>Prev. produção</label><input type="date" id="fn-prev-prod"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="fn-tipo">
+              <option>Produção nova</option><option>Retrabalho</option>
+              <option>Higienização</option><option>Showroom</option><option>Carry-over 2025</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Motivo atraso</label>
+            <select id="fn-motivo">
+              <option value=""></option>
+              <option>Falta de material</option><option>Defeito de material</option>
+              <option>Ausência de colaborador</option><option>Pedido esquecido</option>
+              <option>Solicitação do cliente</option><option>Aguardando material</option>
+              <option>Aviso ao cliente pendente</option><option>Peça showroom</option><option>Outros</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="fn-obs" rows="2"></textarea></div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-red" onclick="salvarNovo()">Salvar pedido</button>
+          <button class="btn btn-outline" onclick="limparForm()">Limpar</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+
+
+<!-- JSON PASTE MODAL -->
+<div id="json-paste-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:10px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+    <div style="background:var(--black);color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:14px;font-weight:700">Importar via JSON (PDF lido no chat)</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">Cole o JSON gerado pelo Claude a partir do PDF</div>
+      </div>
+      <button onclick="closeJsonPaste()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
+        1. Envie o PDF no chat com o Claude<br>
+        2. Peça: <em style="color:var(--red)">"extraia os dados para o PCP"</em><br>
+        3. Copie o JSON retornado e cole abaixo:
+      </div>
+      <textarea id="json-paste-input" rows="10"
+        style="width:100%;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;font-family:monospace;resize:vertical;background:var(--gray-bg);color:var(--text)"
+        placeholder='{"pedido":"19213","data_cliente":"2026-06-24","cliente":"Deise Vaz Berg do Prado","itens":[{"produto":"ROLO SOFT SHEER","qnt":1,"observacoes":"..."}]}'></textarea>
+      <div id="json-paste-error" style="color:var(--red);font-size:11px;margin-top:6px;display:none"></div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeJsonPaste()">Cancelar</button>
+      <button class="btn btn-red" onclick="processJsonPaste()">✓ Processar e revisar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF IMPORT MODAL -->
+<div id="pdf-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
+  <div id="pdf-modal" style="background:var(--surface);border-radius:10px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+    <div style="background:var(--black);color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:14px;font-weight:700">Importar Ordem de Produção — PDF</div>
+        <div id="pdf-modal-sub" style="font-size:11px;color:#aaa;margin-top:2px"></div>
+      </div>
+      <button onclick="closePdfModal()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">✕</button>
+    </div>
+    <div id="pdf-modal-body" style="padding:20px">
+      <div id="pdf-loading" style="text-align:center;padding:40px 20px">
+        <div style="font-size:28px;margin-bottom:12px">⏳</div>
+        <div style="font-size:13px;color:var(--text2)" id="pdf-loading-msg">Lendo o PDF com IA...</div>
+      </div>
+      <div id="pdf-result" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Dados extraídos do PDF. Revise e ajuste antes de salvar:</div>
+        <div id="pdf-items-container"></div>
+        <div style="margin-top:16px;padding:12px;background:var(--gray-bg);border-radius:6px;font-size:11px;color:var(--text3)" id="pdf-raw-obs"></div>
+      </div>
+      <div id="pdf-error" style="display:none;text-align:center;padding:30px;color:var(--red)">
+        <div style="font-size:24px;margin-bottom:8px">⚠</div>
+        <div id="pdf-error-msg" style="font-size:13px"></div>
+      </div>
+    </div>
+    <div id="pdf-modal-footer" style="display:none;padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closePdfModal()">Cancelar</button>
+      <button class="btn btn-red" onclick="confirmarPdfImport()">✓ Confirmar e salvar todos</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL editar/ver -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Detalhes do pedido</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" id="modal-body-content"></div>
+    </div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<datalist id="produtos-datalist"></datalist>
+
+<div id="toast"></div>
+</body>
+</html>

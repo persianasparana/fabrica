@@ -72,9 +72,7 @@ fi
 echo "==> Backend (dependências, schema e admin)"
 ( cd "$ROOT/server" && npm ci --omit=dev && npm run install-app )
 
-# 5) Frontend do PCP: build para o subpath /fabrica/ --------------------------
-echo "==> Build do PCP (subpath /fabrica/)"
-( cd "$ROOT/pcp/frontend" && npm ci && VITE_BASE=/fabrica/pcp/ VITE_API_PREFIX=/fabrica/api npm run build )
+# 5) Frontends: estáticos (pcp/public e qualidade/public) — sem etapa de build
 
 # 6) PM2 ----------------------------------------------------------------------
 echo "==> Serviço PM2 (fabrica-server)"
