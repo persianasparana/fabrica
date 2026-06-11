@@ -8,6 +8,14 @@
   const form = document.getElementById('login-form');
   const errorEl = document.getElementById('login-error');
   const btn = document.getElementById('btn-login');
+  const passwordEl = document.getElementById('password');
+  const toggleBtn = document.getElementById('btn-toggle-senha');
+
+  toggleBtn.addEventListener('click', function () {
+    const visivel = passwordEl.type === 'text';
+    passwordEl.type = visivel ? 'password' : 'text';
+    toggleBtn.setAttribute('aria-label', visivel ? 'Mostrar senha' : 'Ocultar senha');
+  });
 
   function showError(msg) {
     errorEl.textContent = msg;

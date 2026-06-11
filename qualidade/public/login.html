@@ -15,21 +15,29 @@
     <img class="login-logo" src="assets/brand/logos/logo-preto.png" alt="Persianas Paraná">
     <h1 class="login-title">Sistema de Qualidade</h1>
     <p class="login-sub">Gestão de Não Conformidades</p>
+    <p class="login-hint">Entre com o usuário e a senha fornecidos pelo administrador.</p>
 
     <div class="field">
       <label for="username">Usuário</label>
-      <input type="text" id="username" name="username" required autofocus autocomplete="username">
+      <input type="text" id="username" name="username" class="login-input" required autofocus
+             autocomplete="username" autocapitalize="none" placeholder="Digite seu usuário">
     </div>
 
     <div class="field">
       <label for="password">Senha</label>
-      <input type="password" id="password" name="password" required autocomplete="current-password">
+      <div class="password-wrap">
+        <input type="password" id="password" name="password" class="login-input" required
+               autocomplete="current-password" placeholder="Digite sua senha">
+        <button type="button" class="password-toggle" id="btn-toggle-senha"
+                aria-label="Mostrar senha" tabindex="-1">&#128065;</button>
+      </div>
     </div>
 
     <div id="login-error" class="login-error" role="alert" hidden></div>
 
     <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
 
+    <p class="login-help">Problemas com o acesso? Fale com o administrador.</p>
     <p class="login-foot">v1.0.0 · © Persianas Paraná</p>
   </form>
 </main>

@@ -67,6 +67,14 @@ Guia completo (PostgreSQL + systemd + Nginx, sem afetar os apps existentes):
 
 ---
 
+## Acesso e login
+
+Como acessar (URLs, VPN), forma de login (usuário + senha, sessão + CSRF,
+bloqueio por tentativas) e gestão de usuários:
+**[`docs/ACESSO-E-USO.md`](docs/ACESSO-E-USO.md)**.
+
+---
+
 ## Identidade visual
 
 Identidade **oficial** da Persianas Paraná aplicada: preto `#1D1D1B` + branco,

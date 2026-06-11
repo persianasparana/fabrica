@@ -116,6 +116,42 @@ button { font-family: inherit; }
   margin-bottom: 1.5rem;
 }
 
+.login-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin: -0.75rem 0 1.5rem;
+}
+
+/* Inputs do login com 16px: evita zoom automático no iOS (alvo mobile). */
+.login-card input.login-input {
+  font-size: 16px;
+  padding: 11px 12px;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.password-toggle:hover { color: var(--text); }
+
 .login-error {
   background: var(--danger-bg);
   color: var(--danger);
@@ -125,11 +161,18 @@ button { font-family: inherit; }
   margin-bottom: 1rem;
 }
 
+.login-help {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
 .login-foot {
   font-size: 11px;
   color: var(--text-tertiary);
   text-align: center;
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 /* ============================================================================
