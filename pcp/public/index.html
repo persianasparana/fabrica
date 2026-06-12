@@ -274,9 +274,14 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="9" y1="8" x2="9" y2="16" stroke-width="3"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="3"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
             </div>
             <div>
-              <div style="font-size:14px;font-weight:700">Baixa de produção — Embalagem</div>
-              <div style="font-size:11px;color:var(--text3)">Bipe a etiqueta da peça produzida — campo sempre ativo</div>
+              <div style="font-size:14px;font-weight:700">Bipagem de produção</div>
+              <div style="font-size:11px;color:var(--text3)">Selecione o setor e Início/Fim, depois bipe a etiqueta</div>
             </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+            <select id="bip-setor" style="flex:1;min-width:160px;font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"></select>
+            <button id="bip-evt-inicio" class="btn btn-red" onclick="setBipEvento('inicio')">▶ Início</button>
+            <button id="bip-evt-fim" class="btn btn-outline" onclick="setBipEvento('fim')">⏹ Fim</button>
           </div>
           <input type="text" id="bip-input"
             placeholder="Aguardando leitura..."
@@ -285,7 +290,7 @@
             oninput="bipDigitado()"
             onkeydown="if(event.key==='Enter') processBip()">
           <div style="margin-top:8px;font-size:11px;color:var(--text3);text-align:center">
-            Cada bip dá baixa em UMA peça. O pedido conclui quando todas as peças tiverem baixa.
+            O “Início” assume o status do setor (após as dependências). O “Fim” do setor final dá baixa na peça.
           </div>
         </div>
 

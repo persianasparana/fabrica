@@ -222,7 +222,7 @@ function goTo(page) {
   if (page === 'usuarios') renderUsuariosAdmin();
   if (page === 'novo') renderProdutosPedido();
   if (page === 'pedido') setTimeout(()=>document.getElementById('ped-busca')?.focus(), 80);
-  if (page === 'bip') setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100);
+  if (page === 'bip') { popularSetoresBip(); setBipEvento(bipEvento); setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100); }
 }
 
 // ─── PAINEL ──────────────────────────────────────────────────────────────────
@@ -1842,81 +1842,99 @@ document.getElementById('pdf-modal-overlay').addEventListener('click', e => {
 // ─── BIPAGEM ─────────────────────────────────────────────────────────────────
 let bipTimer = null;
 let bipSessao = [];
+let bipEvento = 'inicio';
 
-function bipDigitado() {
-  clearTimeout(bipTimer);
-  bipTimer = setTimeout(processBip, 1500);
+function setoresDoUsuario() {
+  if (ehAdmin()) return SETORES;
+  const meus = (usuario && usuario.setores) || [];
+  return SETORES.filter((s) => meus.includes(s.id));
+}
+function popularSetoresBip() {
+  const sel = document.getElementById('bip-setor'); if (!sel) return;
+  const lista = setoresDoUsuario();
+  const atual = sel.value;
+  sel.innerHTML = lista.length
+    ? lista.map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')
+    : '<option value="">— nenhum setor associado a você —</option>';
+  if (atual) sel.value = atual;
+}
+function setBipEvento(ev) {
+  bipEvento = ev === 'fim' ? 'fim' : 'inicio';
+  const bi = document.getElementById('bip-evt-inicio'), bf = document.getElementById('bip-evt-fim');
+  if (bi) bi.className = 'btn ' + (bipEvento === 'inicio' ? 'btn-red' : 'btn-outline');
+  if (bf) bf.className = 'btn ' + (bipEvento === 'fim' ? 'btn-red' : 'btn-outline');
+  const i = document.getElementById('bip-input'); if (i) i.focus();
 }
 
-// Embalagem: cada bip dá baixa em UMA peça (a vinculação da etiqueta é feita
-// no cadastro do pedido, pelo operador do PCP).
+function bipDigitado() { clearTimeout(bipTimer); bipTimer = setTimeout(processBip, 1500); }
+
 async function processBip() {
   clearTimeout(bipTimer);
   const input = document.getElementById('bip-input');
-  if (!podeEditar('bipagem')) { toast('Você não tem permissão para dar baixa na bipagem.'); input.value=''; return; }
+  if (!podeEditar('bipagem')) { toast('Você não tem permissão para bipar.'); input.value = ''; return; }
+  const setorSel = document.getElementById('bip-setor');
+  const setor_id = setorSel ? Number(setorSel.value) : 0;
+  if (!setor_id) { toast('Selecione o setor.'); setorSel && setorSel.focus(); return; }
   const codigo = input.value.trim();
   if (!codigo) return;
-  input.value = '';
-  input.focus();
-
+  input.value = ''; input.focus();
   try {
-    const r = await api('pcp/bip', { method: 'POST', body: { codigo } });
-    if (r.acao === 'desconhecido') {
-      const res = document.getElementById('bip-resultado');
-      if (res) res.innerHTML = `
-        <div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:16px 20px;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Etiqueta não vinculada</div>
-          <div style="font-size:12px;color:var(--text2)">
-            O código <strong>${esc(codigo)}</strong> não está vinculado a nenhuma peça.<br>
-            Procure o operador do PCP para vincular a etiqueta no cadastro do pedido.
-          </div>
-        </div>`;
-      return;
-    }
+    const r = await api('pcp/bip', { method: 'POST', body: { codigo, setor_id, evento: bipEvento } });
+    if (r.acao === 'desconhecido') { mostrarBipAviso(`Etiqueta ${codigo} não está vinculada a nenhuma peça.`); return; }
     const item = aplicarItemAtualizado(r.item);
-    showBipResultado(r.acao, item, codigo, r.peca_numero);
-    addBipHistorico(r.acao, item, r.peca_numero);
+    showBipResultado(r.acao, item, codigo, r.peca_numero, r.setor_nome, r.etapas);
+    addBipHistorico(r.acao, item, r.peca_numero, r.setor_nome);
     if (r.acao !== 'jafoi') renderAll();
-  } catch (e) { toast('Erro na bipagem: ' + e.message); }
+  } catch (e) { mostrarBipAviso(e.message); }
 }
 
-function showBipResultado(tipo, item, codigo, pecaNumero) {
-  const res = document.getElementById('bip-resultado');
-  if (!res) return;
+function mostrarBipAviso(msg) {
+  const res = document.getElementById('bip-resultado'); if (!res) return;
+  res.innerHTML = `<div style="background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:14px 18px;margin-bottom:16px;animation:fadeIn .2s ease"><div style="font-size:13px;font-weight:700;color:var(--amber)">⚠ ${esc(msg)}</div></div>`;
+}
+
+function etapasHTML(etapas) {
+  if (!etapas || !etapas.length) return '';
+  return `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">${etapas.map((e) => {
+    const cor = e.fim ? 'var(--green)' : (e.inicio ? '#1976D2' : 'var(--text3)');
+    const tag = e.fim ? '✓' : (e.inicio ? '▸' : '·');
+    return `<span class="st-prod" style="background:${cor}22;color:${cor};border:1px solid ${cor}66">${tag} ${esc(e.setor_nome)}</span>`;
+  }).join('')}</div>`;
+}
+
+function showBipResultado(tipo, item, codigo, pecaNumero, setorNome, etapas) {
+  const res = document.getElementById('bip-resultado'); if (!res) return;
   const done = pecasConcluidas(item), total = pecasTotal(item);
   const cfg = {
-    baixa: { bg:'var(--green-bg)', border:'var(--green)',  icon:'✅', cor:'var(--green)',
-             titulo: done >= total ? 'Baixa registrada — todas as peças do item concluídas!' : 'Baixa de produção registrada' },
-    jafoi: { bg:'var(--gray-bg)',  border:'var(--border)', icon:'ℹ️', cor:'var(--text3)',
-             titulo:'Esta peça já teve baixa' },
+    inicio: { bg:'var(--blue-bg)',  border:'#1976D2',      icon:'▶️', cor:'var(--blue)',  titulo:`Início registrado — ${esc(setorNome||'')}` },
+    fim:    { bg:'var(--amber-bg)', border:'#FFA000',      icon:'⏹️', cor:'var(--amber)', titulo:`Fim registrado — ${esc(setorNome||'')}` },
+    baixa:  { bg:'var(--green-bg)', border:'var(--green)', icon:'✅', cor:'var(--green)', titulo:'Baixa de produção — peça concluída!' },
+    jafoi:  { bg:'var(--gray-bg)',  border:'var(--border)',icon:'ℹ️', cor:'var(--text3)', titulo:`${esc(setorNome||'')} já estava com “fim”` },
   };
   const c = cfg[tipo] || cfg.jafoi;
-  res.innerHTML = `
-    <div style="background:${c.bg};border:2px solid ${c.border};border-radius:8px;padding:16px 20px;margin-bottom:16px;animation:fadeIn .2s ease">
-      <div style="font-size:24px;margin-bottom:6px">${c.icon}</div>
-      <div style="font-size:15px;font-weight:700;color:${c.cor};margin-bottom:6px">${c.titulo}</div>
-      <div style="font-size:13px;font-weight:700">${badgeEspecial(item)}${esc(item.produto)} — peça #${pecaNumero || '?'}</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:4px">
-        Pedido ${esc(item.pedido)} · ${done}/${total} peças com baixa · Cliente: ${fmtDate(item.data_cliente)}
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px">Cód: ${esc(codigo)}</div>
-    </div>`;
-  setTimeout(() => { if (res) res.innerHTML = ''; }, 6000);
+  res.innerHTML = `<div style="background:${c.bg};border:2px solid ${c.border};border-radius:8px;padding:16px 20px;margin-bottom:16px;animation:fadeIn .2s ease">
+    <div style="font-size:24px;margin-bottom:6px">${c.icon}</div>
+    <div style="font-size:15px;font-weight:700;color:${c.cor};margin-bottom:6px">${c.titulo}</div>
+    <div style="font-size:13px;font-weight:700">${badgeEspecial(item)}${esc(item.produto)} — peça #${pecaNumero || '?'}</div>
+    <div style="font-size:12px;color:var(--text2);margin-top:4px">Pedido ${esc(item.pedido)} · ${done}/${total} peças concluídas · Cliente: ${fmtDate(item.data_cliente)}</div>
+    ${etapasHTML(etapas)}
+    <div style="font-size:11px;color:var(--text3);margin-top:4px">Cód: ${esc(codigo)}</div>
+  </div>`;
+  setTimeout(() => { if (res) res.innerHTML = ''; }, 7000);
 }
 
-function addBipHistorico(tipo, item, pecaNumero) {
-  const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  bipSessao.unshift({tipo, item:{...item}, pecaNumero, hora});
-  const el = document.getElementById('bip-historico');
-  if (!el) return;
-  const icons = {baixa:'✅', jafoi:'ℹ️'};
-  const labels = {baixa:'Baixa registrada', jafoi:'Já tinha baixa'};
+function addBipHistorico(tipo, item, pecaNumero, setorNome) {
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  bipSessao.unshift({ tipo, item:{...item}, pecaNumero, setorNome, hora });
+  const el = document.getElementById('bip-historico'); if (!el) return;
+  const icons = { inicio:'▶️', fim:'⏹️', baixa:'✅', jafoi:'ℹ️' };
+  const labels = { inicio:'Início', fim:'Fim', baixa:'Baixa', jafoi:'Já fim' };
   el.innerHTML = bipSessao.slice(0,20).map((b) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);border-radius:4px">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border)">
       <span style="font-size:15px">${icons[b.tipo]||'•'}</span>
       <div style="flex:1">
-        <div style="font-weight:700;font-size:12px">${b.item.especial ? '★ ' : ''}${esc(b.item.produto)}${b.pecaNumero ? ` — peça #${b.pecaNumero}` : ''}</div>
-        <div style="font-size:11px;color:var(--text3)">Ped. ${esc(b.item.pedido)} · ${labels[b.tipo]||b.tipo}</div>
+        <div style="font-weight:700;font-size:12px">${b.item.especial?'★ ':''}${esc(b.item.produto)}${b.pecaNumero?` — peça #${b.pecaNumero}`:''}</div>
+        <div style="font-size:11px;color:var(--text3)">Ped. ${esc(b.item.pedido)} · ${labels[b.tipo]||b.tipo}${b.setorNome?' · '+esc(b.setorNome):''}</div>
       </div>
       <div style="font-size:11px;color:var(--text3)">${b.hora}</div>
     </div>`).join('');

@@ -43,7 +43,10 @@ apps da Persianas Paraná.
 | `pcp_itens` | Fila de produção do PCP (itens de pedido: datas, tipo, motivo, ★ especial). |
 | `pcp_pecas` | Peças individuais por item (etiqueta única por peça + baixa própria). |
 | `pcp_produtos` | Estrutura do produto: fórmulas de corte e componentes (BOM) em JSONB. |
-| `pcp_status` | Status de produção configuráveis (admin); `pcp_itens.status_id` aponta o status atual. |
+| `pcp_status` | Status de produção configuráveis (admin), com flag `final`; `pcp_itens.status_id` aponta o status atual. |
+| `pcp_setores` | Setores de produção (admin), cada um associado a um status. |
+| `pcp_peca_etapas` | Início/fim de cada setor por peça (bipagem). |
+| `usuario_setores` | Associação N:N usuário↔setor; `users.permissoes` (JSONB) define o acesso por aba. |
 | `nao_conformidades` | NCs do Qualidade (`setores`/`origens` em JSONB). |
 | `session` | Sessões (criada por `connect-pg-simple`). |
 
@@ -63,6 +66,15 @@ apps da Persianas Paraná.
   produto da estrutura (vínculo `produto_id`); fórmulas de corte ficam como
   texto legível (`L - 2.2`) e os cálculos especiais das PH (cordas/furos) são
   preservados em `calculo_extra_fonte`.
+- **Controle de acesso por aba.** Usuários têm permissão por aba
+  (none/ver/editar) em `users.permissoes`; admin tem acesso total. O backend
+  reforça as escritas com `requirePerm(aba, nível)`; o frontend esconde abas e
+  ações sem permissão.
+- **Bipagem como motor de fluxo.** Cada corte do produto tem um setor; o produto
+  tem um roteiro (setores + dependências). A peça é bipada por setor
+  (início/fim): o início assume o status do setor após as dependências estarem
+  "fim"; o fim do setor cujo status é "final" dá a baixa. Tudo parametrizável
+  pelo admin (setores, status, associação setor↔status e o status final).
 - **Frontends estáticos, sem build.** PCP e Qualidade são HTML/CSS/JS puros com
   caminhos relativos — funcionam na raiz e sob o subpath `/fabrica/`.
 

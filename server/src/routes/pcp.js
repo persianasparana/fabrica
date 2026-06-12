@@ -12,7 +12,9 @@
  *   POST   /api/pcp/itens/lote         importação em lote      (CSRF)
  *   PUT    /api/pcp/itens?id=N         atualização (sincroniza peças) (CSRF)
  *   DELETE /api/pcp/itens?id=N         exclui (cascade nas peças)     (CSRF)
- *   POST   /api/pcp/bip                BAIXA da peça pela etiqueta    (CSRF)
+ *   POST   /api/pcp/bip                bipagem por setor: { codigo, setor_id, evento } (CSRF)
+ *                                      início = assume status do setor (após dependências);
+ *                                      fim do setor "final" = baixa da peça
  *   POST   /api/pcp/bip/vincular       vincula etiqueta à próxima peça livre do pedido (CSRF)
  *   PUT    /api/pcp/pecas?id=N         ajustes por peça (desvincular/baixa/reabrir) (CSRF)
  *   GET    /api/pcp/estrutura          estrutura do produto (catálogo)
@@ -21,7 +23,7 @@
  *   DELETE /api/pcp/estrutura?id=N     desativa produto        (CSRF)
  */
 import { Router } from 'express';
-import { requireAuth, requireAdmin, requireCsrf, audit } from '../auth.js';
+import { requireAuth, requireAdmin, requireCsrf, requirePerm, audit } from '../auth.js';
 import { q, pool } from '../db.js';
 import { ah, HttpError } from '../util.js';
 
@@ -175,6 +177,7 @@ r.get(
 r.post(
   '/itens',
   requireCsrf,
+  requirePerm('novo', 'editar'),
   ah(async (req, res) => {
     const d = req.body || {};
     validarItem(d);
@@ -192,6 +195,7 @@ r.post(
 r.post(
   '/itens/lote',
   requireCsrf,
+  requirePerm('novo', 'editar'),
   ah(async (req, res) => {
     const itens = req.body?.itens;
     const substituir = req.body?.substituir === true;
@@ -228,6 +232,7 @@ r.post(
 r.put(
   '/itens',
   requireCsrf,
+  requirePerm('fila', 'editar'),
   ah(async (req, res) => {
     const id = Number(req.query.id || 0);
     if (!id) throw new HttpError(400, 'ID obrigatório');
@@ -316,6 +321,7 @@ r.put(
 r.delete(
   '/itens',
   requireCsrf,
+  requirePerm('fila', 'editar'),
   ah(async (req, res) => {
     const id = Number(req.query.id || 0);
     if (!id) throw new HttpError(400, 'ID obrigatório');
@@ -346,6 +352,7 @@ r.get(
 r.put(
   '/pedido',
   requireCsrf,
+  requirePerm('pedido', 'editar'),
   ah(async (req, res) => {
     const pedido = String(req.query.pedido || '').trim();
     if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
@@ -414,6 +421,7 @@ r.put(
 r.delete(
   '/pedido',
   requireCsrf,
+  requirePerm('pedido', 'editar'),
   ah(async (req, res) => {
     const pedido = String(req.query.pedido || '').trim();
     if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
@@ -424,39 +432,124 @@ r.delete(
   })
 );
 
-// ─── Bipagem (etiqueta -> peça) ──────────────────────────────────────────────
-// Embalagem bipa uma etiqueta VINCULADA -> baixa daquela peça (atômico).
+// ─── Bipagem por setor (início / fim) ────────────────────────────────────────
+// Cada setor bipa sua parte da peça: 'início' assume o status do setor (após as
+// dependências do roteiro estarem 'fim'); o 'fim' do setor cujo status é "final"
+// dá baixa na peça.
+
+// Etapas registradas (progresso) de uma peça
+async function progressoPeca(pecaId, exec = q) {
+  const { rows } = await exec(
+    `SELECT s.id AS setor_id, s.nome AS setor_nome, s.cor, st.final AS final,
+            to_char(pe.inicio, 'YYYY-MM-DD HH24:MI') AS inicio,
+            to_char(pe.fim,    'YYYY-MM-DD HH24:MI') AS fim
+     FROM pcp_peca_etapas pe
+     JOIN pcp_setores s ON s.id = pe.setor_id
+     LEFT JOIN pcp_status st ON st.id = s.status_id
+     WHERE pe.peca_id = $1 ORDER BY s.ordem, s.nome`,
+    [pecaId]
+  );
+  return rows.map((r) => ({ ...r, setor_id: Number(r.setor_id) }));
+}
 
 r.post(
   '/bip',
   requireCsrf,
+  requirePerm('bipagem', 'editar'),
   ah(async (req, res) => {
     const codigo = String(req.body?.codigo || '').trim();
+    const setorId = Number(req.body?.setor_id || 0);
+    const evento = req.body?.evento === 'fim' ? 'fim' : 'inicio';
     if (!codigo) throw new HttpError(422, 'Código é obrigatório');
+    if (!setorId) throw new HttpError(422, 'Selecione o setor');
 
     const { rows } = await q(
-      'SELECT id, item_id, numero, conclusao FROM pcp_pecas WHERE cod_barras = $1',
+      `SELECT pp.id, pp.item_id, pp.numero, to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao, i.produto_id
+       FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE pp.cod_barras = $1`,
       [codigo]
     );
     const peca = rows[0];
     if (!peca) return res.json({ acao: 'desconhecido' });
 
-    let acao;
-    if (peca.conclusao) {
-      acao = 'jafoi';
-    } else {
-      await emTransacao(async (exec) => {
+    const out = await emTransacao(async (exec) => {
+      // roteiro do produto (se houver)
+      let roteiro = [];
+      if (peca.produto_id) {
+        const { rows: pr } = await exec('SELECT roteiro FROM pcp_produtos WHERE id = $1', [peca.produto_id]);
+        roteiro = pr[0]?.roteiro || [];
+      }
+      const noRoteiro = roteiro.find((x) => Number(x.setor_id) === setorId);
+      if (roteiro.length && !noRoteiro)
+        throw new HttpError(422, 'Este setor não faz parte do roteiro deste produto.');
+
+      // dados do setor
+      const { rows: ss } = await exec(
+        `SELECT s.id, s.nome, s.status_id, st.final
+         FROM pcp_setores s LEFT JOIN pcp_status st ON st.id = s.status_id WHERE s.id = $1`,
+        [setorId]
+      );
+      const setor = ss[0];
+      if (!setor) throw new HttpError(404, 'Setor não encontrado');
+
+      // etapas já registradas desta peça
+      const { rows: regs } = await exec(
+        'SELECT setor_id, inicio, fim FROM pcp_peca_etapas WHERE peca_id = $1',
+        [peca.id]
+      );
+      const reg = {};
+      regs.forEach((rr) => (reg[Number(rr.setor_id)] = rr));
+
+      if (evento === 'inicio') {
+        const dep = (noRoteiro?.depende_de || []).map(Number);
+        const pendentes = dep.filter((d) => !reg[d] || !reg[d].fim);
+        if (pendentes.length) {
+          const { rows: nm } = await exec('SELECT nome FROM pcp_setores WHERE id = ANY($1::bigint[])', [pendentes]);
+          throw new HttpError(409, `Aguardando concluir antes: ${nm.map((x) => x.nome).join(', ')}`);
+        }
         await exec(
-          'UPDATE pcp_pecas SET conclusao = CURRENT_DATE, concluida_por = $2, updated_at = now() WHERE id = $1',
-          [peca.id, req.session.user.id]
+          `INSERT INTO pcp_peca_etapas (peca_id, setor_id, inicio, inicio_por)
+           VALUES ($1,$2,now(),$3)
+           ON CONFLICT (peca_id, setor_id)
+             DO UPDATE SET inicio = COALESCE(pcp_peca_etapas.inicio, now()),
+                           inicio_por = COALESCE(pcp_peca_etapas.inicio_por, $3)`,
+          [peca.id, setorId, req.session.user.id]
         );
+        if (setor.status_id)
+          await exec('UPDATE pcp_itens SET status_id = $2, updated_at = now() WHERE id = $1', [peca.item_id, setor.status_id]);
+        return { acao: 'inicio', setor_nome: setor.nome };
+      }
+
+      // evento === 'fim'
+      if (!reg[setorId] || !reg[setorId].inicio)
+        throw new HttpError(422, `Bipe o INÍCIO de ${setor.nome} antes do FIM.`);
+      if (reg[setorId].fim) return { acao: 'jafoi', setor_nome: setor.nome };
+
+      await exec('UPDATE pcp_peca_etapas SET fim = now(), fim_por = $3 WHERE peca_id = $1 AND setor_id = $2', [
+        peca.id, setorId, req.session.user.id,
+      ]);
+      if (setor.status_id)
+        await exec('UPDATE pcp_itens SET status_id = $2, updated_at = now() WHERE id = $1', [peca.item_id, setor.status_id]);
+
+      let acao = 'fim';
+      if (setor.final && !peca.conclusao) {
+        await exec('UPDATE pcp_pecas SET conclusao = CURRENT_DATE, concluida_por = $2, updated_at = now() WHERE id = $1', [
+          peca.id, req.session.user.id,
+        ]);
         await sincronizarConclusaoItem(exec, peca.item_id);
-      });
-      acao = 'baixa';
-      await audit(req.session.user.id, 'pcp', 'bip.baixa', { entityType: 'pcp_peca', entityId: Number(peca.id) });
-    }
-    const item = await fmtItem(peca.item_id);
-    res.json({ acao, item, peca_numero: Number(peca.numero) });
+        acao = 'baixa';
+      }
+      return { acao, setor_nome: setor.nome };
+    });
+
+    if (out.acao !== 'jafoi')
+      await audit(req.session.user.id, 'pcp', 'bip.' + out.acao, { entityType: 'pcp_peca', entityId: Number(peca.id) });
+    res.json({
+      acao: out.acao,
+      setor_nome: out.setor_nome,
+      item: await fmtItem(peca.item_id),
+      peca_numero: Number(peca.numero),
+      etapas: await progressoPeca(peca.id),
+    });
   })
 );
 
@@ -530,6 +623,7 @@ r.post(
 r.put(
   '/pecas',
   requireCsrf,
+  requirePerm('fila', 'editar'),
   ah(async (req, res) => {
     const id = Number(req.query.id || 0);
     if (!id) throw new HttpError(400, 'ID obrigatório');
@@ -608,6 +702,7 @@ const slug = (s) =>
 r.post(
   '/estrutura',
   requireCsrf,
+  requirePerm('estrutura', 'editar'),
   ah(async (req, res) => {
     const d = req.body || {};
     validarProduto(d);
@@ -634,6 +729,7 @@ r.post(
 r.put(
   '/estrutura',
   requireCsrf,
+  requirePerm('estrutura', 'editar'),
   ah(async (req, res) => {
     const id = Number(req.query.id || 0);
     if (!id) throw new HttpError(400, 'ID obrigatório');
@@ -669,6 +765,7 @@ r.put(
 r.delete(
   '/estrutura',
   requireCsrf,
+  requirePerm('estrutura', 'editar'),
   ah(async (req, res) => {
     const id = Number(req.query.id || 0);
     if (!id) throw new HttpError(400, 'ID obrigatório');

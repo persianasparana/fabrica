@@ -29,13 +29,16 @@ server/
 | GET | `/api/pcp/pedido?pedido=` | Todos os itens/peças de um pedido |
 | PUT | `/api/pcp/pedido?pedido=` | Edição em massa do pedido; `acao` concluir/reabrir todas as peças (CSRF) |
 | DELETE | `/api/pcp/pedido?pedido=` | Exclui o pedido inteiro (CSRF) |
-| POST | `/api/pcp/bip` | Baixa da peça pela etiqueta (embalagem) (CSRF) |
+| POST | `/api/pcp/bip` | Bipagem por setor `{codigo, setor_id, evento}` — Início/Fim; baixa no Fim do setor final (CSRF) |
 | POST | `/api/pcp/bip/vincular` | Vincula etiqueta à próxima peça livre do pedido (CSRF) |
 | PUT | `/api/pcp/pecas?id=` | Ajustes por peça: desvincular/baixa/reabrir (CSRF) |
 | GET | `/api/pcp/status` | Status de produção ativos (qualquer usuário) |
 | POST/PUT/DELETE | `/api/pcp/status` | Cadastra/edita/exclui status — **somente admin** (CSRF) |
-| GET | `/api/pcp/estrutura` | Estrutura do produto (catálogo: cortes + BOM) |
+| GET | `/api/pcp/estrutura` | Estrutura do produto (cortes c/ setor + BOM + roteiro) |
 | POST/PUT/DELETE | `/api/pcp/estrutura` | Mantém produtos da estrutura (CSRF) |
+| GET | `/api/pcp/setores` | Setores de produção (qualquer usuário) |
+| POST/PUT/DELETE | `/api/pcp/setores` | Mantém setores — **admin** (CSRF) |
+| GET/POST/PUT/DELETE | `/api/pcp/usuarios` | Usuários + permissões por aba + setores — **admin** (CSRF) |
 | GET | `/api/qualidade/ncs` \| `?id=` | Lista (com filtros) / lê NC |
 | POST/PUT/DELETE | `/api/qualidade/ncs` | Cria / atualiza / remove NC (CSRF) |
 | GET | `/api/qualidade/kpis` | Indicadores agregados |
