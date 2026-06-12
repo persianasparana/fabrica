@@ -311,6 +311,100 @@ r.delete(
   })
 );
 
+// ─── Pedido (edição em massa de todos os itens/peças) ───────────────────────
+
+// GET /api/pcp/pedido?pedido=NNN -> { pedido, itens: [...] }
+r.get(
+  '/pedido',
+  ah(async (req, res) => {
+    const pedido = String(req.query.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    const { rows } = await q(`${SELECT_ITEM} WHERE i.pedido = $1 ORDER BY i.id`, [pedido]);
+    if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
+    res.json({ pedido, itens: rows });
+  })
+);
+
+// PUT /api/pcp/pedido?pedido=NNN — aplica mudanças a TODOS os itens do pedido.
+// Campos comuns só alteram o que for enviado. `acao` muda o status de TODAS as
+// peças de uma vez: 'concluir' (baixa) ou 'reabrir'.
+r.put(
+  '/pedido',
+  requireCsrf,
+  ah(async (req, res) => {
+    const pedido = String(req.query.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    const d = req.body || {};
+    validarItem(d, true);
+    const acao = d.acao;
+    if (acao && !['concluir', 'reabrir'].includes(acao)) throw new HttpError(422, 'Ação inválida');
+    if (acao === 'concluir' && d.conclusao && !DATE_RE.test(d.conclusao))
+      throw new HttpError(422, 'Data de conclusão inválida (use YYYY-MM-DD)');
+
+    const n = await emTransacao(async (exec) => {
+      const { rows: itens } = await exec('SELECT id FROM pcp_itens WHERE pedido = $1', [pedido]);
+      if (!itens.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
+
+      await exec(
+        `UPDATE pcp_itens SET
+           data_cliente  = CASE WHEN $3 THEN NULL ELSE COALESCE($2, data_cliente)  END,
+           chegada_pcp   = CASE WHEN $5 THEN NULL ELSE COALESCE($4, chegada_pcp)   END,
+           prev_producao = CASE WHEN $7 THEN NULL ELSE COALESCE($6, prev_producao) END,
+           tipo          = COALESCE($8, tipo),
+           motivo_atraso = COALESCE($9, motivo_atraso),
+           observacoes   = COALESCE($10, observacoes),
+           especial      = COALESCE($11, especial),
+           updated_at    = now()
+         WHERE pedido = $1`,
+        [
+          pedido,
+          orNull(d.data_cliente), d.data_cliente === null,
+          orNull(d.chegada_pcp), d.chegada_pcp === null,
+          orNull(d.prev_producao), d.prev_producao === null,
+          orNull(d.tipo),
+          d.motivo_atraso !== undefined ? d.motivo_atraso : null,
+          d.observacoes !== undefined ? d.observacoes : null,
+          typeof d.especial === 'boolean' ? d.especial : null,
+        ]
+      );
+
+      if (acao === 'concluir') {
+        await exec(
+          `UPDATE pcp_pecas SET conclusao = COALESCE($2::date, CURRENT_DATE), concluida_por = $3, updated_at = now()
+           WHERE conclusao IS NULL AND item_id IN (SELECT id FROM pcp_itens WHERE pedido = $1)`,
+          [pedido, orNull(d.conclusao), req.session.user.id]
+        );
+      } else if (acao === 'reabrir') {
+        await exec(
+          `UPDATE pcp_pecas SET conclusao = NULL, concluida_por = NULL, updated_at = now()
+           WHERE item_id IN (SELECT id FROM pcp_itens WHERE pedido = $1)`,
+          [pedido]
+        );
+      }
+      for (const it of itens) await sincronizarConclusaoItem(exec, it.id);
+      return itens.length;
+    });
+
+    await audit(req.session.user.id, 'pcp', acao ? `pedido.${acao}` : 'pedido.update', { entityType: 'pcp_pedido' });
+    const { rows } = await q(`${SELECT_ITEM} WHERE i.pedido = $1 ORDER BY i.id`, [pedido]);
+    res.json({ ok: true, pedido, count: n, itens: rows });
+  })
+);
+
+// DELETE /api/pcp/pedido?pedido=NNN — exclui o pedido inteiro
+r.delete(
+  '/pedido',
+  requireCsrf,
+  ah(async (req, res) => {
+    const pedido = String(req.query.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    const result = await q('DELETE FROM pcp_itens WHERE pedido = $1', [pedido]);
+    if (result.rowCount === 0) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
+    await audit(req.session.user.id, 'pcp', 'pedido.delete', { entityType: 'pcp_pedido' });
+    res.json({ ok: true, count: result.rowCount });
+  })
+);
+
 // ─── Bipagem (etiqueta -> peça) ──────────────────────────────────────────────
 // Embalagem bipa uma etiqueta VINCULADA -> baixa daquela peça (atômico).
 

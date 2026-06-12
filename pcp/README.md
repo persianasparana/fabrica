@@ -18,6 +18,7 @@ fórmulas de corte e componentes/BOM).
 | **Fila de Produção** | Tabela completa com busca, filtros por status/tipo/situação e por data (período, mês, semana, próximos N dias), ordenação e paginação |
 | **Alertas** | Pedidos vencidos e prestes a vencer |
 | **Buscar Pedido** | Busca por número de pedido, produto ou observações |
+| **Editar Pedido** | Edição em massa de **todos os produtos/peças de um pedido**: muda prazo, tipo, motivo, ★ especial e observações de uma vez, e **conclui ou reabre todas as peças** num clique. Também exclui o pedido inteiro |
 | **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
 | **Bipagem** | Exclusiva da **embalagem**: bipar a etiqueta dá **baixa individual** daquela peça. O item conclui automaticamente quando todas as peças têm baixa |
 | **Estrutura do Produto** | Catálogo oficial: fórmulas de corte (`L − 2.2`, `A + 15`…) e componentes (BOM) por família — alimenta a lista de produtos do novo pedido. Produtos podem ser criados/editados/desativados |

@@ -112,6 +112,16 @@ jobs:
             $B/api/pcp/itens/lote)
           test "$C" = "409" || { echo "esperava 409 para etiqueta duplicada, veio $C"; exit 1; }
 
+          # Edição em massa do pedido: conclui todas as peças de uma vez
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"itens":[{"pedido":"99500","produto":"ROMANA","data_cliente":"2026-12-05","qnt":2},{"pedido":"99500","produto":"BANDO","data_cliente":"2026-12-05","qnt":1}]}' \
+            $B/api/pcp/itens/lote >/dev/null
+          R=$(curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"acao":"concluir"}' "$B/api/pcp/pedido?pedido=99500")
+          echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.itens.every(i=>i.conclusao)?0:1)})' || { echo "concluir pedido em massa falhou"; exit 1; }
+          curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"tipo":"Retrabalho","especial":true}' "$B/api/pcp/pedido?pedido=99500" | grep -q '"especial":true' || { echo "editar pedido em massa falhou"; exit 1; }
+          C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X DELETE -H "X-CSRF-Token: $CSRF" "$B/api/pcp/pedido?pedido=99500")
+          test "$C" = "200" || { echo "excluir pedido inteiro falhou ($C)"; exit 1; }
+
           # Qualidade segue funcionando
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' $B/api/qualidade/ncs | grep -q '"id"' || { echo "qualidade falhou"; exit 1; }

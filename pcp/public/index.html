@@ -37,6 +37,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span>Buscar Pedido</span>
     </a>
+    <a onclick="goTo('pedido')" data-page="pedido">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <span>Editar Pedido</span>
+    </a>
     <a onclick="goTo('indicadores')" data-page="indicadores">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>Indicadores</span>
@@ -295,6 +299,19 @@
         Estrutura oficial dos produtos: fórmulas de corte e componentes (BOM). L = largura, A = altura — medidas em centímetros, exceto PH 25/PH 50 (metros). A lista de produtos do novo pedido vem daqui.
       </div>
       <div id="estrutura-lista"></div>
+    </div>
+
+    <!-- EDITAR PEDIDO (em massa) -->
+    <div class="section" id="sec-pedido">
+      <div class="toolbar">
+        <input type="text" id="ped-busca" placeholder="Nº do pedido..." onkeydown="if(event.key==='Enter')carregarPedido()">
+        <button class="btn btn-red" onclick="carregarPedido()">Carregar pedido</button>
+        <div class="spacer"></div>
+        <span id="ped-info" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="ped-conteudo">
+        <div style="color:var(--text3);font-size:12px;padding:8px 0">Digite o número do pedido e clique em “Carregar pedido” para editar todos os produtos/peças de uma vez.</div>
+      </div>
     </div>
 
     <!-- NOVO PEDIDO -->

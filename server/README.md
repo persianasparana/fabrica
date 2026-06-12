@@ -26,6 +26,9 @@ server/
 | GET | `/api/pcp/itens` | Fila de produção completa |
 | POST/PUT/DELETE | `/api/pcp/itens` | Cria / atualiza / exclui item (CSRF) |
 | POST | `/api/pcp/itens/lote` | Importação em lote, opcional `substituir` (CSRF) |
+| GET | `/api/pcp/pedido?pedido=` | Todos os itens/peças de um pedido |
+| PUT | `/api/pcp/pedido?pedido=` | Edição em massa do pedido; `acao` concluir/reabrir todas as peças (CSRF) |
+| DELETE | `/api/pcp/pedido?pedido=` | Exclui o pedido inteiro (CSRF) |
 | POST | `/api/pcp/bip` | Baixa da peça pela etiqueta (embalagem) (CSRF) |
 | POST | `/api/pcp/bip/vincular` | Vincula etiqueta à próxima peça livre do pedido (CSRF) |
 | PUT | `/api/pcp/pecas?id=` | Ajustes por peça: desvincular/baixa/reabrir (CSRF) |

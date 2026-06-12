@@ -154,7 +154,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -168,6 +168,7 @@ function goTo(page) {
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
   if (page === 'novo') renderProdutosPedido();
+  if (page === 'pedido') setTimeout(()=>document.getElementById('ped-busca')?.focus(), 80);
   if (page === 'bip') setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100);
 }
 
@@ -457,6 +458,7 @@ function renderFila() {
       <td class="td-obs">${esc(item.motivo_atraso||item.observacoes||'')}</td>
       <td>
         <button class="btn btn-outline" style="padding:3px 8px;font-size:10px" onclick="openDetail(${item.id})">Ver</button>
+        <button class="btn btn-outline" style="padding:3px 8px;font-size:10px;margin-left:4px" onclick="editarPedido('${esc(String(item.pedido))}')" title="Editar pedido inteiro">Pedido</button>
         ${!item.conclusao ? `<button class="btn btn-black" style="padding:3px 8px;font-size:10px;margin-left:4px" onclick="concluir(${item.id})">✓</button>` : ''}
       </td>
     </tr>`;
@@ -532,6 +534,172 @@ function renderBusca() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ─── EDITAR PEDIDO (edição em massa) ─────────────────────────────────────────
+let pedidoCarregado = null;
+
+function editarPedido(pedido) {
+  goTo('pedido');
+  document.getElementById('ped-busca').value = pedido;
+  carregarPedido();
+}
+
+async function carregarPedido() {
+  const pedido = document.getElementById('ped-busca').value.trim();
+  const info = document.getElementById('ped-info');
+  const cont = document.getElementById('ped-conteudo');
+  if (!pedido) { toast('Digite o número do pedido.'); return; }
+  info.textContent = 'Carregando...';
+  try {
+    const data = await api('pcp/pedido?pedido=' + encodeURIComponent(pedido));
+    pedidoCarregado = data;
+    info.textContent = '';
+    renderPedidoEditor();
+  } catch (e) {
+    pedidoCarregado = null;
+    info.textContent = '';
+    cont.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px 0">${esc(e.message)}</div>`;
+  }
+}
+
+// valor comum a todos os itens, ou '' quando divergem
+function comum(itens, campo) {
+  const vals = [...new Set(itens.map(i => i[campo] == null ? '' : i[campo]))];
+  return vals.length === 1 ? (vals[0] || '') : '';
+}
+function comumPlaceholder(itens, campo) {
+  const vals = new Set(itens.map(i => i[campo] == null ? '' : i[campo]));
+  return vals.size > 1 ? '(vários — deixe em branco p/ manter)' : '';
+}
+
+function renderPedidoEditor() {
+  const cont = document.getElementById('ped-conteudo');
+  if (!pedidoCarregado) { cont.innerHTML = ''; return; }
+  const { pedido, itens } = pedidoCarregado;
+
+  const totalPecas = itens.reduce((a, i) => a + pecasTotal(i), 0);
+  const baixas = itens.reduce((a, i) => a + pecasConcluidas(i), 0);
+  const algumEspecial = itens.some(i => i.especial);
+  const todoEspecial = itens.every(i => i.especial);
+
+  const tiposOpts = ['Produção nova','Retrabalho','Higienização','Showroom','Carry-over 2025']
+    .map(t => `<option ${comum(itens,'tipo')===t?'selected':''}>${t}</option>`).join('');
+  const motivos = ['','Falta de material','Defeito de material','Ausência de colaborador','Pedido esquecido','Solicitação do cliente','Aguardando material','Aviso ao cliente pendente','Peça showroom','Outros'];
+  const motivoOpts = motivos.map(m => `<option value="${esc(m)}" ${comum(itens,'motivo_atraso')===m?'selected':''}>${esc(m||'—')}</option>`).join('');
+
+  cont.innerHTML = `
+    <div class="card" style="max-width:780px">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        <span>Pedido ${esc(pedido)}</span>
+        ${todoEspecial ? '<span class="st st-especial">★ ESPECIAL</span>' : algumEspecial ? '<span class="st st-especial">★ alguns especiais</span>' : ''}
+        <span style="font-weight:400;color:var(--text3);font-size:11px">${itens.length} produto(s) · ${baixas}/${totalPecas} peças com baixa</span>
+      </div>
+
+      <div class="tbl-wrap" style="margin-bottom:16px">
+        <table>
+          <thead><tr><th>Produto</th><th>Peças (baixa)</th><th>Status</th></tr></thead>
+          <tbody>
+            ${itens.map(i => {
+              const s = calcStatus(i), done = pecasConcluidas(i), tot = pecasTotal(i);
+              return `<tr>
+                <td class="td-produto">${badgeEspecial(i)}${esc(i.produto)}</td>
+                <td style="text-align:center">${done}/${tot}</td>
+                <td><span class="st ${statusClass(s)}">${statusLabel(s)}</span>
+                    <button class="btn btn-outline" style="padding:2px 7px;font-size:10px;margin-left:6px" onclick="openDetail(${i.id})">peças</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card-title">Status de todas as peças</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <input type="date" id="ped-conclusao" value="${todayStr}"
+          style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--surface);color:var(--text)">
+        <button class="btn btn-black" onclick="pedidoAcao('concluir')">✓ Concluir todas as peças</button>
+        <button class="btn btn-outline" onclick="pedidoAcao('reabrir')">↺ Reabrir todas as peças</button>
+      </div>
+
+      <div class="card-title">Dados do pedido (aplica a todos os produtos)</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Data do cliente</label><input type="date" id="ped-data-cliente" value="${comum(itens,'data_cliente')}"></div>
+        <div class="form-group"><label>Prev. produção</label><input type="date" id="ped-prev-prod" value="${comum(itens,'prev_producao')}"></div>
+        <div class="form-group"><label>Chegada PCP</label><input type="date" id="ped-chegada" value="${comum(itens,'chegada_pcp')}"></div>
+        <div class="form-group"><label>Tipo</label><select id="ped-tipo">${tiposOpts}</select></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Motivo atraso</label><select id="ped-motivo">${motivoOpts}</select></div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+            <input type="checkbox" id="ped-especial" ${todoEspecial?'checked':''} style="width:15px;height:15px;accent-color:var(--red)">
+            <span>★ Marcar todos como <strong>peça especial</strong></span>
+          </label>
+        </div>
+        <div class="form-group" style="grid-column:1/-1"><label>Observações ${comumPlaceholder(itens,'observacoes')?'<span style="font-weight:400;text-transform:none;color:var(--text3)">'+comumPlaceholder(itens,'observacoes')+'</span>':''}</label>
+          <textarea id="ped-obs" rows="2">${esc(comum(itens,'observacoes'))}</textarea></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn btn-red" onclick="salvarPedido()">Salvar dados do pedido</button>
+        <button class="btn btn-outline" onclick="carregarPedido()">Recarregar</button>
+        <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
+      </div>
+    </div>`;
+}
+
+function aplicarPedidoResposta(r) {
+  pedidoCarregado = { pedido: r.pedido, itens: r.itens };
+  (r.itens || []).forEach(it => aplicarItemAtualizado(it));
+  renderPedidoEditor();
+  renderAll();
+}
+
+async function pedidoAcao(acao) {
+  if (!pedidoCarregado) return;
+  const ped = pedidoCarregado.pedido;
+  const conclusao = document.getElementById('ped-conclusao')?.value || null;
+  const msg = acao === 'concluir'
+    ? `Dar baixa em TODAS as peças em aberto do pedido ${ped}?`
+    : `Reabrir TODAS as peças do pedido ${ped} (remover as baixas)?`;
+  if (!confirm(msg)) return;
+  try {
+    const body = { acao };
+    if (acao === 'concluir' && conclusao) body.conclusao = conclusao;
+    const r = await api('pcp/pedido?pedido=' + encodeURIComponent(ped), { method: 'PUT', body });
+    aplicarPedidoResposta(r);
+    toast(acao === 'concluir' ? 'Todas as peças concluídas.' : 'Todas as peças reabertas.');
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function salvarPedido() {
+  if (!pedidoCarregado) return;
+  const ped = pedidoCarregado.pedido;
+  const body = {
+    data_cliente: document.getElementById('ped-data-cliente').value || undefined,
+    prev_producao: document.getElementById('ped-prev-prod').value || undefined,
+    chegada_pcp: document.getElementById('ped-chegada').value || undefined,
+    tipo: document.getElementById('ped-tipo').value || undefined,
+    motivo_atraso: document.getElementById('ped-motivo').value,
+    observacoes: document.getElementById('ped-obs').value,
+    especial: document.getElementById('ped-especial').checked,
+  };
+  try {
+    const r = await api('pcp/pedido?pedido=' + encodeURIComponent(ped), { method: 'PUT', body });
+    aplicarPedidoResposta(r);
+    toast(`Pedido ${ped} atualizado (${r.count} produto(s)).`);
+  } catch (e) { toast('Erro ao salvar: ' + e.message); }
+}
+
+async function excluirPedido() {
+  if (!pedidoCarregado) return;
+  const ped = pedidoCarregado.pedido;
+  if (!confirm(`Excluir o pedido ${ped} INTEIRO (${pedidoCarregado.itens.length} produto(s) e todas as peças)? Não é possível desfazer.`)) return;
+  try {
+    await api('pcp/pedido?pedido=' + encodeURIComponent(ped), { method: 'DELETE' });
+    pedidoCarregado = null;
+    document.getElementById('ped-conteudo').innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Pedido excluído.</div>';
+    await carregarDados();
+    renderAll();
+    toast(`Pedido ${ped} excluído.`);
+  } catch (e) { toast('Erro ao excluir: ' + e.message); }
 }
 
 // ─── INDICADORES ─────────────────────────────────────────────────────────────
