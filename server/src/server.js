@@ -17,6 +17,7 @@ import authRoutes from './routes/auth.js';
 import pcpRoutes from './routes/pcp.js';
 import adminRoutes from './routes/admin.js';
 import qualidadeRoutes from './routes/qualidade.js';
+import integracaoRoutes from './routes/integracao.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
@@ -81,6 +82,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/pcp', pcpRoutes);
 app.use('/api/pcp', adminRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
+// Integração servidor-a-servidor (Logística) — autenticada por X-API-Key, não usa sessão
+app.use('/api/integracao', integracaoRoutes);
 
 // Frontends estáticos (opcional — o Nginx também pode servir diretamente)
 if (process.env.SERVE_STATIC !== '0') {
