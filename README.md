@@ -12,9 +12,9 @@ controle da produção (PCP) e gestão da qualidade (não conformidades).
 
 | Sistema | Pasta | Descrição |
 |---|---|---|
-| **PCP** | [`pcp/`](pcp/) | Planejamento da produção: fila com prazos, alertas, bipagem por código de barras, importação de ordens (PDF/Excel), indicadores e Estrutura do Produto (fórmulas de corte + BOM). |
+| **PCP** | [`pcp/`](pcp/) | Planejamento da produção: pedidos com várias peças, **bipagem por setor** (início/fim) com roteiro/dependências, **status de produção** configuráveis, **setores** e **usuários com permissão por aba** (admin), Estrutura do Produto (cortes por setor + BOM), importação de ordens (PDF/Excel), indicadores e edição em massa de pedido. |
 | **Qualidade** | [`qualidade/`](qualidade/) | Frontend HTML/CSS/JS: não conformidades, planos de ação, KPIs e treinamentos. |
-| **Backend** | [`server/`](server/) | Node + Express + PostgreSQL — APIs dos dois sistemas + autenticação compartilhada. |
+| **Backend** | [`server/`](server/) | Node + Express + PostgreSQL — APIs dos dois sistemas + autenticação/permissões compartilhadas. |
 | **Marca** | [`shared/brand/`](shared/brand/) | Design tokens, cores, tipografia e logotipo (fonte única). |
 
 ---
@@ -56,10 +56,15 @@ Os frontends são estáticos (sem build) — basta editar e recarregar a página
 
 ---
 
-## Implantação
+## Documentação
 
-Guia completo (PostgreSQL + systemd + Nginx, sem afetar os apps existentes):
-**[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
+| Doc | Para quê |
+|---|---|
+| [`docs/INTEGRACAO.md`](docs/INTEGRACAO.md) | **Integrar outro sistema a este** — API completa, autenticação, modelo de dados e padrões de integração |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitetura, tabelas e decisões |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Instalar/atualizar no servidor (PM2 + Nginx + PostgreSQL) |
+| [`docs/SERVIDOR-COMPARTILHADO.md`](docs/SERVIDOR-COMPARTILHADO.md) | Regras de convivência no servidor `aplicativos` |
+| [`pcp/README.md`](pcp/) · [`server/README.md`](server/) | Detalhes do PCP e do backend |
 
 ---
 

@@ -42,7 +42,7 @@ diretamente pelo Nginx.
 ## Desenvolvimento
 
 Suba o backend (ver [`../server`](../server)) e acesse
-`http://localhost:8080/qualidade/`.
+`http://localhost:3020/qualidade/`.
 
 ---
 
