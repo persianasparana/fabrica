@@ -790,12 +790,16 @@ function renderStatusAdmin() {
     <div class="card" style="max-width:620px">
       <div class="card-title">Status cadastrados (${STATUS.length})</div>
       ${STATUS.length ? `<div class="tbl-wrap"><table>
-        <thead><tr><th>Status</th><th>Em uso</th><th style="width:90px"></th></tr></thead>
+        <thead><tr><th>Status</th><th>Final</th><th>Em uso</th><th style="width:150px"></th></tr></thead>
         <tbody>
           ${STATUS.map((s) => `<tr>
             <td><span class="st-prod" style="background:${s.cor}22;color:${s.cor};border:1px solid ${s.cor}66">${esc(s.nome)}</span></td>
+            <td>${s.final ? '<span class="st st-ok" style="font-size:9px">final → baixa</span>' : '<span style="color:var(--text3)">—</span>'}</td>
             <td>${usados[s.id] || 0} item(ns)</td>
-            <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirStatus(${s.id}, '${esc(s.nome)}', ${usados[s.id] || 0})">excluir</button></td>
+            <td>
+              <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="editarStatus(${s.id})">editar</button>
+              <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirStatus(${s.id}, '${esc(s.nome)}', ${usados[s.id] || 0})">excluir</button>
+            </td>
           </tr>`).join('')}
         </tbody></table></div>`
       : '<div style="color:var(--text3);font-size:12px">Nenhum status cadastrado.</div>'}
@@ -815,6 +819,51 @@ async function criarStatus() {
     popularFiltroStatus();
     renderStatusAdmin();
     toast(`Status “${nome}” cadastrado.`);
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function recarregarStatus() {
+  const r = await api('pcp/status');
+  STATUS = (r.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+  popularFiltroStatus();
+}
+
+function editarStatus(id) {
+  const s = STATUS.find((x) => x.id === id);
+  if (!s) return;
+  document.getElementById('modal-title').textContent = `Editar status — ${s.nome}`;
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="form-group" style="grid-column:1/-1"><label>Nome *</label><input type="text" id="st-ed-nome" value="${esc(s.nome)}" maxlength="40"></div>
+    <div class="form-group"><label>Cor</label><input type="color" id="st-ed-cor" value="${s.cor}" style="height:40px;padding:3px"></div>
+    <div class="form-group"><label>Ordem</label><input type="number" id="st-ed-ordem" value="${s.ordem}" min="0"></div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+        <input type="checkbox" id="st-ed-final" ${s.final ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--red)">
+        <span>Status <strong>final</strong> — o “Fim” de um setor com este status dá <strong>baixa</strong> na peça</span>
+      </label>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML =
+    `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-red" onclick="salvarStatusEdit(${id})">Salvar</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function salvarStatusEdit(id) {
+  const nome = document.getElementById('st-ed-nome').value.trim();
+  if (!nome) { toast('Informe o nome do status.'); return; }
+  const body = {
+    nome,
+    cor: document.getElementById('st-ed-cor').value,
+    ordem: parseInt(document.getElementById('st-ed-ordem').value) || 0,
+    final: document.getElementById('st-ed-final').checked,
+  };
+  try {
+    await api('pcp/status?id=' + id, { method: 'PUT', body });
+    await recarregarStatus();
+    closeModal();
+    renderStatusAdmin();
+    renderAll();
+    toast('Status atualizado.');
   } catch (e) { toast('Erro: ' + e.message); }
 }
 

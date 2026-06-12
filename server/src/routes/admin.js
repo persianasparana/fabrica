@@ -70,17 +70,23 @@ r.put(
     const limparStatus = d.status_id === null;
     const status_id = d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null;
     if (status_id) await assertStatusExiste(status_id);
-    const result = await q(
-      `UPDATE pcp_setores SET
-         nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem),
-         status_id = CASE WHEN $5 THEN NULL ELSE COALESCE($6::bigint, status_id) END
-       WHERE id = $1`,
-      [
-        id, d.nome != null ? String(d.nome).trim() : null, d.cor != null ? String(d.cor) : null,
-        d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
-        limparStatus, status_id,
-      ]
-    );
+    let result;
+    try {
+      result = await q(
+        `UPDATE pcp_setores SET
+           nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem),
+           status_id = CASE WHEN $5 THEN NULL ELSE COALESCE($6::bigint, status_id) END
+         WHERE id = $1`,
+        [
+          id, d.nome != null ? String(d.nome).trim() : null, d.cor != null ? String(d.cor) : null,
+          d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
+          limparStatus, status_id,
+        ]
+      );
+    } catch (e) {
+      if (e.code === '23505') throw new HttpError(409, 'Já existe um setor com esse nome');
+      throw e;
+    }
     if (result.rowCount === 0) throw new HttpError(404, 'Setor não encontrado');
     await audit(req.session.user.id, 'pcp', 'setor.update', { entityType: 'pcp_setor', entityId: id });
     res.json({ ok: true });

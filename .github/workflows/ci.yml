@@ -124,6 +124,9 @@ jobs:
           SID=$(curl -s -c $J -b $J $B/api/pcp/status | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data[0].id))')
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"nome":"CI Status","cor":"#123456"}' $B/api/pcp/status | grep -q '"id"' || { echo "criar status falhou"; exit 1; }
+          # editar status (renomear, cor e marcar como final)
+          curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"nome\":\"CI Status 2\",\"cor\":\"#222222\",\"final\":true}" "$B/api/pcp/status?id=$SID" | grep -q '"ok":true' || { echo "editar status falhou"; exit 1; }
+          curl -s -c $J -b $J $B/api/pcp/status | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).data;process.exit(d.some(x=>x.final)?0:1)})' || { echo "status final não persistiu"; exit 1; }
           IID=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"produto":"ROMANA","pedido":"99700","data_cliente":"2026-12-05","qnt":1}' $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
           curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"status_id\":$SID}" "$B/api/pcp/itens?id=$IID" | grep -q '"status_nome"' || { echo "status no item falhou"; exit 1; }

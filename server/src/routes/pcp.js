@@ -785,7 +785,7 @@ r.get(
   '/status',
   ah(async (req, res) => {
     const { rows } = await q(
-      'SELECT id, nome, cor, ordem FROM pcp_status WHERE ativo = TRUE ORDER BY ordem, nome'
+      'SELECT id, nome, cor, ordem, final FROM pcp_status WHERE ativo = TRUE ORDER BY ordem, nome'
     );
     res.json({ data: rows });
   })
@@ -824,16 +824,24 @@ r.put(
     if (d.cor != null && !COR_RE.test(String(d.cor))) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
     if (d.nome != null && (!String(d.nome).trim() || String(d.nome).length > 40))
       throw new HttpError(422, 'Nome inválido');
-    const result = await q(
-      `UPDATE pcp_status SET nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem)
-       WHERE id = $1`,
-      [
-        id,
-        d.nome != null ? String(d.nome).trim() : null,
-        d.cor != null ? String(d.cor) : null,
-        d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
-      ]
-    );
+    let result;
+    try {
+      result = await q(
+        `UPDATE pcp_status SET nome = COALESCE($2, nome), cor = COALESCE($3, cor),
+                ordem = COALESCE($4, ordem), final = COALESCE($5, final)
+         WHERE id = $1`,
+        [
+          id,
+          d.nome != null ? String(d.nome).trim() : null,
+          d.cor != null ? String(d.cor) : null,
+          d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
+          typeof d.final === 'boolean' ? d.final : null,
+        ]
+      );
+    } catch (e) {
+      if (e.code === '23505') throw new HttpError(409, 'Já existe um status com esse nome');
+      throw e;
+    }
     if (result.rowCount === 0) throw new HttpError(404, 'Status não encontrado');
     await audit(req.session.user.id, 'pcp', 'status.update', { entityType: 'pcp_status', entityId: id });
     res.json({ ok: true });
