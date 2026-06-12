@@ -2001,7 +2001,9 @@ function renderEstrutura() {
                   <code style="background:var(--gray-bg);padding:1px 5px;border-radius:4px">${esc(c.formula)}</code>
                   ${c.qtd && c.qtd > 1 ? `<span style="color:var(--text3)"> ×${c.qtd}</span>` : ''}
                   ${c.qtdFormula ? `<span style="color:var(--text3)"> ×(${esc(c.qtdFormula)})</span>` : ''}
+                  ${c.setor_id ? `<span class="st-prod" style="margin-left:4px;background:var(--gray-bg);color:var(--text2);border:1px solid var(--border)">${esc(setorNome(c.setor_id))}</span>` : '<span style="color:var(--amber);font-size:9px;margin-left:4px">sem setor</span>'}
                 </li>`).join('')}
+              ${(p.roteiro && p.roteiro.length) ? `<div style="margin-top:8px;font-size:10px;color:var(--text3)">Roteiro: ${p.roteiro.map(r=>{const dep=(r.depende_de||[]).map(d=>setorNome(d)).join(', ');return esc(setorNome(r.setor_id))+(dep?` (após ${esc(dep)})`:'');}).join(' · ')}</div>` : ''}
               </ul>
             </div>
             <div>
@@ -2031,35 +2033,13 @@ function toggleProduto(id) {
   renderEstrutura();
 }
 
-// ── Editor de produto (cria/edita no banco) ──────────────────────────────────
-let produtoEditandoId = null;
-
-function cortesParaTexto(cortes) {
-  return (cortes||[]).map(c => {
-    const partes = [c.nome, c.formula, c.dim || 'L'];
-    if (c.qtd && c.qtd > 1) partes.push(String(c.qtd));
-    else if (c.qtdFormula) partes.push(c.qtdFormula);
-    return partes.join(' | ');
-  }).join('\n');
-}
+// componentes continuam em texto (não têm fabricação/setor — só separam material)
 function componentesParaTexto(comps) {
   return (comps||[]).map(c => {
     const partes = [c.nome, c.qtdFormula ? c.qtdFormula : String(c.qtd != null ? c.qtd : 1)];
     if (c.obs) partes.push(c.obs);
     return partes.join(' | ');
   }).join('\n');
-}
-function textoParaCortes(txt) {
-  return txt.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-    const [nome, formula, dim, qtd] = l.split('|').map(s => (s||'').trim());
-    if (!nome || !formula) throw new Error(`Linha de corte inválida: "${l}" (use: nome | fórmula | L ou A | qtd)`);
-    const c = { nome, formula, dim: (dim || 'L').toUpperCase() === 'A' ? 'A' : 'L' };
-    if (qtd) {
-      if (/^\d+$/.test(qtd)) { if (Number(qtd) > 1) c.qtd = Number(qtd); }
-      else c.qtdFormula = qtd;
-    }
-    return c;
-  });
 }
 function textoParaComponentes(txt) {
   return txt.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
@@ -2074,10 +2054,95 @@ function textoParaComponentes(txt) {
   });
 }
 
+// ── Editor estruturado de cortes + roteiro de produção ───────────────────────
+let epCortes = [];   // [{nome, formula, dim, qtdRaw, setor_id}]
+let epRoteiro = [];  // [{setor_id, depende_de:[id,...]}]
+
+function setorNome(id) { const s = SETORES.find(x => x.id === Number(id)); return s ? s.nome : ('setor #' + id); }
+function setorOptions(sel) {
+  return '<option value="">— setor —</option>' +
+    SETORES.map(s => `<option value="${s.id}" ${String(sel)===String(s.id)?'selected':''}>${esc(s.nome)}</option>`).join('');
+}
+function corteParaEstado(c) {
+  return { nome: c.nome||'', formula: c.formula||'', dim: (c.dim==='A'?'A':'L'),
+           qtdRaw: c.qtdFormula ? c.qtdFormula : (c.qtd && c.qtd>1 ? String(c.qtd) : ''),
+           setor_id: c.setor_id!=null ? Number(c.setor_id) : null };
+}
+function estadoParaCorte(e) {
+  const c = { nome: e.nome.trim(), formula: e.formula.trim(), dim: e.dim==='A'?'A':'L' };
+  if (e.setor_id) c.setor_id = Number(e.setor_id);
+  const q = (e.qtdRaw||'').trim();
+  if (q) { if (/^\d+$/.test(q)) { if (Number(q)>1) c.qtd = Number(q); } else c.qtdFormula = q; }
+  return c;
+}
+
+function epSet(i, campo, val) { if (epCortes[i]) epCortes[i][campo] = val; }
+function epSetSetor(i, val) { if (epCortes[i]) { epCortes[i].setor_id = val ? Number(val) : null; renderEpRoteiro(); } }
+function epAddCorte() { epCortes.push({ nome:'', formula:'', dim:'L', qtdRaw:'', setor_id:null }); renderEpCortes(); }
+function epDelCorte(i) { epCortes.splice(i,1); renderEpCortes(); renderEpRoteiro(); }
+
+function renderEpCortes() {
+  const el = document.getElementById('ep-cortes-lista'); if (!el) return;
+  el.innerHTML = epCortes.length ? epCortes.map((c,i)=>`
+    <div style="display:grid;grid-template-columns:1.3fr 1fr 42px 56px 1fr 24px;gap:4px;align-items:center;margin-bottom:5px">
+      <input type="text" value="${esc(c.nome)}" placeholder="Parte" oninput="epSet(${i},'nome',this.value)" style="font-size:11px">
+      <input type="text" value="${esc(c.formula)}" placeholder="L - 2.2" oninput="epSet(${i},'formula',this.value)" style="font-size:11px;font-family:monospace">
+      <select onchange="epSet(${i},'dim',this.value)" style="font-size:11px"><option ${c.dim==='L'?'selected':''}>L</option><option ${c.dim==='A'?'selected':''}>A</option></select>
+      <input type="text" value="${esc(c.qtdRaw)}" placeholder="qtd" oninput="epSet(${i},'qtdRaw',this.value)" style="font-size:11px" title="número ou fórmula (ex: garrasPorLargura(L))">
+      <select onchange="epSetSetor(${i},this.value)" style="font-size:11px">${setorOptions(c.setor_id)}</select>
+      <button class="btn btn-outline" style="padding:2px 0;font-size:10px;color:var(--red);border-color:var(--red)" onclick="epDelCorte(${i})" title="remover">✕</button>
+    </div>`).join('') : '<div style="font-size:11px;color:var(--text3)">Nenhum corte. Adicione as partes fabricadas (cada uma com seu setor).</div>';
+}
+
+function epRoteiroSetores() {
+  const ids = new Set();
+  epCortes.forEach(c => { if (c.setor_id) ids.add(Number(c.setor_id)); });
+  epRoteiro.forEach(r => ids.add(Number(r.setor_id)));
+  return [...ids];
+}
+function renderEpRoteiro() {
+  const el = document.getElementById('ep-roteiro'); if (!el) return;
+  const ids = epRoteiroSetores();
+  epRoteiro = ids.map(id => {
+    const ex = epRoteiro.find(r => Number(r.setor_id)===id);
+    return { setor_id:id, depende_de:(ex?ex.depende_de:[]).map(Number).filter(d=>ids.includes(d)) };
+  });
+  const fora = SETORES.filter(s => !ids.includes(s.id));
+  el.innerHTML = `
+    ${ids.length ? epRoteiro.map(r=>`
+      <div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:4px">${esc(setorNome(r.setor_id))}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Depende de (precisa estar “fim” antes de iniciar):</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${ids.filter(d=>d!==r.setor_id).map(d=>`<label style="display:flex;align-items:center;gap:4px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:3px 7px;cursor:pointer">
+            <input type="checkbox" ${r.depende_de.includes(d)?'checked':''} onchange="epToggleDep(${r.setor_id},${d})" style="accent-color:var(--red)"> ${esc(setorNome(d))}
+          </label>`).join('') || '<span style="font-size:11px;color:var(--text3)">— independente —</span>'}
+        </div>
+      </div>`).join('') : '<div style="font-size:11px;color:var(--text3)">Defina o setor dos cortes (ou adicione etapas) para montar o roteiro.</div>'}
+    ${fora.length ? `<div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+      <select id="ep-add-etapa" style="font-size:11px"><option value="">+ etapa sem corte (ex.: Montagem, Embalagem)</option>${fora.map(s=>`<option value="${s.id}">${esc(s.nome)}</option>`).join('')}</select>
+      <button class="btn btn-outline" style="padding:3px 8px;font-size:10px" onclick="epAddEtapa()">adicionar</button>
+    </div>`:''}`;
+}
+function epToggleDep(setorId, depId) {
+  const r = epRoteiro.find(x=>Number(x.setor_id)===Number(setorId)); if(!r) return;
+  const i = r.depende_de.indexOf(Number(depId));
+  if (i>=0) r.depende_de.splice(i,1); else r.depende_de.push(Number(depId));
+}
+function epAddEtapa() {
+  const v = document.getElementById('ep-add-etapa').value; if(!v) return;
+  if (!epRoteiro.find(r=>Number(r.setor_id)===Number(v))) epRoteiro.push({ setor_id:Number(v), depende_de:[] });
+  renderEpRoteiro();
+}
+
+let produtoEditandoId = null;
+
 function abrirProdutoModal(id) {
   produtoEditandoId = id || null;
   const p = id ? ESTRUTURA.find(x => x.id === id) : null;
   const familias = Object.keys(FAMILIA_META);
+  epCortes = (p && p.cortes ? p.cortes : []).map(corteParaEstado);
+  epRoteiro = (p && p.roteiro ? p.roteiro : []).map(r=>({ setor_id:Number(r.setor_id), depende_de:(r.depende_de||[]).map(Number) }));
 
   document.getElementById('modal-title').textContent = p ? `Estrutura — ${p.nome}` : 'Novo produto na estrutura';
   document.getElementById('modal-body-content').innerHTML = `
@@ -2092,15 +2157,20 @@ function abrirProdutoModal(id) {
         <option value="m" ${p && p.unidade === 'm' ? 'selected' : ''}>Metros (m)</option>
       </select>
     </div>
-    <div class="form-group" style="grid-column:1/-1"><label>Fórmulas de corte — uma por linha: nome | fórmula | L ou A | qtd</label>
-      <textarea id="ep-cortes" rows="6" style="font-family:monospace;font-size:11px" placeholder="Tubo 32mm Natural | L - 2.2 | L">${p ? esc(cortesParaTexto(p.cortes)) : ''}</textarea>
+    <div class="form-group" style="grid-column:1/-1">
+      <label>Fórmulas de corte — parte · fórmula · dim · qtd · setor de fabricação</label>
+      <div id="ep-cortes-lista"></div>
+      <button class="btn btn-outline" style="margin-top:4px;font-size:11px" onclick="epAddCorte()">+ adicionar corte</button>
     </div>
-    <div class="form-group" style="grid-column:1/-1"><label>Componentes (BOM) — um por linha: nome | qtd | obs</label>
-      <textarea id="ep-componentes" rows="6" style="font-family:monospace;font-size:11px" placeholder="Comando Mini | 1">${p ? esc(componentesParaTexto(p.componentes)) : ''}</textarea>
+    <div class="form-group" style="grid-column:1/-1"><label>Componentes (BOM) — só separam material do estoque (sem fabricação) — um por linha: nome | qtd | obs</label>
+      <textarea id="ep-componentes" rows="4" style="font-family:monospace;font-size:11px" placeholder="Comando Mini | 1">${p ? esc(componentesParaTexto(p.componentes)) : ''}</textarea>
+    </div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label>Roteiro de produção — setores e dependências (este produto pode passar por vários setores)</label>
+      <div id="ep-roteiro"></div>
     </div>
     <div style="grid-column:1/-1;font-size:10px;color:var(--text3)">
-      Fórmulas usam L (largura) e A (altura) — ex: <code>L - 2.2</code>, <code>A + 15</code>, <code>(L + 30) / 4</code>.
-      Qtd pode ser número ou fórmula (ex: <code>garrasPorLargura(L)</code>).
+      Fórmulas usam L (largura) e A (altura) — ex: <code>L - 2.2</code>, <code>A + 15</code>. Qtd: número ou fórmula. O roteiro define a ordem: um setor só inicia quando os setores de que ele depende estão com “fim”.
     </div>
   `;
   document.getElementById('modal-footer').innerHTML = `
@@ -2108,24 +2178,28 @@ function abrirProdutoModal(id) {
     <button class="btn btn-red" onclick="salvarProduto()">${p ? 'Salvar alterações' : 'Adicionar produto'}</button>
   `;
   document.getElementById('modal-overlay').classList.add('open');
+  renderEpCortes();
+  renderEpRoteiro();
 }
 
 async function salvarProduto() {
   const nome = document.getElementById('ep-nome').value.trim();
   if (!nome) { toast('Informe o nome do produto.'); return; }
-  let cortes, componentes;
-  try {
-    cortes = textoParaCortes(document.getElementById('ep-cortes').value);
-    componentes = textoParaComponentes(document.getElementById('ep-componentes').value);
-  } catch (e) { toast(e.message); return; }
+  for (const c of epCortes) {
+    if (!c.nome.trim() || !c.formula.trim()) { toast('Cada corte precisa de “parte” e “fórmula”.'); return; }
+  }
+  let componentes;
+  try { componentes = textoParaComponentes(document.getElementById('ep-componentes').value); }
+  catch (e) { toast(e.message); return; }
 
   const payload = {
     nome,
     familia: document.getElementById('ep-familia').value,
     tubo: document.getElementById('ep-tubo').value.trim() || null,
     unidade: document.getElementById('ep-unidade').value,
-    cortes,
+    cortes: epCortes.map(estadoParaCorte),
     componentes,
+    roteiro: epRoteiro.map(r => ({ setor_id: Number(r.setor_id), depende_de: (r.depende_de||[]).map(Number) })),
   };
   try {
     if (produtoEditandoId) {

@@ -582,7 +582,7 @@ r.get(
   ah(async (req, res) => {
     const { rows } = await q(
       `SELECT id, chave, nome, familia, tubo, unidade, cortes, componentes,
-              calculo_extra_fonte, ativo
+              calculo_extra_fonte, roteiro, ativo
        FROM pcp_produtos WHERE ativo = TRUE ORDER BY familia, nome`
     );
     res.json({ data: rows });
@@ -594,7 +594,7 @@ function validarProduto(d, partial = false) {
     if (!d.nome || !String(d.nome).trim()) throw new HttpError(422, 'Nome é obrigatório');
     if (!d.familia || !String(d.familia).trim()) throw new HttpError(422, 'Família é obrigatória');
   }
-  for (const f of ['cortes', 'componentes']) {
+  for (const f of ['cortes', 'componentes', 'roteiro']) {
     if (d[f] !== undefined && !Array.isArray(d[f]))
       throw new HttpError(422, `Campo ${f} deve ser uma lista`);
   }
@@ -613,14 +613,15 @@ r.post(
     validarProduto(d);
     const chave = d.chave ? slug(d.chave) : slug(d.nome);
     const { rows } = await q(
-      `INSERT INTO pcp_produtos (chave, nome, familia, tubo, unidade, cortes, componentes)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)
+      `INSERT INTO pcp_produtos (chave, nome, familia, tubo, unidade, cortes, componentes, roteiro)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb)
        ON CONFLICT (chave) DO NOTHING
        RETURNING id`,
       [
         chave, String(d.nome).trim(), String(d.familia).trim().toUpperCase(),
         orNull(d.tubo), d.unidade || 'cm',
         JSON.stringify(d.cortes || []), JSON.stringify(d.componentes || []),
+        JSON.stringify(d.roteiro || []),
       ]
     );
     if (!rows[0]) throw new HttpError(409, 'Já existe um produto com essa chave/nome');
@@ -646,6 +647,7 @@ r.put(
          unidade     = COALESCE($5, unidade),
          cortes      = COALESCE($6::jsonb, cortes),
          componentes = COALESCE($7::jsonb, componentes),
+         roteiro     = COALESCE($9::jsonb, roteiro),
          updated_at  = now()
        WHERE id = $1 AND ativo = TRUE`,
       [
@@ -654,6 +656,7 @@ r.put(
         d.cortes !== undefined ? JSON.stringify(d.cortes) : null,
         d.componentes !== undefined ? JSON.stringify(d.componentes) : null,
         d.tubo === null,
+        d.roteiro !== undefined ? JSON.stringify(d.roteiro) : null,
       ]
     );
     if (result.rowCount === 0) throw new HttpError(404, 'Produto não encontrado');
