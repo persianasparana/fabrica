@@ -10,6 +10,7 @@
 let DB = [];          // itens da fila de produção (espelho local do banco)
 let ESTRUTURA = [];   // estrutura do produto (catálogo oficial)
 let STATUS = [];      // status de produção configuráveis (admin)
+let SETORES = [];     // setores de produção (admin)
 let usuario = null;
 let csrfToken = '';
 let currentPage = 'painel';
@@ -41,7 +42,7 @@ async function carregarSessao() {
   csrfToken = data.csrf_token;
   const el = document.getElementById('user-name');
   if (el) el.textContent = data.user.full_name || data.user.username;
-  document.querySelectorAll('[data-admin]').forEach((n) => { n.style.display = ehAdmin() ? '' : 'none'; });
+  aplicarPermissoes();
 }
 
 function popularFiltroStatus() {
@@ -65,6 +66,30 @@ function normalizarItem(i) {
 }
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
+
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo'];
+function nivelAba(aba) {
+  if (ehAdmin()) return 'editar';
+  return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
+}
+function podeVer(aba) { return ehAdmin() || nivelAba(aba) !== 'none'; }
+function podeEditar(aba) { return nivelAba(aba) === 'editar'; }
+
+function aplicarPermissoes() {
+  document.querySelectorAll('[data-admin]').forEach((n) => { n.style.display = ehAdmin() ? '' : 'none'; });
+  document.querySelectorAll('#sidebar nav a[data-page]').forEach((a) => {
+    const aba = a.dataset.page;
+    if (a.hasAttribute('data-admin')) return; // abas de admin já tratadas acima
+    a.style.display = podeVer(aba) ? '' : 'none';
+  });
+  const nb = document.getElementById('btn-novo-topo');
+  if (nb) nb.style.display = podeEditar('novo') ? '' : 'none';
+}
+
+function primeiraAbaVisivel() {
+  const a = [...document.querySelectorAll('#sidebar nav a[data-page]')].find((el) => el.style.display !== 'none');
+  return a ? a.dataset.page : 'painel';
+}
 
 function statusProducaoBadge(item) {
   if (!item.status_nome) return '';
@@ -90,10 +115,13 @@ function aplicarItemAtualizado(item) {
 }
 
 async function carregarDados() {
-  const [itens, estrutura, status] = await Promise.all([api('pcp/itens'), api('pcp/estrutura'), api('pcp/status')]);
+  const [itens, estrutura, status, setores] = await Promise.all([
+    api('pcp/itens'), api('pcp/estrutura'), api('pcp/status'), api('pcp/setores'),
+  ]);
   DB = (itens.data || []).map(normalizarItem);
   ESTRUTURA = (estrutura.data || []).map((p) => Object.assign({}, p, { id: Number(p.id) }));
   STATUS = (status.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+  SETORES = (setores.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
   popularFiltroStatus();
 }
 
@@ -176,7 +204,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -190,6 +218,8 @@ function goTo(page) {
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
   if (page === 'status') renderStatusAdmin();
+  if (page === 'setores') renderSetoresAdmin();
+  if (page === 'usuarios') renderUsuariosAdmin();
   if (page === 'novo') renderProdutosPedido();
   if (page === 'pedido') setTimeout(()=>document.getElementById('ped-busca')?.focus(), 80);
   if (page === 'bip') setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100);
@@ -486,7 +516,7 @@ function renderFila() {
       <td>
         <button class="btn btn-outline" style="padding:3px 8px;font-size:10px" onclick="openDetail(${item.id})">Ver</button>
         <button class="btn btn-outline" style="padding:3px 8px;font-size:10px;margin-left:4px" onclick="editarPedido('${esc(String(item.pedido))}')" title="Editar pedido inteiro">Pedido</button>
-        ${!item.conclusao ? `<button class="btn btn-black" style="padding:3px 8px;font-size:10px;margin-left:4px" onclick="concluir(${item.id})">✓</button>` : ''}
+        ${!item.conclusao && podeEditar('fila') ? `<button class="btn btn-black" style="padding:3px 8px;font-size:10px;margin-left:4px" onclick="concluir(${item.id})">✓</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -561,6 +591,176 @@ function renderBusca() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ─── SETORES (admin) ─────────────────────────────────────────────────────────
+function statusOptions(sel) {
+  return '<option value="">— sem status —</option>' +
+    STATUS.map((s) => `<option value="${s.id}" ${String(sel)===String(s.id)?'selected':''}>${esc(s.nome)}</option>`).join('');
+}
+
+function renderSetoresAdmin() {
+  const cont = document.getElementById('setores-conteudo');
+  if (!cont || !ehAdmin()) { if (cont) cont.innerHTML='<div style="color:var(--red);font-size:12px">Acesso restrito.</div>'; return; }
+  cont.innerHTML = `
+    <div class="card" style="max-width:680px">
+      <div class="card-title">Cadastrar setor</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Nome do setor *</label><input type="text" id="se-nome" placeholder="Ex: Corte Tecido" maxlength="60" onkeydown="if(event.key==='Enter')criarSetor()"></div>
+        <div class="form-group"><label>Status associado</label><select id="se-status">${statusOptions('')}</select></div>
+        <div class="form-group"><label>Cor</label><input type="color" id="se-cor" value="#0891B2" style="height:40px;padding:3px"></div>
+        <div class="form-group"><label>Ordem</label><input type="number" id="se-ordem" value="${(SETORES.length+1)*10}" min="0"></div>
+      </div>
+      <button class="btn btn-red" style="margin-top:12px" onclick="criarSetor()">+ Adicionar setor</button>
+    </div>
+    <div class="card" style="max-width:680px">
+      <div class="card-title">Setores cadastrados (${SETORES.length})</div>
+      ${SETORES.length ? `<div class="tbl-wrap"><table>
+        <thead><tr><th>Setor</th><th>Status ao iniciar</th><th style="width:150px"></th></tr></thead>
+        <tbody>${SETORES.map((s)=>`<tr>
+          <td><span class="st-prod" style="background:${s.cor}22;color:${s.cor};border:1px solid ${s.cor}66">${esc(s.nome)}</span></td>
+          <td><select onchange="alterarSetorStatus(${s.id}, this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">${statusOptions(s.status_id)}</select> ${s.status_final?'<span class="st st-ok" style="font-size:9px">final → baixa</span>':''}</td>
+          <td>
+            <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="editarSetor(${s.id})">editar</button>
+            <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirSetor(${s.id}, '${esc(s.nome)}')">excluir</button>
+          </td></tr>`).join('')}</tbody></table></div>` : '<div style="color:var(--text3);font-size:12px">Nenhum setor cadastrado.</div>'}
+    </div>`;
+}
+
+async function recarregarSetores() {
+  const r = await api('pcp/setores');
+  SETORES = (r.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+}
+async function criarSetor() {
+  const nome = document.getElementById('se-nome').value.trim();
+  if (!nome) { toast('Informe o nome do setor.'); return; }
+  try {
+    await api('pcp/setores', { method:'POST', body:{ nome, cor:document.getElementById('se-cor').value, ordem:parseInt(document.getElementById('se-ordem').value)||0, status_id:document.getElementById('se-status').value||null } });
+    await recarregarSetores(); renderSetoresAdmin(); toast(`Setor “${nome}” cadastrado.`);
+  } catch(e){ toast('Erro: '+e.message); }
+}
+async function alterarSetorStatus(id, status_id) {
+  try { await api('pcp/setores?id='+id, { method:'PUT', body:{ status_id: status_id||null } }); await recarregarSetores(); renderSetoresAdmin(); toast('Status do setor atualizado.'); }
+  catch(e){ toast('Erro: '+e.message); }
+}
+function editarSetor(id) {
+  const s = SETORES.find(x=>x.id===id); if(!s) return;
+  document.getElementById('modal-title').textContent = 'Editar setor';
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="form-group"><label>Nome *</label><input type="text" id="se-ed-nome" value="${esc(s.nome)}" maxlength="60"></div>
+    <div class="form-group"><label>Status associado</label><select id="se-ed-status">${statusOptions(s.status_id)}</select></div>
+    <div class="form-group"><label>Cor</label><input type="color" id="se-ed-cor" value="${s.cor}" style="height:40px;padding:3px"></div>
+    <div class="form-group"><label>Ordem</label><input type="number" id="se-ed-ordem" value="${s.ordem}" min="0"></div>`;
+  document.getElementById('modal-footer').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="salvarSetor(${id})">Salvar</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function salvarSetor(id) {
+  try {
+    await api('pcp/setores?id='+id, { method:'PUT', body:{ nome:document.getElementById('se-ed-nome').value.trim(), cor:document.getElementById('se-ed-cor').value, ordem:parseInt(document.getElementById('se-ed-ordem').value)||0, status_id:document.getElementById('se-ed-status').value||null } });
+    await recarregarSetores(); closeModal(); renderSetoresAdmin(); toast('Setor atualizado.');
+  } catch(e){ toast('Erro: '+e.message); }
+}
+async function excluirSetor(id, nome) {
+  if (!confirm(`Excluir o setor “${nome}”? Ele será removido dos roteiros e das associações de usuários.`)) return;
+  try { await api('pcp/setores?id='+id, { method:'DELETE' }); await recarregarSetores(); renderSetoresAdmin(); toast(`Setor “${nome}” excluído.`); }
+  catch(e){ toast('Erro: '+e.message); }
+}
+
+// ─── USUÁRIOS (admin) ────────────────────────────────────────────────────────
+const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido'};
+let usuariosCache = [];
+
+async function renderUsuariosAdmin() {
+  const cont = document.getElementById('usuarios-conteudo');
+  if (!cont || !ehAdmin()) { if (cont) cont.innerHTML='<div style="color:var(--red);font-size:12px">Acesso restrito.</div>'; return; }
+  cont.innerHTML = '<div style="color:var(--text3);font-size:12px">Carregando...</div>';
+  try {
+    const r = await api('pcp/usuarios');
+    usuariosCache = r.data || [];
+  } catch(e){ cont.innerHTML = `<div style="color:var(--red);font-size:12px">${esc(e.message)}</div>`; return; }
+  cont.innerHTML = `
+    <div style="margin-bottom:12px"><button class="btn btn-red" onclick="abrirUsuarioEditor()">+ Novo usuário</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><div class="tbl-wrap"><table>
+      <thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>Setores</th><th>Status</th><th style="width:150px"></th></tr></thead>
+      <tbody>${usuariosCache.map((u)=>`<tr>
+        <td>${esc(u.username)}</td>
+        <td class="td-produto">${esc(u.full_name)}</td>
+        <td>${u.role==='admin'?'<span class="st st-vencido">admin</span>':'<span class="st st-gray">operador</span>'}</td>
+        <td style="font-size:11px">${(u.setores||[]).map(id=>{const s=SETORES.find(x=>x.id===id);return s?esc(s.nome):'#'+id;}).join(', ')||'—'}</td>
+        <td>${u.active?'<span class="st st-ok">ativo</span>':'<span class="st st-gray">inativo</span>'}</td>
+        <td>
+          <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="abrirUsuarioEditor(${u.id})">editar</button>
+          <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirUsuario(${u.id}, '${esc(u.username)}')">excluir</button>
+        </td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function abrirUsuarioEditor(id) {
+  const u = id ? usuariosCache.find(x=>x.id===id) : null;
+  const perms = (u && u.permissoes) || {};
+  const setoresU = (u && u.setores) || [];
+  document.getElementById('modal-title').textContent = u ? `Usuário: ${u.username}` : 'Novo usuário';
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="form-group"><label>Login *</label><input type="text" id="us-username" value="${u?esc(u.username):''}" ${u?'disabled':''} placeholder="ex: joao"></div>
+    <div class="form-group"><label>Nome completo *</label><input type="text" id="us-nome" value="${u?esc(u.full_name):''}"></div>
+    <div class="form-group"><label>Senha ${u?'<span style="font-weight:400;text-transform:none;color:var(--text3)">(em branco = manter)</span>':'*'}</label><input type="password" id="us-senha" autocomplete="new-password" placeholder="${u?'••••••':'mín. 8 caracteres'}"></div>
+    <div class="form-group"><label>Papel</label><select id="us-role"><option value="user" ${!u||u.role==='user'?'selected':''}>Operador</option><option value="admin" ${u&&u.role==='admin'?'selected':''}>Administrador</option></select></div>
+    <div class="form-group"><label>Situação</label><select id="us-ativo"><option value="1" ${!u||u.active?'selected':''}>Ativo</option><option value="0" ${u&&!u.active?'selected':''}>Inativo</option></select></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Permissões por aba</label>
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        ${ABAS_PERM.map((aba)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border)">
+          <span style="flex:1;font-size:12px">${esc(ABA_LABELS[aba]||aba)}</span>
+          <select id="us-perm-${aba}" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">
+            <option value="none" ${(perms[aba]||'none')==='none'?'selected':''}>Sem acesso</option>
+            <option value="ver" ${perms[aba]==='ver'?'selected':''}>Ver</option>
+            <option value="editar" ${perms[aba]==='editar'?'selected':''}>Editar</option>
+          </select>
+        </div>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Administrador ignora a matriz (acesso total + abas de admin).</div>
+    </div>
+    <div class="form-group" style="grid-column:1/-1"><label>Setores de produção</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${SETORES.length ? SETORES.map((s)=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;text-transform:none;font-weight:400;border:1px solid var(--border);border-radius:6px;padding:5px 9px;cursor:pointer">
+          <input type="checkbox" class="us-setor" value="${s.id}" ${setoresU.includes(s.id)?'checked':''} style="accent-color:var(--red)"> ${esc(s.nome)}
+        </label>`).join('') : '<span style="font-size:11px;color:var(--text3)">Cadastre setores primeiro.</span>'}
+      </div>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="salvarUsuario(${id||0})">${u?'Salvar alterações':'Criar usuário'}</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function salvarUsuario(id) {
+  const permissoes = {};
+  ABAS_PERM.forEach((aba)=>{ const v=document.getElementById('us-perm-'+aba).value; if(v!=='none') permissoes[aba]=v; });
+  const setores = [...document.querySelectorAll('.us-setor:checked')].map((c)=>Number(c.value));
+  const body = {
+    full_name: document.getElementById('us-nome').value.trim(),
+    role: document.getElementById('us-role').value,
+    active: document.getElementById('us-ativo').value === '1',
+    permissoes, setores,
+  };
+  const senha = document.getElementById('us-senha').value;
+  if (senha) body.password = senha;
+  try {
+    if (id) {
+      await api('pcp/usuarios?id='+id, { method:'PUT', body });
+      toast('Usuário atualizado.');
+    } else {
+      body.username = document.getElementById('us-username').value.trim();
+      if (!body.username) { toast('Informe o login.'); return; }
+      if (!senha) { toast('Defina a senha do novo usuário.'); return; }
+      await api('pcp/usuarios', { method:'POST', body });
+      toast('Usuário criado.');
+    }
+    closeModal();
+    renderUsuariosAdmin();
+  } catch(e){ toast('Erro: '+e.message); }
+}
+
+async function excluirUsuario(id, username) {
+  if (!confirm(`Excluir o usuário “${username}”?`)) return;
+  try { await api('pcp/usuarios?id='+id, { method:'DELETE' }); renderUsuariosAdmin(); toast(`Usuário “${username}” excluído.`); }
+  catch(e){ toast('Erro: '+e.message); }
 }
 
 // ─── STATUS DE PRODUÇÃO (admin) ──────────────────────────────────────────────
@@ -1653,6 +1853,7 @@ function bipDigitado() {
 async function processBip() {
   clearTimeout(bipTimer);
   const input = document.getElementById('bip-input');
+  if (!podeEditar('bipagem')) { toast('Você não tem permissão para dar baixa na bipagem.'); input.value=''; return; }
   const codigo = input.value.trim();
   if (!codigo) return;
   input.value = '';
@@ -1996,6 +2197,8 @@ document.getElementById('btn-sair').addEventListener('click', sair);
     await carregarDados();
     popularSelectProdutos();
     renderAll();
+    aplicarPermissoes();
+    if (!podeVer(currentPage)) goTo(primeiraAbaVisivel());
   } catch (e) {
     // 401 já redirecionou para o login; demais erros ficam visíveis
     console.error(e);

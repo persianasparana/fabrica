@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import { pool, migrate } from './db.js';
 import authRoutes from './routes/auth.js';
 import pcpRoutes from './routes/pcp.js';
+import adminRoutes from './routes/admin.js';
 import qualidadeRoutes from './routes/qualidade.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +79,7 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 // APIs
 app.use('/api/auth', authRoutes);
 app.use('/api/pcp', pcpRoutes);
+app.use('/api/pcp', adminRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
 
 // Frontends estáticos (opcional — o Nginx também pode servir diretamente)

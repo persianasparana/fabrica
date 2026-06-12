@@ -85,8 +85,12 @@ export async function attemptLogin(req, username, password, ip) {
     username: user.username,
     full_name: user.full_name,
     role: user.role,
+    permissoes: user.permissoes || {},
   };
   ensureCsrf(req);
+
+  const { rows: sets } = await q('SELECT setor_id FROM usuario_setores WHERE user_id = $1', [user.id]);
+  req.session.user.setores = sets.map((s) => Number(s.setor_id));
 
   await q('UPDATE users SET last_login = now() WHERE id = $1', [user.id]);
   await audit(Number(user.id), 'auth', 'login', { ip });
@@ -130,6 +134,26 @@ export function requireAdmin(req, res, next) {
     return res.status(403).json({ error: 'Ação restrita a administradores' });
   }
   next();
+}
+
+const NIVEIS = { none: 0, ver: 1, editar: 2 };
+
+/** Nível de permissão do usuário numa aba ('none'|'ver'|'editar'). Admin = editar. */
+export function nivelPerm(user, aba) {
+  if (!user) return 'none';
+  if (user.role === 'admin') return 'editar';
+  return (user.permissoes && user.permissoes[aba]) || 'none';
+}
+
+/** Middleware: exige nível mínimo numa aba (admin tem acesso total). */
+export function requirePerm(aba, nivel) {
+  return (req, res, next) => {
+    if (!req.session?.user) return res.status(401).json({ error: 'Não autenticado' });
+    if (NIVEIS[nivelPerm(req.session.user, aba)] < NIVEIS[nivel]) {
+      return res.status(403).json({ error: `Sem permissão para ${nivel} em "${aba}"` });
+    }
+    next();
+  };
 }
 
 export function requireCsrf(req, res, next) {

@@ -52,6 +52,31 @@ export async function seedStatus() {
   return padroes.length;
 }
 
+/** Setores de produção iniciais + marca um status como final (baixa). */
+export async function seedSetores() {
+  const { rows } = await q('SELECT COUNT(*)::int AS c FROM pcp_setores');
+  if (rows[0].c > 0) return 0;
+
+  const { rows: sts } = await q('SELECT id, nome FROM pcp_status');
+  const idDe = {};
+  for (const s of sts) idDe[s.nome] = Number(s.id);
+
+  const defs = [
+    ['Corte', '#0891B2', 10, 'Em corte'],
+    ['Montagem', '#7C3AED', 20, 'Em montagem'],
+    ['Acabamento', '#C2410C', 30, 'Em acabamento'],
+    ['Embalagem', '#374151', 40, 'Expedido'],
+  ];
+  for (const [nome, cor, ordem, statusNome] of defs) {
+    await q('INSERT INTO pcp_setores (nome, cor, ordem, status_id) VALUES ($1,$2,$3,$4)', [
+      nome, cor, ordem, idDe[statusNome] ?? null,
+    ]);
+  }
+  // "Expedido" como status final (o 'fim' nesse status dá baixa na peça)
+  await q("UPDATE pcp_status SET final = TRUE WHERE nome = 'Expedido'");
+  return defs.length;
+}
+
 export async function seedItens() {
   const { rows } = await q('SELECT COUNT(*)::int AS c FROM pcp_itens');
   if (rows[0].c > 0) return 0;

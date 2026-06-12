@@ -179,6 +179,54 @@ export async function migrate() {
     `);
   }
 
+  // PCP: status pode ser marcado como "final" (o 'fim' nesse status dá baixa)
+  await q(`ALTER TABLE pcp_status ADD COLUMN IF NOT EXISTS final BOOLEAN NOT NULL DEFAULT FALSE`);
+
+  // PCP: setores de produção (admin). Cada setor é associado a um status —
+  // ao bipar 'início' do setor, a peça assume esse status.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_setores (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(60) UNIQUE NOT NULL,
+      cor        VARCHAR(7) NOT NULL DEFAULT '#606060',
+      ordem      INTEGER NOT NULL DEFAULT 0,
+      status_id  BIGINT REFERENCES pcp_status(id) ON DELETE SET NULL,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  // Permissões por aba (JSONB: { aba: 'none'|'ver'|'editar' }) no usuário
+  await q(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissoes JSONB NOT NULL DEFAULT '{}'`);
+
+  // Associação usuário ↔ setores (N:N)
+  await q(`
+    CREATE TABLE IF NOT EXISTS usuario_setores (
+      user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      setor_id BIGINT NOT NULL REFERENCES pcp_setores(id) ON DELETE CASCADE,
+      PRIMARY KEY (user_id, setor_id)
+    )
+  `);
+
+  // Roteiro de produção por produto: setores + dependências entre eles.
+  // JSONB: [ { setor_id, depende_de: [setor_id, ...] }, ... ]
+  await q(`ALTER TABLE pcp_produtos ADD COLUMN IF NOT EXISTS roteiro JSONB NOT NULL DEFAULT '[]'`);
+
+  // Etapas de produção por peça (bipagem por setor: início/fim)
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_peca_etapas (
+      id          BIGSERIAL PRIMARY KEY,
+      peca_id     BIGINT NOT NULL REFERENCES pcp_pecas(id) ON DELETE CASCADE,
+      setor_id    BIGINT NOT NULL REFERENCES pcp_setores(id) ON DELETE CASCADE,
+      inicio      TIMESTAMPTZ,
+      fim         TIMESTAMPTZ,
+      inicio_por  BIGINT,
+      fim_por     BIGINT,
+      UNIQUE (peca_id, setor_id)
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_peca_etapas_peca ON pcp_peca_etapas (peca_id)`);
+
   // Qualidade: não conformidades
   await q(`
     CREATE TABLE IF NOT EXISTS nao_conformidades (

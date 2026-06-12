@@ -57,6 +57,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 18.8 6.2 21l.9-5.3L3.3 12l5.3-.8z"/></svg>
       <span>Status (admin)</span>
     </a>
+    <a onclick="goTo('setores')" data-page="setores" data-admin style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Setores</span>
+    </a>
+    <a onclick="goTo('usuarios')" data-page="usuarios" data-admin style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Usuários</span>
+    </a>
     <a onclick="goTo('novo')" data-page="novo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span>Novo Pedido</span>
@@ -80,7 +88,7 @@
     <button class="btn btn-outline" onclick="document.getElementById('import-pdf-file').click()" style="font-size:11px;color:#C1212D;border-color:#C1212D">📄 Importar PDF</button>
     <input type="file" id="import-pdf-file" accept=".pdf" style="display:none" onchange="importPDFDirect(event)">
     <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFile(event)">
-    <button class="btn btn-red" onclick="openModal()">+ Novo Pedido</button>
+    <button class="btn btn-red" id="btn-novo-topo" onclick="openModal()">+ Novo Pedido</button>
   </div>
 
   <div id="content">
@@ -306,6 +314,18 @@
         Estrutura oficial dos produtos: fórmulas de corte e componentes (BOM). L = largura, A = altura — medidas em centímetros, exceto PH 25/PH 50 (metros). A lista de produtos do novo pedido vem daqui.
       </div>
       <div id="estrutura-lista"></div>
+    </div>
+
+    <!-- SETORES (admin) -->
+    <div class="section" id="sec-setores">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Cadastre os setores de produção e associe cada um a um status. Ao bipar o “início” de um setor, a peça assume o status associado.</div>
+      <div id="setores-conteudo"></div>
+    </div>
+
+    <!-- USUÁRIOS (admin) -->
+    <div class="section" id="sec-usuarios">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Cadastre usuários, defina a permissão por aba (Sem acesso / Ver / Editar) e associe a setores de produção.</div>
+      <div id="usuarios-conteudo"></div>
     </div>
 
     <!-- STATUS DE PRODUÇÃO (admin) -->
