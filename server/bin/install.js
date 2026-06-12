@@ -10,11 +10,13 @@ import readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { migrate, pool, q } from '../src/db.js';
 import { createUser } from '../src/auth.js';
-import { seedEstrutura, seedItens } from '../src/seed.js';
+import { seedEstrutura, seedItens, seedStatus } from '../src/seed.js';
 
 await migrate();
 console.log('Schema aplicado.');
 
+const nStatus = await seedStatus();
+if (nStatus) console.log(`Status de produção: ${nStatus} status padrão carregados.`);
 const nProdutos = await seedEstrutura();
 if (nProdutos) console.log(`Estrutura do produto: ${nProdutos} produtos carregados.`);
 const nItens = await seedItens();

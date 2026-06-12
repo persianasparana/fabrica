@@ -32,6 +32,8 @@ server/
 | POST | `/api/pcp/bip` | Baixa da peça pela etiqueta (embalagem) (CSRF) |
 | POST | `/api/pcp/bip/vincular` | Vincula etiqueta à próxima peça livre do pedido (CSRF) |
 | PUT | `/api/pcp/pecas?id=` | Ajustes por peça: desvincular/baixa/reabrir (CSRF) |
+| GET | `/api/pcp/status` | Status de produção ativos (qualquer usuário) |
+| POST/PUT/DELETE | `/api/pcp/status` | Cadastra/edita/exclui status — **somente admin** (CSRF) |
 | GET | `/api/pcp/estrutura` | Estrutura do produto (catálogo: cortes + BOM) |
 | POST/PUT/DELETE | `/api/pcp/estrutura` | Mantém produtos da estrutura (CSRF) |
 | GET | `/api/qualidade/ncs` \| `?id=` | Lista (com filtros) / lê NC |

@@ -21,7 +21,7 @@
  *   DELETE /api/pcp/estrutura?id=N     desativa produto        (CSRF)
  */
 import { Router } from 'express';
-import { requireAuth, requireCsrf, audit } from '../auth.js';
+import { requireAuth, requireAdmin, requireCsrf, audit } from '../auth.js';
 import { q, pool } from '../db.js';
 import { ah, HttpError } from '../util.js';
 
@@ -39,8 +39,10 @@ const SELECT_ITEM = `
          to_char(i.conclusao,    'YYYY-MM-DD') AS conclusao,
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
+         i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pc.pecas, '[]'::json) AS pecas
   FROM pcp_itens i
+  LEFT JOIN pcp_status st ON st.id = i.status_id
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
              'id', pp.id, 'numero', pp.numero, 'cod_barras', pp.cod_barras,
@@ -69,9 +71,18 @@ function validarItem(d, partial = false) {
   if (d.observacoes && String(d.observacoes).length > 5000) throw new HttpError(422, 'Observações muito longas');
   if (d.etiqueta != null && String(d.etiqueta).trim().length > 64)
     throw new HttpError(422, 'Etiqueta muito longa (máx. 64 caracteres)');
+  if (d.status_id != null && d.status_id !== '' && !Number.isInteger(Number(d.status_id)))
+    throw new HttpError(422, 'Status de produção inválido');
 }
 
 const orNull = (v) => (v === undefined || v === null || v === '' ? null : v);
+
+/** Garante que o status de produção existe e está ativo (dentro da transação). */
+async function assertStatus(exec, id) {
+  if (id == null || id === '') return;
+  const { rows } = await exec('SELECT 1 FROM pcp_status WHERE id = $1 AND ativo = TRUE', [Number(id)]);
+  if (!rows[0]) throw new HttpError(422, 'Status de produção inexistente ou inativo');
+}
 
 /** Recalcula a conclusão do item a partir das peças (derivada). */
 async function sincronizarConclusaoItem(exec, itemId) {
@@ -224,6 +235,7 @@ r.put(
     validarItem(d, true);
 
     await emTransacao(async (exec) => {
+      await assertStatus(exec, d.status_id);
       const result = await exec(
         `UPDATE pcp_itens SET
            produto       = COALESCE($2, produto),
@@ -238,6 +250,7 @@ r.put(
            motivo_atraso = COALESCE($11, motivo_atraso),
            observacoes   = COALESCE($16, observacoes),
            especial      = COALESCE($17, especial),
+           status_id     = CASE WHEN $18 THEN NULL ELSE COALESCE($19::bigint, status_id) END,
            updated_at    = now()
          WHERE id = $1`,
         [
@@ -254,6 +267,8 @@ r.put(
           d.data_cliente === null,
           d.observacoes !== undefined ? d.observacoes : null,
           typeof d.especial === 'boolean' ? d.especial : null,
+          d.status_id === null,
+          d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null,
         ]
       );
       if (result.rowCount === 0) throw new HttpError(404, 'Item não encontrado');
@@ -342,6 +357,7 @@ r.put(
       throw new HttpError(422, 'Data de conclusão inválida (use YYYY-MM-DD)');
 
     const n = await emTransacao(async (exec) => {
+      await assertStatus(exec, d.status_id);
       const { rows: itens } = await exec('SELECT id FROM pcp_itens WHERE pedido = $1', [pedido]);
       if (!itens.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
 
@@ -354,6 +370,7 @@ r.put(
            motivo_atraso = COALESCE($9, motivo_atraso),
            observacoes   = COALESCE($10, observacoes),
            especial      = COALESCE($11, especial),
+           status_id     = CASE WHEN $12 THEN NULL ELSE COALESCE($13::bigint, status_id) END,
            updated_at    = now()
          WHERE pedido = $1`,
         [
@@ -365,6 +382,8 @@ r.put(
           d.motivo_atraso !== undefined ? d.motivo_atraso : null,
           d.observacoes !== undefined ? d.observacoes : null,
           typeof d.especial === 'boolean' ? d.especial : null,
+          d.status_id === null,
+          d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null,
         ]
       );
 
@@ -654,6 +673,85 @@ r.delete(
     if (result.rowCount === 0) throw new HttpError(404, 'Produto não encontrado');
     await audit(req.session.user.id, 'pcp', 'produto.delete', { entityType: 'pcp_produto', entityId: id });
     res.json({ ok: true });
+  })
+);
+
+// ─── Status de produção (configuráveis pelo admin) ──────────────────────────
+
+const COR_RE = /^#[0-9a-fA-F]{6}$/;
+
+// GET é aberto a qualquer usuário autenticado (alimenta os seletores)
+r.get(
+  '/status',
+  ah(async (req, res) => {
+    const { rows } = await q(
+      'SELECT id, nome, cor, ordem FROM pcp_status WHERE ativo = TRUE ORDER BY ordem, nome'
+    );
+    res.json({ data: rows });
+  })
+);
+
+r.post(
+  '/status',
+  requireAdmin,
+  requireCsrf,
+  ah(async (req, res) => {
+    const nome = String(req.body?.nome || '').trim();
+    const cor = String(req.body?.cor || '#606060').trim();
+    const ordem = Number.isFinite(Number(req.body?.ordem)) ? Number(req.body.ordem) : 0;
+    if (!nome) throw new HttpError(422, 'Nome do status é obrigatório');
+    if (nome.length > 40) throw new HttpError(422, 'Nome muito longo (máx. 40 caracteres)');
+    if (!COR_RE.test(cor)) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
+    const { rows } = await q(
+      `INSERT INTO pcp_status (nome, cor, ordem) VALUES ($1, $2, $3)
+       ON CONFLICT (nome) DO NOTHING RETURNING id`,
+      [nome, cor, ordem]
+    );
+    if (!rows[0]) throw new HttpError(409, 'Já existe um status com esse nome');
+    await audit(req.session.user.id, 'pcp', 'status.create', { entityType: 'pcp_status', entityId: Number(rows[0].id) });
+    res.status(201).json({ id: Number(rows[0].id) });
+  })
+);
+
+r.put(
+  '/status',
+  requireAdmin,
+  requireCsrf,
+  ah(async (req, res) => {
+    const id = Number(req.query.id || 0);
+    if (!id) throw new HttpError(400, 'ID obrigatório');
+    const d = req.body || {};
+    if (d.cor != null && !COR_RE.test(String(d.cor))) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
+    if (d.nome != null && (!String(d.nome).trim() || String(d.nome).length > 40))
+      throw new HttpError(422, 'Nome inválido');
+    const result = await q(
+      `UPDATE pcp_status SET nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem)
+       WHERE id = $1`,
+      [
+        id,
+        d.nome != null ? String(d.nome).trim() : null,
+        d.cor != null ? String(d.cor) : null,
+        d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
+      ]
+    );
+    if (result.rowCount === 0) throw new HttpError(404, 'Status não encontrado');
+    await audit(req.session.user.id, 'pcp', 'status.update', { entityType: 'pcp_status', entityId: id });
+    res.json({ ok: true });
+  })
+);
+
+r.delete(
+  '/status',
+  requireAdmin,
+  requireCsrf,
+  ah(async (req, res) => {
+    const id = Number(req.query.id || 0);
+    if (!id) throw new HttpError(400, 'ID obrigatório');
+    const { rows: uso } = await q('SELECT COUNT(*)::int AS c FROM pcp_itens WHERE status_id = $1', [id]);
+    const result = await q('DELETE FROM pcp_status WHERE id = $1', [id]); // itens: ON DELETE SET NULL
+    if (result.rowCount === 0) throw new HttpError(404, 'Status não encontrado');
+    await audit(req.session.user.id, 'pcp', 'status.delete', { entityType: 'pcp_status', entityId: id });
+    res.json({ ok: true, itens_afetados: uso[0].c });
   })
 );
 

@@ -9,6 +9,7 @@
 // ─── SESSÃO / API (PostgreSQL via backend fabrica) ───────────────────────────
 let DB = [];          // itens da fila de produção (espelho local do banco)
 let ESTRUTURA = [];   // estrutura do produto (catálogo oficial)
+let STATUS = [];      // status de produção configuráveis (admin)
 let usuario = null;
 let csrfToken = '';
 let currentPage = 'painel';
@@ -40,6 +41,17 @@ async function carregarSessao() {
   csrfToken = data.csrf_token;
   const el = document.getElementById('user-name');
   if (el) el.textContent = data.user.full_name || data.user.username;
+  document.querySelectorAll('[data-admin]').forEach((n) => { n.style.display = ehAdmin() ? '' : 'none'; });
+}
+
+function popularFiltroStatus() {
+  const sel = document.getElementById('fila-status-prod');
+  if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todos (status prod.)</option>'
+    + '<option value="__sem__">— sem status —</option>'
+    + STATUS.map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('');
+  sel.value = atual;
 }
 
 function normalizarItem(i) {
@@ -50,6 +62,14 @@ function normalizarItem(i) {
     especial: i.especial === true,
     pecas: (i.pecas || []).map((p) => Object.assign({}, p, { id: Number(p.id) })),
   });
+}
+
+function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
+
+function statusProducaoBadge(item) {
+  if (!item.status_nome) return '';
+  const c = item.status_cor || '#606060';
+  return `<span class="st-prod" style="background:${c}22;color:${c};border:1px solid ${c}66">${esc(item.status_nome)}</span>`;
 }
 
 function pecasConcluidas(item) {
@@ -70,9 +90,11 @@ function aplicarItemAtualizado(item) {
 }
 
 async function carregarDados() {
-  const [itens, estrutura] = await Promise.all([api('pcp/itens'), api('pcp/estrutura')]);
+  const [itens, estrutura, status] = await Promise.all([api('pcp/itens'), api('pcp/estrutura'), api('pcp/status')]);
   DB = (itens.data || []).map(normalizarItem);
   ESTRUTURA = (estrutura.data || []).map((p) => Object.assign({}, p, { id: Number(p.id) }));
+  STATUS = (status.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+  popularFiltroStatus();
 }
 
 async function atualizarDados() {
@@ -154,7 +176,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',novo:'Novo Pedido'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -167,6 +189,7 @@ function goTo(page) {
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
+  if (page === 'status') renderStatusAdmin();
   if (page === 'novo') renderProdutosPedido();
   if (page === 'pedido') setTimeout(()=>document.getElementById('ped-busca')?.focus(), 80);
   if (page === 'bip') setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100);
@@ -417,6 +440,8 @@ function renderFila() {
   const ft = document.getElementById('fila-tipo').value;
   const fsi = document.getElementById('fila-situacao').value;
   const fe = document.getElementById('fila-especial').value;
+  const fspEl = document.getElementById('fila-status-prod');
+  const fsp = fspEl ? fspEl.value : '';
 
   const dateRange = getDateFilterRange();
   let items = DB.filter(item => {
@@ -428,6 +453,8 @@ function renderFila() {
     if (fsi === 'concluido' && !item.conclusao) return false;
     if (fe === 'especial' && !item.especial) return false;
     if (fe === 'comum' && item.especial) return false;
+    if (fsp === '__sem__' && item.status_id) return false;
+    if (fsp && fsp !== '__sem__' && String(item.status_id) !== fsp) return false;
     if (!applyDateFilter(item, dateRange)) return false;
     return true;
   }).sort((a,b) => priorityOrder(a) - priorityOrder(b));
@@ -447,7 +474,7 @@ function renderFila() {
     const tc = tipoClass(item.tipo);
     const done = pecasConcluidas(item), tot = pecasTotal(item);
     return `<tr>
-      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)}</td>
+      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}</td>
       <td>${esc(item.pedido)}</td>
       <td style="text-align:center">${done > 0 && done < tot ? `<b style="color:var(--blue)">${done}/${tot}</b>` : tot}</td>
       <td>${fmtDate(item.data_cliente)}</td>
@@ -534,6 +561,78 @@ function renderBusca() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ─── STATUS DE PRODUÇÃO (admin) ──────────────────────────────────────────────
+function renderStatusAdmin() {
+  const cont = document.getElementById('status-conteudo');
+  if (!cont) return;
+  if (!ehAdmin()) {
+    cont.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px 0">Acesso restrito a administradores.</div>';
+    return;
+  }
+  const usados = {};
+  DB.forEach((i) => { if (i.status_id) usados[i.status_id] = (usados[i.status_id] || 0) + 1; });
+
+  cont.innerHTML = `
+    <div class="card" style="max-width:620px">
+      <div class="card-title">Cadastrar status</div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1"><label>Nome do status *</label>
+          <input type="text" id="st-nome" placeholder="Ex: Em pintura" maxlength="40"
+            onkeydown="if(event.key==='Enter')criarStatus()"></div>
+        <div class="form-group"><label>Cor</label><input type="color" id="st-cor" value="#C1212D" style="height:40px;padding:3px"></div>
+        <div class="form-group"><label>Ordem</label><input type="number" id="st-ordem" value="${(STATUS.length + 1) * 10}" min="0"></div>
+      </div>
+      <button class="btn btn-red" style="margin-top:12px" onclick="criarStatus()">+ Adicionar status</button>
+    </div>
+
+    <div class="card" style="max-width:620px">
+      <div class="card-title">Status cadastrados (${STATUS.length})</div>
+      ${STATUS.length ? `<div class="tbl-wrap"><table>
+        <thead><tr><th>Status</th><th>Em uso</th><th style="width:90px"></th></tr></thead>
+        <tbody>
+          ${STATUS.map((s) => `<tr>
+            <td><span class="st-prod" style="background:${s.cor}22;color:${s.cor};border:1px solid ${s.cor}66">${esc(s.nome)}</span></td>
+            <td>${usados[s.id] || 0} item(ns)</td>
+            <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirStatus(${s.id}, '${esc(s.nome)}', ${usados[s.id] || 0})">excluir</button></td>
+          </tr>`).join('')}
+        </tbody></table></div>`
+      : '<div style="color:var(--text3);font-size:12px">Nenhum status cadastrado.</div>'}
+      <div style="font-size:10px;color:var(--text3);margin-top:10px">Excluir um status remove a marcação dos itens que o usavam (eles ficam “sem status”). O PCP define o status por item (no detalhe) ou no pedido inteiro (aba Editar Pedido).</div>
+    </div>`;
+}
+
+async function criarStatus() {
+  const nome = document.getElementById('st-nome').value.trim();
+  if (!nome) { toast('Informe o nome do status.'); return; }
+  const cor = document.getElementById('st-cor').value || '#606060';
+  const ordem = parseInt(document.getElementById('st-ordem').value) || 0;
+  try {
+    await api('pcp/status', { method: 'POST', body: { nome, cor, ordem } });
+    const r = await api('pcp/status');
+    STATUS = (r.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+    popularFiltroStatus();
+    renderStatusAdmin();
+    toast(`Status “${nome}” cadastrado.`);
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function excluirStatus(id, nome, emUso) {
+  const aviso = emUso > 0
+    ? `Excluir o status “${nome}”?\n\n${emUso} item(ns) usam esse status e ficarão “sem status”.`
+    : `Excluir o status “${nome}”?`;
+  if (!confirm(aviso)) return;
+  try {
+    await api('pcp/status?id=' + id, { method: 'DELETE' });
+    STATUS = STATUS.filter((s) => s.id !== id);
+    // limpa o status em memória dos itens afetados
+    DB.forEach((i) => { if (i.status_id === id) { i.status_id = null; i.status_nome = null; i.status_cor = null; } });
+    popularFiltroStatus();
+    renderStatusAdmin();
+    renderAll();
+    toast(`Status “${nome}” excluído.`);
+  } catch (e) { toast('Erro: ' + e.message); }
 }
 
 // ─── EDITAR PEDIDO (edição em massa) ─────────────────────────────────────────
@@ -628,6 +727,13 @@ function renderPedidoEditor() {
         <div class="form-group"><label>Chegada PCP</label><input type="date" id="ped-chegada" value="${comum(itens,'chegada_pcp')}"></div>
         <div class="form-group"><label>Tipo</label><select id="ped-tipo">${tiposOpts}</select></div>
         <div class="form-group" style="grid-column:1/-1"><label>Motivo atraso</label><select id="ped-motivo">${motivoOpts}</select></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Status de produção</label>
+          <select id="ped-status">
+            <option value="__keep__" selected>(manter atual)</option>
+            <option value="">— sem status —</option>
+            ${STATUS.map(s=>`<option value="${s.id}">${esc(s.nome)}</option>`).join('')}
+          </select>
+        </div>
         <div class="form-group" style="grid-column:1/-1">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
             <input type="checkbox" id="ped-especial" ${todoEspecial?'checked':''} style="width:15px;height:15px;accent-color:var(--red)">
@@ -681,6 +787,8 @@ async function salvarPedido() {
     observacoes: document.getElementById('ped-obs').value,
     especial: document.getElementById('ped-especial').checked,
   };
+  const sv = document.getElementById('ped-status').value;
+  if (sv !== '__keep__') body.status_id = sv === '' ? null : Number(sv);
   try {
     const r = await api('pcp/pedido?pedido=' + encodeURIComponent(ped), { method: 'PUT', body });
     aplicarPedidoResposta(r);
@@ -799,6 +907,12 @@ function openDetail(id) {
         <span>★ <strong>Peça especial</strong> — atenção redobrada ao prazo (ex.: pintura personalizada)</span>
       </label>
     </div>
+    <div class="form-group" style="grid-column:1/-1"><label>Status de produção</label>
+      <select id="ed-status">
+        <option value="">— sem status —</option>
+        ${STATUS.map(s=>`<option value="${s.id}" ${item.status_id==s.id?'selected':''}>${esc(s.nome)}</option>`).join('')}
+      </select>
+    </div>
     <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="ed-obs" rows="2">${esc(item.observacoes||'')}</textarea></div>
     <div class="form-group"><label>Status atual</label><div style="margin-top:4px"><span class="st ${sc}">${statusLabel(s)}</span></div></div>
     <div class="form-group" style="grid-column:1/-1">
@@ -882,6 +996,7 @@ async function salvarEdicao() {
     motivo_atraso: document.getElementById('ed-motivo').value,
     observacoes: document.getElementById('ed-obs').value.trim(),
     especial: document.getElementById('ed-especial').checked,
+    status_id: document.getElementById('ed-status').value === '' ? null : Number(document.getElementById('ed-status').value),
   };
   try {
     const r = await api('pcp/itens?id=' + editingId, { method: 'PUT', body: payload });

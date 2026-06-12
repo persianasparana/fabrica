@@ -122,6 +122,20 @@ jobs:
           C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X DELETE -H "X-CSRF-Token: $CSRF" "$B/api/pcp/pedido?pedido=99500")
           test "$C" = "200" || { echo "excluir pedido inteiro falhou ($C)"; exit 1; }
 
+          # Status de produção: seed (7), admin cria, PCP aplica em item e pedido
+          N=$(curl -s -c $J -b $J $B/api/pcp/status | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.length))')
+          test "$N" = "7" || { echo "status seed: esperado 7, veio $N"; exit 1; }
+          SID=$(curl -s -c $J -b $J $B/api/pcp/status | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data[0].id))')
+          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"nome":"CI Status","cor":"#123456"}' $B/api/pcp/status | grep -q '"id"' || { echo "criar status falhou"; exit 1; }
+          IID=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"produto":"ROMANA","pedido":"99700","data_cliente":"2026-12-05","qnt":1}' $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"status_id\":$SID}" "$B/api/pcp/itens?id=$IID" | grep -q '"status_nome"' || { echo "status no item falhou"; exit 1; }
+          R=$(curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"status_id\":$SID}" "$B/api/pcp/pedido?pedido=99700")
+          echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.itens.every(i=>i.status_id)?0:1)})' || { echo "status no pedido falhou"; exit 1; }
+          C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"status_id":99999}' "$B/api/pcp/itens?id=$IID")
+          test "$C" = "422" || { echo "status inexistente deveria dar 422, veio $C"; exit 1; }
+
           # Qualidade segue funcionando
           curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d '{"data_ocorrencia":"2026-06-09","descricao":"ci"}' $B/api/qualidade/ncs | grep -q '"id"' || { echo "qualidade falhou"; exit 1; }

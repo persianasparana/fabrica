@@ -114,6 +114,22 @@ export async function migrate() {
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_data_cliente ON pcp_itens (data_cliente)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS especial BOOLEAN NOT NULL DEFAULT FALSE`);
 
+  // PCP: status de produção configuráveis (admin cadastra/exclui). Atribuídos
+  // manualmente pelo PCP por item ou no pedido inteiro — distinto do indicador
+  // de prazo (vencido/atenção) e da baixa por peça.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_status (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(40) UNIQUE NOT NULL,
+      cor        VARCHAR(7) NOT NULL DEFAULT '#606060',
+      ordem      INTEGER NOT NULL DEFAULT 0,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS status_id BIGINT REFERENCES pcp_status(id) ON DELETE SET NULL`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_itens_status ON pcp_itens (status_id)`);
+
   // PCP: peças individuais — cada peça tem etiqueta própria (gerada pelo
   // sistema de pedidos) e baixa de produção própria. O item agrega qnt peças.
   await q(`

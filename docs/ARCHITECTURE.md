@@ -43,6 +43,7 @@ apps da Persianas Paraná.
 | `pcp_itens` | Fila de produção do PCP (itens de pedido: datas, tipo, motivo, ★ especial). |
 | `pcp_pecas` | Peças individuais por item (etiqueta única por peça + baixa própria). |
 | `pcp_produtos` | Estrutura do produto: fórmulas de corte e componentes (BOM) em JSONB. |
+| `pcp_status` | Status de produção configuráveis (admin); `pcp_itens.status_id` aponta o status atual. |
 | `nao_conformidades` | NCs do Qualidade (`setores`/`origens` em JSONB). |
 | `session` | Sessões (criada por `connect-pg-simple`). |
 

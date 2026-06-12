@@ -53,6 +53,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       <span>Estrutura do Produto</span>
     </a>
+    <a onclick="goTo('status')" data-page="status" data-admin style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 18.8 6.2 21l.9-5.3L3.3 12l5.3-.8z"/></svg>
+      <span>Status (admin)</span>
+    </a>
     <a onclick="goTo('novo')" data-page="novo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span>Novo Pedido</span>
@@ -125,6 +129,9 @@
             <option value="">Especiais e comuns</option>
             <option value="especial">★ Somente especiais</option>
             <option value="comum">Somente comuns</option>
+          </select>
+          <select id="fila-status-prod" onchange="renderFila()">
+            <option value="">Todos (status prod.)</option>
           </select>
           <select id="fila-situacao" onchange="renderFila()">
             <option value="">Concluídos + abertos</option>
@@ -299,6 +306,14 @@
         Estrutura oficial dos produtos: fórmulas de corte e componentes (BOM). L = largura, A = altura — medidas em centímetros, exceto PH 25/PH 50 (metros). A lista de produtos do novo pedido vem daqui.
       </div>
       <div id="estrutura-lista"></div>
+    </div>
+
+    <!-- STATUS DE PRODUÇÃO (admin) -->
+    <div class="section" id="sec-status">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+        Cadastre e exclua os status de produção. O PCP atribui o status a cada item (no detalhe) ou ao pedido inteiro (aba Editar Pedido).
+      </div>
+      <div id="status-conteudo"></div>
     </div>
 
     <!-- EDITAR PEDIDO (em massa) -->

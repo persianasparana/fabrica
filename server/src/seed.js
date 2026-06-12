@@ -32,6 +32,26 @@ export async function seedEstrutura() {
   return produtos.length;
 }
 
+/** Status de produção iniciais — editáveis pelo admin (cadastrar/excluir). */
+export async function seedStatus() {
+  const { rows } = await q('SELECT COUNT(*)::int AS c FROM pcp_status');
+  if (rows[0].c > 0) return 0;
+
+  const padroes = [
+    ['Aguardando material', '#B45309', 10],
+    ['Liberado p/ produção', '#1E40AF', 20],
+    ['Em corte', '#0891B2', 30],
+    ['Em montagem', '#7C3AED', 40],
+    ['Em acabamento', '#C2410C', 50],
+    ['Pronto', '#15803D', 60],
+    ['Expedido', '#374151', 70],
+  ];
+  for (const [nome, cor, ordem] of padroes) {
+    await q('INSERT INTO pcp_status (nome, cor, ordem) VALUES ($1, $2, $3)', [nome, cor, ordem]);
+  }
+  return padroes.length;
+}
+
 export async function seedItens() {
   const { rows } = await q('SELECT COUNT(*)::int AS c FROM pcp_itens');
   if (rows[0].c > 0) return 0;

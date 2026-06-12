@@ -21,6 +21,7 @@ fórmulas de corte e componentes/BOM).
 | **Editar Pedido** | Edição em massa de **todos os produtos/peças de um pedido**: muda prazo, tipo, motivo, ★ especial e observações de uma vez, e **conclui ou reabre todas as peças** num clique. Também exclui o pedido inteiro |
 | **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
 | **Bipagem** | Exclusiva da **embalagem**: bipar a etiqueta dá **baixa individual** daquela peça. O item conclui automaticamente quando todas as peças têm baixa |
+| **Status de Produção** (admin) | Cadastrar/excluir os status de produção (ex.: Em corte, Em montagem, Pronto). O PCP atribui o status por item (no detalhe) ou no pedido inteiro (aba Editar Pedido); badge colorido na fila e filtro próprio |
 | **Estrutura do Produto** | Catálogo oficial: fórmulas de corte (`L − 2.2`, `A + 15`…) e componentes (BOM) por família — alimenta a lista de produtos do novo pedido. Produtos podem ser criados/editados/desativados |
 | **Novo Pedido** | Em 2 etapas: dados do pedido → adição de **vários produtos**, um a um, **bipando a etiqueta** (do sistema de pedidos) na adição para vincular individualmente; **★ peça especial** por produto. Etiqueta pode ficar pendente e ser vinculada depois no detalhe do item |
 | **Importação** | PDF da ordem de produção (pdf.js local), Excel/CSV (SheetJS local) e JSON colado — com tela de revisão antes de salvar |
@@ -44,6 +45,7 @@ pcp/public/
 - `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, ★ especial)
 - `pcp_pecas` — peças individuais de cada item (etiqueta única + baixa própria); a conclusão do item é derivada das peças
 - `pcp_produtos` — estrutura do produto (fórmulas de corte e BOM em JSONB)
+- `pcp_status` — status de produção configuráveis (admin); `pcp_itens.status_id` referencia o status atual
 
 O seed inicial carrega a planilha oficial de planejamento (186 itens) e o
 catálogo completo (34 produtos em 7 famílias).
