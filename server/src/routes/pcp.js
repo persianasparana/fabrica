@@ -48,7 +48,8 @@ const SELECT_ITEM = `
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
              'id', pp.id, 'numero', pp.numero, 'cod_barras', pp.cod_barras,
-             'conclusao', to_char(pp.conclusao, 'YYYY-MM-DD')
+             'conclusao', to_char(pp.conclusao, 'YYYY-MM-DD'),
+             'largura', pp.largura, 'altura', pp.altura, 'medidas', pp.medidas
            ) ORDER BY pp.numero) AS pecas
     FROM pcp_pecas pp WHERE pp.item_id = i.id
   ) pc ON TRUE`;
@@ -658,6 +659,23 @@ r.put(
                   updated_at = now()
            WHERE id = $1`,
           [id, d.conclusao, req.session.user.id]
+        );
+      }
+      // Medidas da peça (alimentam o cálculo de cortes): largura, altura, extras
+      if (d.largura !== undefined || d.altura !== undefined || d.medidas !== undefined) {
+        await exec(
+          `UPDATE pcp_pecas SET
+             largura = COALESCE($2, largura),
+             altura  = COALESCE($3, altura),
+             medidas = COALESCE($4::jsonb, medidas),
+             updated_at = now()
+           WHERE id = $1`,
+          [
+            id,
+            d.largura != null && d.largura !== '' ? Number(d.largura) : null,
+            d.altura != null && d.altura !== '' ? Number(d.altura) : null,
+            d.medidas !== undefined && d.medidas !== null ? JSON.stringify(d.medidas) : null,
+          ]
         );
       }
       await sincronizarConclusaoItem(exec, rows[0].item_id);
