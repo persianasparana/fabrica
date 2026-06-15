@@ -29,6 +29,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       <span>Fila de Produção</span>
     </a>
+    <a onclick="goTo('fila'); var s=document.getElementById('fila-situacao'); if(s){s.value='concluido'; renderFila();}" data-page="arquivo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      <span>Arquivo (baixados)</span>
+    </a>
     <a onclick="goTo('alertas')" data-page="alertas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span>Alertas</span>
@@ -142,9 +146,9 @@
             <option value="">Todos (status prod.)</option>
           </select>
           <select id="fila-situacao" onchange="renderFila()">
-            <option value="">Concluídos + abertos</option>
-            <option value="aberto">Somente em aberto</option>
-            <option value="concluido">Somente concluídos</option>
+            <option value="aberto" selected>Em produção (ativos)</option>
+            <option value="">Ativos + arquivados</option>
+            <option value="concluido">📦 Arquivo (baixados)</option>
           </select>
           <div class="spacer"></div>
           <span id="fila-count" style="font-size:11px;color:var(--text3)"></span>
