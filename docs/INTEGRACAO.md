@@ -234,12 +234,14 @@ Regras derivadas importantes:
    | Método | Endpoint | Descrição |
    |---|---|---|
    | GET | `/api/integracao/pedidos` | Pedidos agrupados com progresso das peças: `{ data: [{ pedido, concluido, conclusao, data_cliente, total_pecas, pecas_concluidas, itens: [{produto, qnt, tipo, conclusao}] }] }` |
+   | GET | `/api/integracao/peca?codigo=` | Uma peça pela etiqueta (cod_barras): `{ cod_barras, numero, conclusao, pedido, produto, total_pecas_pedido, pecas_concluidas_pedido }`. 404 se a etiqueta não existir. Usado pela **Expedição** da Logística ao escanear: ela só aceita a peça se `conclusao != null` (já bipada/expedida pela Embalagem). |
 
-   Query params: `?concluidos=1` (só pedidos com TODAS as peças concluídas),
-   `?desde=YYYY-MM-DD` (conclusão a partir da data), `?pedido=NNN` (um pedido).
+   Query params de `/pedidos`: `?concluidos=1` (só pedidos com TODAS as peças
+   concluídas), `?desde=YYYY-MM-DD` (conclusão a partir da data), `?pedido=NNN`.
    Itens sem número de pedido são ignorados. Consumidor atual: o backend da
-   Logística (`persianas-api`), rota `GET /api/v1/fabrica/pedidos` — o navegador
-   nunca chama a fábrica diretamente.
+   Logística (`persianas-api`) — o navegador nunca chama a fábrica diretamente.
+   A Logística usa `/pedidos` no painel de produção e `/peca` na bipagem da
+   expedição.
 
 1. **HTTP REST com conta de serviço** (para escrita). O outro app autentica com um
    usuário dedicado e consome/produz dados via as rotas da Seção 3. Vantagens:

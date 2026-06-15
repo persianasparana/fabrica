@@ -87,4 +87,30 @@ r.get(
   })
 );
 
+// Consulta UMA peça pela etiqueta (cod_barras) — usada pela Expedição da
+// Logística ao escanear: valida se a peça existe e já foi expedida pela
+// fábrica (conclusao != null) e devolve o contexto do pedido.
+r.get(
+  '/peca',
+  ah(async (req, res) => {
+    const codigo = String(req.query.codigo || '').trim();
+    if (!codigo) throw new HttpError(422, 'Parâmetro "codigo" obrigatório');
+    const { rows } = await q(
+      `SELECT pp.cod_barras, pp.numero,
+              to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
+              i.pedido, i.produto,
+              (SELECT SUM(i2.qnt)::int FROM pcp_itens i2 WHERE i2.pedido = i.pedido) AS total_pecas_pedido,
+              (SELECT COUNT(*) FILTER (WHERE p2.conclusao IS NOT NULL)::int
+                 FROM pcp_pecas p2 JOIN pcp_itens i2 ON i2.id = p2.item_id
+                WHERE i2.pedido = i.pedido) AS pecas_concluidas_pedido
+       FROM pcp_pecas pp
+       JOIN pcp_itens i ON i.id = pp.item_id
+       WHERE pp.cod_barras = $1`,
+      [codigo]
+    );
+    if (!rows[0]) throw new HttpError(404, 'Etiqueta não encontrada na fábrica');
+    res.json(rows[0]);
+  })
+);
+
 export default r;
