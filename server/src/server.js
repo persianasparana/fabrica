@@ -18,6 +18,7 @@ import pcpRoutes from './routes/pcp.js';
 import adminRoutes from './routes/admin.js';
 import qualidadeRoutes from './routes/qualidade.js';
 import integracaoRoutes from './routes/integracao.js';
+import ordemCorteRoutes from './routes/ordem-corte.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
@@ -81,6 +82,7 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/pcp', pcpRoutes);
 app.use('/api/pcp', adminRoutes);
+app.use('/api/pcp/ordem-corte', ordemCorteRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
 // Integração servidor-a-servidor (Logística) — autenticada por X-API-Key, não usa sessão
 app.use('/api/integracao', integracaoRoutes);

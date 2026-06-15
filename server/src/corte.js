@@ -181,7 +181,7 @@ function calcularCortes(cortes, medidas) {
       nome: c.nome,
       key,
       setor_id: c.setor_id != null ? Number(c.setor_id) : null,
-      unidade: c.unidade || 'cm',
+      unidade: c.unidade || null,
       qtd: c.qtd != null ? Number(c.qtd) : 1,
       valor: resolver(key),
     };
