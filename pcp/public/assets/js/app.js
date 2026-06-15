@@ -204,7 +204,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -217,6 +217,7 @@ function goTo(page) {
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
+  if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
   if (page === 'status') renderStatusAdmin();
   if (page === 'setores') renderSetoresAdmin();
   if (page === 'usuarios') renderUsuariosAdmin();
@@ -610,16 +611,23 @@ function renderSetoresAdmin() {
         <div class="form-group"><label>Status associado</label><select id="se-status">${statusOptions('')}</select></div>
         <div class="form-group"><label>Cor</label><input type="color" id="se-cor" value="#0891B2" style="height:40px;padding:3px"></div>
         <div class="form-group"><label>Ordem</label><input type="number" id="se-ordem" value="${(SETORES.length+1)*10}" min="0"></div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+            <input type="checkbox" id="se-ordem-corte" style="width:15px;height:15px;accent-color:var(--red)">
+            <span>🖨 <strong>Imprime ordem de corte</strong> — este setor sai na Ordem de Corte</span>
+          </label>
+        </div>
       </div>
       <button class="btn btn-red" style="margin-top:12px" onclick="criarSetor()">+ Adicionar setor</button>
     </div>
     <div class="card" style="max-width:680px">
       <div class="card-title">Setores cadastrados (${SETORES.length})</div>
       ${SETORES.length ? `<div class="tbl-wrap"><table>
-        <thead><tr><th>Setor</th><th>Status ao iniciar</th><th style="width:150px"></th></tr></thead>
+        <thead><tr><th>Setor</th><th>Status ao iniciar</th><th>Ordem de corte</th><th style="width:150px"></th></tr></thead>
         <tbody>${SETORES.map((s)=>`<tr>
           <td><span class="st-prod" style="background:${s.cor}22;color:${s.cor};border:1px solid ${s.cor}66">${esc(s.nome)}</span></td>
           <td><select onchange="alterarSetorStatus(${s.id}, this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">${statusOptions(s.status_id)}</select> ${s.status_final?'<span class="st st-ok" style="font-size:9px">final → baixa</span>':''}</td>
+          <td>${s.ordem_corte?'<span class="st st-ok" style="font-size:9px">🖨 imprime</span>':'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
           <td>
             <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="editarSetor(${s.id})">editar</button>
             <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirSetor(${s.id}, '${esc(s.nome)}')">excluir</button>
@@ -635,7 +643,7 @@ async function criarSetor() {
   const nome = document.getElementById('se-nome').value.trim();
   if (!nome) { toast('Informe o nome do setor.'); return; }
   try {
-    await api('pcp/setores', { method:'POST', body:{ nome, cor:document.getElementById('se-cor').value, ordem:parseInt(document.getElementById('se-ordem').value)||0, status_id:document.getElementById('se-status').value||null } });
+    await api('pcp/setores', { method:'POST', body:{ nome, cor:document.getElementById('se-cor').value, ordem:parseInt(document.getElementById('se-ordem').value)||0, status_id:document.getElementById('se-status').value||null, ordem_corte:document.getElementById('se-ordem-corte').checked } });
     await recarregarSetores(); renderSetoresAdmin(); toast(`Setor “${nome}” cadastrado.`);
   } catch(e){ toast('Erro: '+e.message); }
 }
@@ -650,13 +658,19 @@ function editarSetor(id) {
     <div class="form-group"><label>Nome *</label><input type="text" id="se-ed-nome" value="${esc(s.nome)}" maxlength="60"></div>
     <div class="form-group"><label>Status associado</label><select id="se-ed-status">${statusOptions(s.status_id)}</select></div>
     <div class="form-group"><label>Cor</label><input type="color" id="se-ed-cor" value="${s.cor}" style="height:40px;padding:3px"></div>
-    <div class="form-group"><label>Ordem</label><input type="number" id="se-ed-ordem" value="${s.ordem}" min="0"></div>`;
+    <div class="form-group"><label>Ordem</label><input type="number" id="se-ed-ordem" value="${s.ordem}" min="0"></div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+        <input type="checkbox" id="se-ed-ordem-corte" ${s.ordem_corte?'checked':''} style="width:15px;height:15px;accent-color:var(--red)">
+        <span>🖨 <strong>Imprime ordem de corte</strong> — este setor sai na Ordem de Corte</span>
+      </label>
+    </div>`;
   document.getElementById('modal-footer').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="salvarSetor(${id})">Salvar</button>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 async function salvarSetor(id) {
   try {
-    await api('pcp/setores?id='+id, { method:'PUT', body:{ nome:document.getElementById('se-ed-nome').value.trim(), cor:document.getElementById('se-ed-cor').value, ordem:parseInt(document.getElementById('se-ed-ordem').value)||0, status_id:document.getElementById('se-ed-status').value||null } });
+    await api('pcp/setores?id='+id, { method:'PUT', body:{ nome:document.getElementById('se-ed-nome').value.trim(), cor:document.getElementById('se-ed-cor').value, ordem:parseInt(document.getElementById('se-ed-ordem').value)||0, status_id:document.getElementById('se-ed-status').value||null, ordem_corte:document.getElementById('se-ed-ordem-corte').checked } });
     await recarregarSetores(); closeModal(); renderSetoresAdmin(); toast('Setor atualizado.');
   } catch(e){ toast('Erro: '+e.message); }
 }
@@ -961,7 +975,11 @@ function renderPedidoEditor() {
         </table>
       </div>
 
-      <div class="card-title">Status de todas as peças</div>
+      <div class="card-title">Medidas das peças</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Informe largura e altura de cada peça. Produtos horizontais (PH 25/PH 50) também pedem nº de furos e modelo.</div>
+      <div id="ped-medidas">${renderPedidoMedidas(itens)}</div>
+
+      <div class="card-title" style="margin-top:18px">Status de todas as peças</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
         <input type="date" id="ped-conclusao" value="${todayStr}"
           style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--surface);color:var(--text)">
@@ -998,6 +1016,90 @@ function renderPedidoEditor() {
         <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
       </div>
     </div>`;
+}
+
+// ── Medidas por peça (largura/altura + furos/modelo p/ horizontais) ──────────
+function ehHorizontal(item) {
+  if (!item) return false;
+  const fam = String(item.familia || '').toUpperCase();
+  if (fam === 'HORIZONTAL') return true;
+  const prodEstr = item.produto_id ? ESTRUTURA.find(p => p.id === Number(item.produto_id)) : null;
+  if (prodEstr) {
+    if (String(prodEstr.familia || '').toUpperCase() === 'HORIZONTAL') return true;
+    if (prodEstr.calculo_extra_fonte) return true;
+  }
+  if (item.calculo_extra_fonte) return true;
+  const nome = String(item.produto || '').toUpperCase();
+  return /\bPH\s*25|\bPH25|\bPH\s*50|\bPH50|HORIZONTAL/.test(nome);
+}
+
+function renderPedidoMedidas(itens) {
+  if (!itens || !itens.length) return '<div style="font-size:11px;color:var(--text3)">Nenhuma peça.</div>';
+  return itens.map(item => {
+    const horiz = ehHorizontal(item);
+    const pecas = item.pecas || [];
+    if (!pecas.length) {
+      return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:4px">${badgeEspecial(item)}${esc(item.produto)}</div>
+        <div style="font-size:11px;color:var(--text3)">Sem peças cadastradas.</div>
+      </div>`;
+    }
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px">${badgeEspecial(item)}${esc(item.produto)}${horiz?' <span class="st st-atencao" style="font-size:9px">HORIZONTAL</span>':''}</div>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:11px">
+        <thead><tr>
+          <th style="width:34px">#</th>
+          <th style="width:90px">Largura</th>
+          <th style="width:90px">Altura</th>
+          ${horiz?'<th style="width:70px">Furos</th><th>Modelo</th>':''}
+          <th style="width:64px"></th>
+        </tr></thead>
+        <tbody>
+          ${pecas.map(p => {
+            const med = p.medidas || {};
+            return `<tr>
+              <td style="font-weight:700">#${p.numero}</td>
+              <td><input type="number" step="0.001" id="pm-larg-${p.id}" value="${p.largura!=null?esc(p.largura):''}" placeholder="L" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+              <td><input type="number" step="0.001" id="pm-alt-${p.id}" value="${p.altura!=null?esc(p.altura):''}" placeholder="A" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+              ${horiz?`
+                <td><input type="number" step="1" id="pm-furos-${p.id}" value="${med.furos!=null?esc(med.furos):''}" placeholder="nº" style="width:60px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+                <td><input type="text" id="pm-modelo-${p.id}" value="${med.modelo!=null?esc(med.modelo):''}" placeholder="modelo" style="width:100%;min-width:90px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>`:''}
+              <td><button class="btn btn-outline" style="padding:2px 7px;font-size:10px" onclick="salvarMedidaPeca(${p.id}, ${horiz})">salvar</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+  }).join('');
+}
+
+async function salvarMedidaPeca(pecaId, horiz) {
+  const larg = document.getElementById('pm-larg-'+pecaId);
+  const alt = document.getElementById('pm-alt-'+pecaId);
+  const body = {
+    largura: larg && larg.value !== '' ? Number(larg.value) : null,
+    altura:  alt && alt.value !== '' ? Number(alt.value) : null,
+  };
+  if (horiz) {
+    const medidas = {};
+    const furosEl = document.getElementById('pm-furos-'+pecaId);
+    const modeloEl = document.getElementById('pm-modelo-'+pecaId);
+    if (furosEl && furosEl.value !== '') medidas.furos = Number(furosEl.value);
+    if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
+    body.medidas = medidas;
+  }
+  try {
+    const r = await api('pcp/pecas?id=' + pecaId, { method: 'PUT', body });
+    if (r.item) aplicarItemAtualizado(r.item);
+    // atualiza o pedido em memória sem re-renderizar tudo (mantém o foco do usuário)
+    if (pedidoCarregado) {
+      (pedidoCarregado.itens || []).forEach(it => {
+        const pc = (it.pecas || []).find(x => x.id === pecaId);
+        if (pc) { pc.largura = body.largura; pc.altura = body.altura; if (horiz) pc.medidas = body.medidas; }
+      });
+    }
+    toast('Medidas da peça salvas.');
+  } catch (e) { toast('Erro ao salvar medidas: ' + e.message); }
 }
 
 function aplicarPedidoResposta(r) {
@@ -2127,7 +2229,7 @@ let epRoteiro = [];  // [{setor_id, depende_de:[id,...]}]
 
 function setorNome(id) { const s = SETORES.find(x => x.id === Number(id)); return s ? s.nome : ('setor #' + id); }
 function setorOptions(sel) {
-  return '<option value="">— setor —</option>' +
+  return '<option value="">— sem setor —</option>' +
     SETORES.map(s => `<option value="${s.id}" ${String(sel)===String(s.id)?'selected':''}>${esc(s.nome)}</option>`).join('');
 }
 function corteParaEstado(c) {
@@ -2236,8 +2338,10 @@ function abrirProdutoModal(id) {
       <label>Roteiro de produção — setores e dependências (este produto pode passar por vários setores)</label>
       <div id="ep-roteiro"></div>
     </div>
-    <div style="grid-column:1/-1;font-size:10px;color:var(--text3)">
-      Fórmulas usam L (largura) e A (altura) — ex: <code>L - 2.2</code>, <code>A + 15</code>. Qtd: número ou fórmula. O roteiro define a ordem: um setor só inicia quando os setores de que ele depende estão com “fim”.
+    <div style="grid-column:1/-1;font-size:10px;color:var(--text3);line-height:1.6">
+      <strong>Variáveis:</strong> <code>largura</code>/<code>L</code> e <code>altura</code>/<code>A</code> (medidas da peça); pode referenciar outro corte pela sua <em>key</em>.<br>
+      <strong>Funções:</strong> <code>SE(cond; v_verdadeiro; v_falso)</code>, <code>E(...)</code>, <code>OU(...)</code>, <code>ARREDACIMA(x)</code>, <code>ARRED(x; casas)</code>, <code>MIN(...)</code>, <code>MAX(...)</code>.<br>
+      Ex.: <code>L - 4.5</code> · <code>(L+30)/4</code> · <code>SE(furos>1; L-0.303; 0)</code>. Qtd: número ou fórmula. Setor vazio = corte sem setor. O roteiro define a ordem: um setor só inicia quando os setores de que ele depende estão com “fim”.
     </div>
   `;
   document.getElementById('modal-footer').innerHTML = `
@@ -2316,6 +2420,362 @@ function popularSelectProdutos() {
   }
   const dl = document.getElementById('produtos-datalist');
   if (dl) dl.innerHTML = ESTRUTURA.map(p => `<option value="${esc(p.nome)}">`).join('');
+}
+
+// ─── ORDEM DE CORTE ──────────────────────────────────────────────────────────
+let ocModo = 'individual';          // 'individual' | 'lote'
+let ocPreviewData = null;           // resposta do /preview
+let ocStatusData = {};              // mapa pedido -> {impresso, ultima, vezes, historico}
+let ocPedidosAtuais = [];           // pedidos da última pré-visualização
+
+function ocInit() {
+  // garante estado visual do toggle ao entrar na página
+  ocSetModo(ocModo);
+}
+
+function ocSetModo(modo) {
+  ocModo = modo === 'lote' ? 'lote' : 'individual';
+  const bi = document.getElementById('oc-modo-individual');
+  const bl = document.getElementById('oc-modo-lote');
+  if (bi) bi.className = 'btn ' + (ocModo === 'individual' ? 'btn-red' : 'btn-outline');
+  if (bl) bl.className = 'btn ' + (ocModo === 'lote' ? 'btn-red' : 'btn-outline');
+}
+
+function ocLerPedidos() {
+  const raw = (document.getElementById('oc-pedidos').value || '').trim();
+  if (!raw) return [];
+  return [...new Set(raw.split(/[,;\s]+/).map(p => p.trim()).filter(Boolean))];
+}
+
+function ocFmtMedida(linha) {
+  const u = linha.unidade ? ' ' + linha.unidade : '';
+  const l = linha.largura != null && linha.largura !== '' ? linha.largura : null;
+  const a = linha.altura != null && linha.altura !== '' ? linha.altura : null;
+  if (l != null && a != null) return `${l} × ${a}${u ? ' ' + linha.unidade : ''}`;
+  if (l != null) return `${l}${u}`;
+  if (a != null) return `${a}${u}`;
+  return '—';
+}
+function ocFmtValor(linha) {
+  if (linha.valor == null || linha.valor === '') return '—';
+  const u = linha.unidade ? ' ' + esc(linha.unidade) : '';
+  return esc(String(linha.valor)) + u;
+}
+
+async function ocPreview() {
+  if (!ehAdmin() && !podeVer('ordemcorte')) { toast('Sem permissão para a Ordem de Corte.'); return; }
+  const pedidos = ocLerPedidos();
+  const cont = document.getElementById('oc-conteudo');
+  const avisosEl = document.getElementById('oc-avisos');
+  const statusBox = document.getElementById('oc-status-box');
+  if (!pedidos.length) { toast('Informe ao menos um pedido.'); return; }
+  cont.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Carregando pré-visualização...</div>';
+  avisosEl.innerHTML = '';
+  statusBox.innerHTML = '';
+  ocPedidosAtuais = pedidos;
+
+  try {
+    const qs = 'pedidos=' + encodeURIComponent(pedidos.join(','));
+    const [preview, status] = await Promise.all([
+      api('pcp/ordem-corte/preview?' + qs),
+      api('pcp/ordem-corte/status?' + qs).catch(() => ({ data: {} })),
+    ]);
+    ocPreviewData = preview;
+    ocStatusData = (status && status.data) || {};
+    ocRenderStatus();
+    ocRenderAvisos(preview.avisos || []);
+    ocRenderPreview(preview);
+  } catch (e) {
+    cont.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px 0">${esc(e.message)}</div>`;
+  }
+}
+
+function ocRenderStatus() {
+  const box = document.getElementById('oc-status-box');
+  const peds = ocPedidosAtuais;
+  if (!peds.length) { box.innerHTML = ''; return; }
+  const cards = peds.map(p => {
+    const st = ocStatusData[p];
+    if (st && st.impresso) {
+      return `<div style="flex:1;min-width:200px;background:var(--amber-bg);border:2px solid #FFA000;border-radius:8px;padding:10px 14px">
+        <div style="font-size:13px;font-weight:800;color:var(--amber);letter-spacing:.02em">⚠ PEDIDO ${esc(p)} — JÁ IMPRESSO</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px">${st.vezes||1}× · última: ${ocFmtDataHora(st.ultima)}</div>
+      </div>`;
+    }
+    return `<div style="flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+      <div style="font-size:13px;font-weight:700">Pedido ${esc(p)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">Ainda não impresso</div>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">${cards}</div>`;
+}
+
+function ocFmtDataHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return esc(String(iso));
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function ocRenderAvisos(avisos) {
+  const el = document.getElementById('oc-avisos');
+  if (!avisos || !avisos.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="background:var(--amber-bg);border:1px solid #FFA000;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠ Avisos</div>
+    <ul style="margin:0;padding-left:18px;font-size:11px;color:var(--text2)">${avisos.map(a=>`<li>${esc(typeof a === 'string' ? a : (a.mensagem || JSON.stringify(a)))}</li>`).join('')}</ul>
+  </div>`;
+}
+
+function ocRenderPreview(preview) {
+  const cont = document.getElementById('oc-conteudo');
+  const setores = (preview && preview.setores) || [];
+  const peds = (preview && preview.pedidos) || ocPedidosAtuais;
+
+  if (!setores.length) {
+    cont.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Nenhum corte encontrado para esses pedidos (verifique se há setores marcados como “imprime ordem de corte” e se as peças têm cortes).</div>';
+    return;
+  }
+
+  const cabecalho = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:700">Pré-visualização — ${peds.length} pedido(s): ${esc(peds.join(', '))}</div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-black" onclick="ocImprimir(null)">🖨 Imprimir tudo</button>
+    </div>
+  </div>`;
+
+  const secoes = setores.map((s, ix) => {
+    const setor = s.setor || {};
+    const linhas = s.linhas || [];
+    const cor = setor.cor || '#606060';
+    return `<div class="card" style="margin-bottom:14px;border-left:4px solid ${cor}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="st-prod" style="background:${cor}22;color:${cor};border:1px solid ${cor}66;font-size:12px">${esc(setor.nome || 'Setor')}</span>
+        <span style="font-size:11px;color:var(--text3)">${linhas.length} corte(s)</span>
+        <button class="btn btn-outline" style="margin-left:auto;font-size:10px" onclick="ocImprimir(${setor.id != null ? setor.id : 'null'})">🖨 Imprimir só este setor</button>
+      </div>
+      ${linhas.length ? `<div class="tbl-wrap"><table style="font-size:11px">
+        <thead><tr><th>Pedido</th><th>Produto</th><th style="width:46px">Peça</th><th>Medidas</th><th>Corte</th><th>Valor</th><th style="width:60px">Unid.</th></tr></thead>
+        <tbody>${linhas.map(l=>`<tr>
+          <td>${esc(l.pedido)}</td>
+          <td class="td-produto">${esc(l.produto)}</td>
+          <td style="text-align:center">${l.peca_numero != null ? '#'+esc(String(l.peca_numero)) : '—'}</td>
+          <td>${esc(ocFmtMedida(l))}</td>
+          <td><strong>${esc(l.corte)}</strong></td>
+          <td>${ocFmtValor(l)}</td>
+          <td>${esc(l.unidade || '')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>` : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = cabecalho + secoes + ocHistoricoHTML();
+  ocCarregarHistorico();
+}
+
+function ocHistoricoHTML() {
+  return `<div class="card"><div class="card-title">Histórico de impressão</div>
+    <div id="oc-historico" style="font-size:12px;color:var(--text3)">Carregando histórico...</div></div>`;
+}
+
+async function ocCarregarHistorico() {
+  const el = document.getElementById('oc-historico');
+  if (!el) return;
+  const peds = ocPedidosAtuais;
+  if (!peds.length) { el.innerHTML = '<div style="color:var(--text3)">Nenhum pedido.</div>'; return; }
+  try {
+    const resultados = await Promise.all(peds.map(p =>
+      api('pcp/ordem-corte/log?pedido=' + encodeURIComponent(p)).then(r => ({ pedido: p, logs: r.data || [] })).catch(() => ({ pedido: p, logs: [] }))
+    ));
+    const linhas = [];
+    resultados.forEach(({ pedido, logs }) => {
+      logs.forEach(log => linhas.push({ pedido, ...log }));
+    });
+    if (!linhas.length) { el.innerHTML = '<div style="color:var(--text3)">Nenhuma impressão registrada ainda.</div>'; return; }
+    el.innerHTML = `<div class="tbl-wrap"><table style="font-size:11px">
+      <thead><tr><th>Pedido</th><th>Tipo</th><th>Modo</th><th>Por</th><th>Quando</th></tr></thead>
+      <tbody>${linhas.map(l=>{
+        const reimp = String(l.tipo||'').toLowerCase().includes('reimp');
+        return `<tr>
+          <td>${esc(l.pedido)}</td>
+          <td>${reimp ? '<span class="st st-atencao" style="font-size:9px">reimpressão</span>' : '<span class="st st-ok" style="font-size:9px">impressão</span>'}</td>
+          <td>${esc(l.modo || '—')}</td>
+          <td>${esc(l.por || '—')}</td>
+          <td>${ocFmtDataHora(l.quando)}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red)">${esc(e.message)}</div>`;
+  }
+}
+
+async function ocImprimir(setorId) {
+  if (!ocPreviewData) { toast('Pré-visualize antes de imprimir.'); return; }
+  const peds = ocPedidosAtuais;
+  if (!peds.length) { toast('Informe os pedidos.'); return; }
+  const body = { pedidos: peds, modo: ocModo };
+  if (setorId != null) body.setor_id = setorId;
+  try {
+    const r = await api('pcp/ordem-corte/imprimir', { method: 'POST', body });
+    if (r.reimpressao) toast('Atenção: esta é uma REIMPRESSÃO (já havia sido impresso antes).');
+    else toast('Ordem de corte registrada para impressão.');
+    // abre a janela de impressão (filtra por setor se aplicável)
+    ocAbrirImpressao(setorId);
+    // atualiza status + histórico
+    try {
+      const qs = 'pedidos=' + encodeURIComponent(peds.join(','));
+      const status = await api('pcp/ordem-corte/status?' + qs).catch(() => ({ data: {} }));
+      ocStatusData = (status && status.data) || {};
+      ocRenderStatus();
+    } catch (e) {}
+    ocCarregarHistorico();
+  } catch (e) { toast('Erro ao imprimir: ' + e.message); }
+}
+
+// ── monta a view de impressão (PDF via navegador) ────────────────────────────
+function ocSetoresFiltrados(setorId) {
+  const setores = (ocPreviewData && ocPreviewData.setores) || [];
+  if (setorId == null) return setores;
+  return setores.filter(s => s.setor && Number(s.setor.id) === Number(setorId));
+}
+
+function ocEhHorizontalLinha(l) {
+  const nome = String(l.produto || '').toUpperCase();
+  return /\bPH\s*25|\bPH25|\bPH\s*50|\bPH50|HORIZONTAL/.test(nome);
+}
+
+function ocAbrirImpressao(setorId) {
+  const setores = ocSetoresFiltrados(setorId);
+  if (!setores.length) { toast('Nada para imprimir neste setor.'); return; }
+  const peds = ocPedidosAtuais;
+  const dataStr = new Date().toLocaleString('pt-BR');
+  const empresa = 'Persianas Paraná — PCP';
+
+  const blocos = setores.map(s => {
+    const setor = s.setor || {};
+    const linhas = s.linhas || [];
+    const cor = setor.cor || '#1D1D1B';
+    // separa horizontais (layout específico) das demais
+    const horiz = linhas.filter(ocEhHorizontalLinha);
+    const demais = linhas.filter(l => !ocEhHorizontalLinha(l));
+    let corpo = '';
+    if (demais.length) corpo += ocTabelaPadrao(demais);
+    if (horiz.length) corpo += ocTabelaHorizontal(horiz);
+    if (!corpo) corpo = '<p class="vazio">Sem cortes neste setor.</p>';
+    return `<section class="setor">
+      <h2 style="border-color:${cor};color:${cor}">${ocEscPrint(setor.nome || 'Setor')}</h2>
+      ${corpo}
+    </section>`;
+  }).join('');
+
+  const modoLabel = ocModo === 'lote' ? 'Lote' : 'Individual';
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Ordem de Corte — ${ocEscPrint(peds.join(', '))}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Manrope', Arial, sans-serif; color:#1D1D1B; margin:24px; font-size:12px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #C1212D; padding-bottom:10px; margin-bottom:18px; }
+  header .tit { font-size:20px; font-weight:800; }
+  header .sub { font-size:11px; color:#606060; }
+  header .meta { text-align:right; font-size:11px; color:#606060; }
+  h2 { font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; border-left:6px solid #1D1D1B; padding:4px 10px; margin:18px 0 8px; background:#f5f5f5; }
+  table { width:100%; border-collapse:collapse; margin-bottom:6px; }
+  th, td { border:1px solid #ccc; padding:5px 7px; text-align:left; }
+  th { background:#1D1D1B; color:#fff; font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
+  td { font-size:11px; }
+  tr:nth-child(even) td { background:#fafafa; }
+  .vazio { font-size:11px; color:#999; }
+  .setor { page-break-inside:avoid; }
+  footer { margin-top:24px; font-size:10px; color:#999; border-top:1px solid #ddd; padding-top:8px; }
+  @media print { body { margin:12mm; } button { display:none; } }
+  @page { size:A4; margin:12mm; }
+</style></head>
+<body>
+  <header>
+    <div>
+      <div class="tit">Ordem de Corte</div>
+      <div class="sub">${ocEscPrint(empresa)}</div>
+    </div>
+    <div class="meta">
+      Pedido(s): <strong>${ocEscPrint(peds.join(', '))}</strong><br>
+      Modo: ${ocEscPrint(modoLabel)}<br>
+      Emitido: ${ocEscPrint(dataStr)}
+    </div>
+  </header>
+  ${blocos}
+  <footer>Documento gerado pelo PCP — Persianas Paraná. Confira as medidas antes de cortar.</footer>
+  <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups para gerar o PDF de impressão.'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function ocEscPrint(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// tabela genérica (rolôs e demais)
+function ocTabelaPadrao(linhas) {
+  return `<table>
+    <thead><tr><th>Pedido</th><th>Produto</th><th>Peça</th><th>Medida</th><th>Corte</th><th>Medida calc.</th><th>Unid.</th></tr></thead>
+    <tbody>${linhas.map(l=>`<tr>
+      <td>${ocEscPrint(l.pedido)}</td>
+      <td>${ocEscPrint(l.produto)}</td>
+      <td style="text-align:center">${l.peca_numero != null ? '#'+ocEscPrint(String(l.peca_numero)) : '—'}</td>
+      <td>${ocEscPrint(ocMedidaTexto(l))}</td>
+      <td><strong>${ocEscPrint(l.corte)}</strong></td>
+      <td><strong>${l.valor != null && l.valor !== '' ? ocEscPrint(String(l.valor)) : '—'}</strong></td>
+      <td>${ocEscPrint(l.unidade || '')}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function ocMedidaTexto(l) {
+  const l1 = l.largura != null && l.largura !== '' ? l.largura : null;
+  const a1 = l.altura != null && l.altura !== '' ? l.altura : null;
+  if (l1 != null && a1 != null) return `${l1} × ${a1}`;
+  if (l1 != null) return `L ${l1}`;
+  if (a1 != null) return `A ${a1}`;
+  return '—';
+}
+
+// tabela específica para horizontais (PH25/PH50): agrupa por peça e mostra
+// furos / lâminas / cordas / cadarço a partir dos nomes dos cortes que vierem
+function ocTabelaHorizontal(linhas) {
+  // agrupa linhas por (pedido + peça)
+  const grupos = {};
+  linhas.forEach(l => {
+    const k = l.pedido + '#' + (l.peca_numero != null ? l.peca_numero : '?');
+    if (!grupos[k]) grupos[k] = { pedido: l.pedido, peca: l.peca_numero, produto: l.produto, largura: l.largura, altura: l.altura, cortes: {} };
+    const g = grupos[k];
+    if (g.largura == null && l.largura != null) g.largura = l.largura;
+    if (g.altura == null && l.altura != null) g.altura = l.altura;
+    // nome do corte (normalizado) -> valor
+    g.cortes[String(l.corte || '').trim()] = (l.valor != null && l.valor !== '') ? l.valor : '';
+  });
+
+  // descobre o conjunto de nomes de corte presentes (preserva ordem de aparição)
+  const nomesCorte = [];
+  linhas.forEach(l => { const n = String(l.corte || '').trim(); if (n && !nomesCorte.includes(n)) nomesCorte.push(n); });
+
+  const cabeçalhoCortes = nomesCorte.map(n => `<th>${ocEscPrint(n)}</th>`).join('');
+  const corpo = Object.values(grupos).map(g => `<tr>
+    <td>${ocEscPrint(g.pedido)}</td>
+    <td>${ocEscPrint(g.produto)}</td>
+    <td style="text-align:center">${g.peca != null ? '#'+ocEscPrint(String(g.peca)) : '—'}</td>
+    <td>${g.largura != null && g.largura !== '' ? ocEscPrint(String(g.largura)) : '—'}</td>
+    <td>${g.altura != null && g.altura !== '' ? ocEscPrint(String(g.altura)) : '—'}</td>
+    ${nomesCorte.map(n => `<td><strong>${g.cortes[n] != null && g.cortes[n] !== '' ? ocEscPrint(String(g.cortes[n])) : '—'}</strong></td>`).join('')}
+  </tr>`).join('');
+
+  return `<div style="font-size:10px;color:#606060;margin:4px 0">Horizontais (PH 25 / PH 50) — largura, altura, furos, lâminas, cordas e cadarço por peça:</div>
+  <table>
+    <thead><tr><th>Pedido</th><th>Produto</th><th>Peça</th><th>Largura</th><th>Altura</th>${cabeçalhoCortes}</tr></thead>
+    <tbody>${corpo}</tbody>
+  </table>`;
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
