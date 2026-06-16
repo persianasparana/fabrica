@@ -2838,62 +2838,96 @@ function ocAbrirImpressao(setorId) {
   if (!setores.length) { toast('Nada para imprimir neste setor.'); return; }
   const peds = ocPedidosAtuais;
   const dataStr = new Date().toLocaleString('pt-BR');
-  const empresa = 'Persianas Paraná — PCP';
+  const modoLabel = ocModo === 'lote' ? 'Lote' : 'Individual';
 
-  const blocos = setores.map(s => {
+  // URLs absolutas (a janela de impressão não herda o base do app)
+  const asset = (rel) => new URL(rel, document.baseURI).href;
+  const logo = asset('assets/brand/logos/logo-preto.png');
+  const fonte = (w) => asset('assets/fonts/manrope-' + w + '.woff2');
+
+  // Cada setor vira uma FICHA própria (uma página por setor).
+  const fichas = setores.map(s => {
     const setor = s.setor || {};
     const linhas = s.linhas || [];
-    const cor = setor.cor || '#1D1D1B';
-    // separa horizontais (layout específico) das demais
+    const cor = setor.cor || '#C1212D';
     const horiz = linhas.filter(ocEhHorizontalLinha);
     const demais = linhas.filter(l => !ocEhHorizontalLinha(l));
     let corpo = '';
     if (demais.length) corpo += ocTabelaPadrao(demais);
     if (horiz.length) corpo += ocTabelaHorizontal(horiz);
     if (!corpo) corpo = '<p class="vazio">Sem cortes neste setor.</p>';
-    return `<section class="setor">
-      <h2 style="border-color:${cor};color:${cor}">${ocEscPrint(setor.nome || 'Setor')}</h2>
+    const totalPecas = new Set(linhas.map(l => l.pedido + '#' + l.peca_numero)).size;
+    return `<section class="ficha">
+      <header class="ficha-head">
+        <div class="brand">
+          <img class="logo" src="${logo}" alt="Persianas Paraná"
+               onerror="this.style.display='none'">
+          <div class="brand-txt">
+            <div class="tit">Ficha de Produção — Corte</div>
+            <div class="setor" style="color:${cor};border-color:${cor}">${ocEscPrint(setor.nome || 'Setor')}</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div><span>Pedido(s)</span><strong>${ocEscPrint(peds.join(', '))}</strong></div>
+          <div><span>Modo</span>${ocEscPrint(modoLabel)}</div>
+          <div><span>Peças</span>${totalPecas}</div>
+          <div><span>Emitido</span>${ocEscPrint(dataStr)}</div>
+        </div>
+      </header>
       ${corpo}
+      <div class="assinatura">
+        <div class="campo"><span>Cortado por</span></div>
+        <div class="campo"><span>Conferido por</span></div>
+        <div class="campo"><span>Data / Hora</span></div>
+      </div>
     </section>`;
   }).join('');
 
-  const modoLabel = ocModo === 'lote' ? 'Lote' : 'Individual';
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>Ordem de Corte — ${ocEscPrint(peds.join(', '))}</title>
 <style>
+  @font-face { font-family:'Manrope'; font-weight:400; font-display:swap; src:url('${fonte('400')}') format('woff2'); }
+  @font-face { font-family:'Manrope'; font-weight:600; font-display:swap; src:url('${fonte('600')}') format('woff2'); }
+  @font-face { font-family:'Manrope'; font-weight:700; font-display:swap; src:url('${fonte('700')}') format('woff2'); }
+  @font-face { font-family:'Manrope'; font-weight:800; font-display:swap; src:url('${fonte('800')}') format('woff2'); }
   * { box-sizing: border-box; }
-  body { font-family: 'Manrope', Arial, sans-serif; color:#1D1D1B; margin:24px; font-size:12px; }
-  header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #C1212D; padding-bottom:10px; margin-bottom:18px; }
-  header .tit { font-size:20px; font-weight:800; }
-  header .sub { font-size:11px; color:#606060; }
-  header .meta { text-align:right; font-size:11px; color:#606060; }
-  h2 { font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; border-left:6px solid #1D1D1B; padding:4px 10px; margin:18px 0 8px; background:#f5f5f5; }
-  table { width:100%; border-collapse:collapse; margin-bottom:6px; }
-  th, td { border:1px solid #ccc; padding:5px 7px; text-align:left; }
+  body { font-family:'Manrope','Helvetica Neue',Arial,sans-serif; color:#1D1D1B; margin:0; font-size:12px; }
+  .ficha { padding:14mm 12mm; }
+  .ficha + .ficha { page-break-before: always; }
+  .ficha-head { display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:3px solid #C1212D; padding-bottom:10px; margin-bottom:16px; position:relative; }
+  .ficha-head::after { content:''; position:absolute; left:0; right:0; bottom:-6px; height:3px; background:#C6B784; }
+  .brand { display:flex; align-items:center; gap:14px; }
+  .logo { height:46px; width:auto; }
+  .brand-txt .tit { font-size:13px; font-weight:700; color:#606060; letter-spacing:.02em; }
+  .brand-txt .setor { font-size:24px; font-weight:800; text-transform:uppercase; letter-spacing:.03em;
+    border-left:7px solid; padding-left:10px; line-height:1.05; margin-top:2px; }
+  .meta { text-align:right; font-size:11px; color:#606060; }
+  .meta div { margin-bottom:2px; }
+  .meta span { display:inline-block; min-width:64px; text-transform:uppercase; font-size:9px; letter-spacing:.04em; color:#9CA3AF; }
+  .meta strong { color:#1D1D1B; }
+  table { width:100%; border-collapse:collapse; margin:0 0 6px; }
+  th, td { border:1px solid #D2D0C9; padding:6px 8px; text-align:left; }
   th { background:#1D1D1B; color:#fff; font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
-  td { font-size:11px; }
-  tr:nth-child(even) td { background:#fafafa; }
+  td { font-size:12px; }
+  tr:nth-child(even) td { background:#FAF7EE; }
+  td strong { color:#A11823; }
+  .nota { font-size:10px; color:#606060; margin:8px 0 4px; }
   .vazio { font-size:11px; color:#999; }
-  .setor { page-break-inside:avoid; }
-  footer { margin-top:24px; font-size:10px; color:#999; border-top:1px solid #ddd; padding-top:8px; }
-  @media print { body { margin:12mm; } button { display:none; } }
+  .assinatura { display:flex; gap:24px; margin-top:28px; }
+  .assinatura .campo { flex:1; border-top:1px solid #1D1D1B; padding-top:5px; }
+  .assinatura .campo span { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#606060; }
+  .rodape { margin-top:14px; font-size:9px; color:#9CA3AF; text-align:center; }
+  @media print { button { display:none; } .ficha { padding:0; } }
   @page { size:A4; margin:12mm; }
 </style></head>
 <body>
-  <header>
-    <div>
-      <div class="tit">Ordem de Corte</div>
-      <div class="sub">${ocEscPrint(empresa)}</div>
-    </div>
-    <div class="meta">
-      Pedido(s): <strong>${ocEscPrint(peds.join(', '))}</strong><br>
-      Modo: ${ocEscPrint(modoLabel)}<br>
-      Emitido: ${ocEscPrint(dataStr)}
-    </div>
-  </header>
-  ${blocos}
-  <footer>Documento gerado pelo PCP — Persianas Paraná. Confira as medidas antes de cortar.</footer>
-  <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };<\/script>
+  ${fichas}
+  <div class="rodape">Documento gerado pelo PCP · Persianas Paraná — confira as medidas antes de cortar.</div>
+  <script>window.onload = function(){
+    var go = function(){ setTimeout(function(){ window.print(); }, 300); };
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(go); } else { go(); }
+  };<\/script>
 </body></html>`;
 
   const w = window.open('', '_blank');
