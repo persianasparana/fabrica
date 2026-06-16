@@ -1214,6 +1214,8 @@ async function salvarMedidaPeca(pecaId, horiz) {
     largura: larg && larg.value !== '' ? Number(larg.value) : null,
     altura:  alt && alt.value !== '' ? Number(alt.value) : null,
   };
+  if ((body.largura != null && body.largura > 0 && body.largura < 10) || (body.altura != null && body.altura > 0 && body.altura < 10))
+    toast('Atenção: medidas em centímetros (ex.: 154, não 1,54).');
   if (horiz) {
     const medidas = {};
     const furosEl = document.getElementById('pm-furos-'+pecaId);
@@ -1543,6 +1545,9 @@ function adicionarProdutoPedido() {
     if (furosEl && furosEl.value !== '') medidas.furos = Number(furosEl.value);
     if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
   }
+
+  if ((larg != null && larg > 0 && larg < 10) || (alt != null && alt > 0 && alt < 10))
+    toast('Atenção: informe as medidas em centímetros (ex.: 154, não 1,54).');
 
   pedidoProdutos.push({
     produto,
@@ -2652,6 +2657,86 @@ function ocFmtValor(linha) {
   return esc(String(linha.valor)) + u;
 }
 
+// ── Ficha didática: agrupa por peça e junta "X (Largura)" + "X (Altura)" ──────
+function ocValNum(v) { return v != null && v !== '' && Number.isFinite(Number(v)); }
+
+// Combina as linhas de um setor em peças; cortes "Base (Largura)"/"Base (Altura)"
+// viram um único corte 2D (mesmo pano: largura e altura juntas).
+function ocCombinarCortes(linhas) {
+  const reLA = /^(.*?)[\s]*\((largura|altura|larg\.?|alt\.?|l|a)\)\s*$/i;
+  const pecas = new Map();
+  for (const l of (linhas || [])) {
+    const key = `${l.pedido}#${l.peca_numero}#${l.produto}`;
+    if (!pecas.has(key)) pecas.set(key, {
+      pedido: l.pedido, produto: l.produto, peca_numero: l.peca_numero,
+      largura: l.largura, altura: l.altura, itens: [], _idx: {},
+    });
+    const g = pecas.get(key);
+    const m = String(l.corte || '').match(reLA);
+    if (m) {
+      const base = m[1].trim();
+      const eixo = /^(largura|larg\.?|l)$/i.test(m[2]) ? 'l' : 'a';
+      const ik = base.toLowerCase();
+      let c = g._idx[ik];
+      if (!c) { c = { nome: base, tipo: '2d', larg: null, alt: null, unidade: l.unidade }; g._idx[ik] = c; g.itens.push(c); }
+      if (eixo === 'l') c.larg = l.valor; else c.alt = l.valor;
+      if (!c.unidade && l.unidade) c.unidade = l.unidade;
+    } else {
+      g.itens.push({ nome: l.corte, tipo: '1d', valor: l.valor, unidade: l.unidade });
+    }
+  }
+  return [...pecas.values()];
+}
+
+function ocCorteTexto(c) {
+  const u = c.unidade ? ' ' + c.unidade : '';
+  if (c.tipo === '2d') {
+    const lt = ocValNum(c.larg) ? c.larg : '—';
+    const at = ocValNum(c.alt) ? c.alt : '—';
+    return `${lt} × ${at}${u}`;
+  }
+  return ocValNum(c.valor) ? `${c.valor}${u}` : '—';
+}
+// valor não-positivo = medida provavelmente em metros / faltando (planilha usa IF>0)
+function ocCorteInvalido(c) {
+  if (c.tipo === '2d') return (ocValNum(c.larg) && c.larg <= 0) || (ocValNum(c.alt) && c.alt <= 0);
+  return ocValNum(c.valor) && c.valor <= 0;
+}
+
+// Gera os blocos por peça (didático). modo: 'preview' (tema do app) | 'print'.
+function ocFichaPecasHTML(linhas, modo) {
+  const grupos = ocCombinarCortes(linhas);
+  if (!grupos.length) {
+    return modo === 'print'
+      ? '<p class="vazio">Sem cortes neste setor.</p>'
+      : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>';
+  }
+  const P = modo === 'print'
+    ? { card: '1px solid #D2D0C9', head: '#1D1D1B', sub: '#606060', warn: '#C1212D', linha: '#ECEBE7', val: '#1D1D1B', headbg: '#FAF7EE' }
+    : { card: '1px solid var(--border)', head: 'var(--text)', sub: 'var(--text3)', warn: 'var(--red)', linha: 'var(--border)', val: 'var(--text)', headbg: 'var(--gray-bg)' };
+  return grupos.map(g => {
+    const vao = (ocValNum(g.largura) || ocValNum(g.altura))
+      ? `vão ${ocValNum(g.largura) ? g.largura : '—'} × ${ocValNum(g.altura) ? g.altura : '—'} cm`
+      : 'medida pendente';
+    const itens = g.itens.map(c => {
+      const inval = ocCorteInvalido(c);
+      const aviso = inval ? ` <span style="color:${P.warn};font-size:9px;font-weight:700">⚠ confira a medida (cm)</span>` : '';
+      const dimTag = c.tipo === '2d' ? ` <span style="font-size:9px;color:${P.sub}">(largura × altura)</span>` : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 12px;border-top:1px solid ${P.linha}">
+        <span style="font-size:12px;color:${P.head}">${ocEscPrint(c.nome)}${dimTag}</span>
+        <span style="font-weight:800;font-size:15px;color:${inval ? P.warn : P.val};white-space:nowrap">${ocEscPrint(ocCorteTexto(c))}${aviso}</span>
+      </div>`;
+    }).join('');
+    return `<div style="border:${P.card};border-radius:8px;overflow:hidden;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 12px;background:${P.headbg}">
+        <strong style="font-size:12px;color:${P.head}">Peça ${g.peca_numero != null ? '#' + ocEscPrint(String(g.peca_numero)) : ''} · ${ocEscPrint(g.produto)}</strong>
+        <span style="font-size:11px;color:${P.sub}">${ocEscPrint(vao)}</span>
+      </div>
+      ${itens}
+    </div>`;
+  }).join('');
+}
+
 async function ocPreview() {
   if (!ehAdmin() && !podeVer('ordemcorte')) { toast('Sem permissão para a Ordem de Corte.'); return; }
   const pedidos = ocLerPedidos();
@@ -2740,21 +2825,10 @@ function ocRenderPreview(preview) {
     return `<div class="card" style="margin-bottom:14px;border-left:4px solid ${cor}">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span class="st-prod" style="background:${cor}22;color:${cor};border:1px solid ${cor}66;font-size:12px">${esc(setor.nome || 'Setor')}</span>
-        <span style="font-size:11px;color:var(--text3)">${linhas.length} corte(s)</span>
+        <span style="font-size:11px;color:var(--text3)">${new Set(linhas.map(l=>l.pedido+'#'+l.peca_numero)).size} peça(s)</span>
         <button class="btn btn-outline" style="margin-left:auto;font-size:10px" onclick="ocImprimir(${setor.id != null ? setor.id : 'null'})">🖨 Imprimir só este setor</button>
       </div>
-      ${linhas.length ? `<div class="tbl-wrap"><table style="font-size:11px">
-        <thead><tr><th>Pedido</th><th>Produto</th><th style="width:46px">Peça</th><th>Medidas</th><th>Corte</th><th>Valor</th><th style="width:60px">Unid.</th></tr></thead>
-        <tbody>${linhas.map(l=>`<tr>
-          <td>${esc(l.pedido)}</td>
-          <td class="td-produto">${esc(l.produto)}</td>
-          <td style="text-align:center">${l.peca_numero != null ? '#'+esc(String(l.peca_numero)) : '—'}</td>
-          <td>${esc(ocFmtMedida(l))}</td>
-          <td><strong>${esc(l.corte)}</strong></td>
-          <td>${ocFmtValor(l)}</td>
-          <td>${esc(l.unidade || '')}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>` : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}
+      ${linhas.length ? ocFichaPecasHTML(linhas, 'preview') : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}
     </div>`;
   }).join('');
 
@@ -2850,12 +2924,7 @@ function ocAbrirImpressao(setorId) {
     const setor = s.setor || {};
     const linhas = s.linhas || [];
     const cor = setor.cor || '#C1212D';
-    const horiz = linhas.filter(ocEhHorizontalLinha);
-    const demais = linhas.filter(l => !ocEhHorizontalLinha(l));
-    let corpo = '';
-    if (demais.length) corpo += ocTabelaPadrao(demais);
-    if (horiz.length) corpo += ocTabelaHorizontal(horiz);
-    if (!corpo) corpo = '<p class="vazio">Sem cortes neste setor.</p>';
+    const corpo = ocFichaPecasHTML(linhas, 'print');
     const totalPecas = new Set(linhas.map(l => l.pedido + '#' + l.peca_numero)).size;
     return `<section class="ficha">
       <header class="ficha-head">
