@@ -10,6 +10,7 @@
 let DB = [];          // itens da fila de produção (espelho local do banco)
 let ESTRUTURA = [];   // estrutura do produto (catálogo oficial)
 let STATUS = [];      // status de produção configuráveis (admin)
+let TIPOS = [];       // tipos de entrada de pedido configuráveis (admin)
 let SETORES = [];     // setores de produção (admin)
 let usuario = null;
 let csrfToken = '';
@@ -67,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo'];
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -115,14 +116,16 @@ function aplicarItemAtualizado(item) {
 }
 
 async function carregarDados() {
-  const [itens, estrutura, status, setores] = await Promise.all([
-    api('pcp/itens'), api('pcp/estrutura'), api('pcp/status'), api('pcp/setores'),
+  const [itens, estrutura, status, setores, tipos] = await Promise.all([
+    api('pcp/itens'), api('pcp/estrutura'), api('pcp/status'), api('pcp/setores'), api('pcp/tipos'),
   ]);
   DB = (itens.data || []).map(normalizarItem);
   ESTRUTURA = (estrutura.data || []).map((p) => Object.assign({}, p, { id: Number(p.id) }));
   STATUS = (status.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
   SETORES = (setores.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
+  TIPOS = (tipos.data || []).map((t) => Object.assign({}, t, { id: Number(t.id) }));
   popularFiltroStatus();
+  popularSelectTipos();
 }
 
 async function atualizarDados() {
@@ -181,9 +184,18 @@ function statusLabel(s) {
 function statusClass(s) {
   return {ok:'st-ok',atraso:'st-atraso',vencido:'st-vencido',atencao:'st-atencao',producao:'st-producao',gray:'st-gray'}[s]||'st-gray';
 }
-function tipoClass(t) {
-  const m = {'Produção nova':'tp-novo','Retrabalho':'tp-rt','Higienização':'tp-hig','Carry-over 2025':'tp-carry','Showroom':'tp-show'};
-  return m[t] || 'tp-novo';
+function tipoCor(nome) {
+  const t = TIPOS.find((x) => x.nome === nome);
+  return t ? t.cor : '#606060';
+}
+function tipoPadraoNome() {
+  const t = TIPOS.find((x) => x.padrao) || TIPOS[0];
+  return t ? t.nome : '';
+}
+function tipoBadge(nome) {
+  if (!nome) return '';
+  const c = tipoCor(nome);
+  return `<span class="tp" style="background:${c}22;color:${c}">${esc(nome)}</span>`;
 }
 function priorityOrder(item) {
   const s = calcStatus(item);
@@ -204,7 +216,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -219,6 +231,7 @@ function goTo(page) {
   if (page === 'estrutura') renderEstrutura();
   if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
   if (page === 'status') renderStatusAdmin();
+  if (page === 'tipos') renderTiposAdmin();
   if (page === 'setores') renderSetoresAdmin();
   if (page === 'usuarios') renderUsuariosAdmin();
   if (page === 'novo') renderProdutosPedido();
@@ -502,7 +515,6 @@ function renderFila() {
   document.getElementById('fila-tbody').innerHTML = slice.map(item => {
     const s = calcStatus(item);
     const sc = statusClass(s);
-    const tc = tipoClass(item.tipo);
     const done = pecasConcluidas(item), tot = pecasTotal(item);
     return `<tr>
       <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}</td>
@@ -511,7 +523,7 @@ function renderFila() {
       <td>${fmtDate(item.data_cliente)}</td>
       <td>${fmtDate(item.prev_producao)}</td>
       <td>${fmtDate(item.conclusao)}</td>
-      <td><span class="tp ${tc}">${esc(item.tipo)}</span></td>
+      <td>${tipoBadge(item.tipo)}</td>
       <td><span class="st ${sc}">${statusLabel(s)}</span></td>
       <td class="td-obs">${esc(item.motivo_atraso||item.observacoes||'')}</td>
       <td>
@@ -573,12 +585,11 @@ function renderBusca() {
   results.innerHTML = found.map(item => {
     const s = calcStatus(item);
     const sc = statusClass(s);
-    const tc = tipoClass(item.tipo);
     return `<div class="search-result" onclick="openDetail(${item.id})">
       <div class="sr-header">
         <div class="sr-produto">${badgeEspecial(item)}${esc(item.produto)}</div>
         <div style="display:flex;gap:6px">
-          <span class="tp ${tc}">${esc(item.tipo)}</span>
+          ${tipoBadge(item.tipo)}
           <span class="st ${sc}">${statusLabel(s)}</span>
         </div>
       </div>
@@ -681,7 +692,7 @@ async function excluirSetor(id, nome) {
 }
 
 // ─── USUÁRIOS (admin) ────────────────────────────────────────────────────────
-const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido'};
+const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido',tipos:'Tipos de Produção (cadastrar/editar)'};
 let usuariosCache = [];
 
 async function renderUsuariosAdmin() {
@@ -898,6 +909,130 @@ async function excluirStatus(id, nome, emUso) {
   } catch (e) { toast('Erro: ' + e.message); }
 }
 
+// ─── TIPOS DE PRODUÇÃO (admin) ───────────────────────────────────────────────
+function renderTiposAdmin() {
+  const cont = document.getElementById('tipos-conteudo');
+  if (!cont) return;
+  if (!podeVer('tipos')) {
+    cont.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px 0">Sem permissão para ver os tipos de produção.</div>';
+    return;
+  }
+  const editar = podeEditar('tipos');
+  const usados = {};
+  DB.forEach((i) => { if (i.tipo) usados[i.tipo] = (usados[i.tipo] || 0) + 1; });
+
+  cont.innerHTML = `
+    ${editar ? `<div class="card" style="max-width:620px">
+      <div class="card-title">Cadastrar tipo</div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1"><label>Nome do tipo *</label>
+          <input type="text" id="tp-nome" placeholder="Ex: Garantia" maxlength="40"
+            onkeydown="if(event.key==='Enter')criarTipo()"></div>
+        <div class="form-group"><label>Cor</label><input type="color" id="tp-cor" value="#3949AB" style="height:40px;padding:3px"></div>
+        <div class="form-group"><label>Ordem</label><input type="number" id="tp-ordem" value="${(TIPOS.length + 1) * 10}" min="0"></div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+            <input type="checkbox" id="tp-padrao" style="width:15px;height:15px;accent-color:var(--red)">
+            <span>Tipo <strong>padrão</strong> — pré-selecionado ao cadastrar um novo pedido</span>
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-red" style="margin-top:12px" onclick="criarTipo()">+ Adicionar tipo</button>
+    </div>` : ''}
+
+    <div class="card" style="max-width:620px">
+      <div class="card-title">Tipos cadastrados (${TIPOS.length})</div>
+      ${TIPOS.length ? `<div class="tbl-wrap"><table>
+        <thead><tr><th>Tipo</th><th>Padrão</th><th>Em uso</th>${editar ? '<th style="width:150px"></th>' : ''}</tr></thead>
+        <tbody>
+          ${TIPOS.map((t) => `<tr>
+            <td>${tipoBadge(t.nome)}</td>
+            <td>${t.padrao ? '<span class="st st-ok" style="font-size:9px">padrão</span>' : '<span style="color:var(--text3)">—</span>'}</td>
+            <td>${usados[t.nome] || 0} item(ns)</td>
+            ${editar ? `<td>
+              <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="editarTipo(${t.id})">editar</button>
+              <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirTipo(${t.id}, '${esc(t.nome)}', ${usados[t.nome] || 0})">excluir</button>
+            </td>` : ''}
+          </tr>`).join('')}
+        </tbody></table></div>`
+      : '<div style="color:var(--text3);font-size:12px">Nenhum tipo cadastrado.</div>'}
+      ${editar ? '<div style="font-size:10px;color:var(--text3);margin-top:10px">Renomear um tipo atualiza automaticamente os pedidos que já o usavam. Não é possível excluir o tipo padrão — defina outro como padrão antes.</div>' : ''}
+    </div>`;
+}
+
+async function criarTipo() {
+  const nome = document.getElementById('tp-nome').value.trim();
+  if (!nome) { toast('Informe o nome do tipo.'); return; }
+  const cor = document.getElementById('tp-cor').value || '#3949AB';
+  const ordem = parseInt(document.getElementById('tp-ordem').value) || 0;
+  const padrao = document.getElementById('tp-padrao').checked;
+  try {
+    await api('pcp/tipos', { method: 'POST', body: { nome, cor, ordem, padrao } });
+    await recarregarTipos();
+    renderTiposAdmin();
+    toast(`Tipo “${nome}” cadastrado.`);
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function recarregarTipos() {
+  const r = await api('pcp/tipos');
+  TIPOS = (r.data || []).map((t) => Object.assign({}, t, { id: Number(t.id) }));
+  popularSelectTipos();
+}
+
+function editarTipo(id) {
+  const t = TIPOS.find((x) => x.id === id);
+  if (!t) return;
+  document.getElementById('modal-title').textContent = `Editar tipo — ${t.nome}`;
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="form-group" style="grid-column:1/-1"><label>Nome *</label><input type="text" id="tp-ed-nome" value="${esc(t.nome)}" maxlength="40"></div>
+    <div class="form-group"><label>Cor</label><input type="color" id="tp-ed-cor" value="${t.cor}" style="height:40px;padding:3px"></div>
+    <div class="form-group"><label>Ordem</label><input type="number" id="tp-ed-ordem" value="${t.ordem}" min="0"></div>
+    <div class="form-group" style="grid-column:1/-1">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
+        <input type="checkbox" id="tp-ed-padrao" ${t.padrao ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--red)">
+        <span>Tipo <strong>padrão</strong> — pré-selecionado ao cadastrar um novo pedido</span>
+      </label>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML =
+    `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+     <button class="btn btn-red" onclick="salvarTipoEdit(${id})">Salvar</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function salvarTipoEdit(id) {
+  const nome = document.getElementById('tp-ed-nome').value.trim();
+  if (!nome) { toast('Informe o nome do tipo.'); return; }
+  const body = {
+    nome,
+    cor: document.getElementById('tp-ed-cor').value,
+    ordem: parseInt(document.getElementById('tp-ed-ordem').value) || 0,
+    padrao: document.getElementById('tp-ed-padrao').checked,
+  };
+  try {
+    await api('pcp/tipos?id=' + id, { method: 'PUT', body });
+    await carregarDados(); // renomeação reflete nos itens — recarrega a fila
+    closeModal();
+    renderTiposAdmin();
+    renderAll();
+    toast('Tipo atualizado.');
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function excluirTipo(id, nome, emUso) {
+  const aviso = emUso > 0
+    ? `Excluir o tipo “${nome}”?\n\n${emUso} item(ns) usam esse tipo e manterão o texto, mas o tipo sai dos seletores.`
+    : `Excluir o tipo “${nome}”?`;
+  if (!confirm(aviso)) return;
+  try {
+    await api('pcp/tipos?id=' + id, { method: 'DELETE' });
+    await recarregarTipos();
+    renderTiposAdmin();
+    renderAll();
+    toast(`Tipo “${nome}” excluído.`);
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
 // ─── EDITAR PEDIDO (edição em massa) ─────────────────────────────────────────
 let pedidoCarregado = null;
 
@@ -945,8 +1080,7 @@ function renderPedidoEditor() {
   const algumEspecial = itens.some(i => i.especial);
   const todoEspecial = itens.every(i => i.especial);
 
-  const tiposOpts = ['Produção nova','Retrabalho','Higienização','Showroom','Carry-over 2025']
-    .map(t => `<option ${comum(itens,'tipo')===t?'selected':''}>${t}</option>`).join('');
+  const tiposOpts = TIPOS.map(t => `<option ${comum(itens,'tipo')===t.nome?'selected':''}>${esc(t.nome)}</option>`).join('');
   const motivos = ['','Falta de material','Defeito de material','Ausência de colaborador','Pedido esquecido','Solicitação do cliente','Aguardando material','Aviso ao cliente pendente','Peça showroom','Outros'];
   const motivoOpts = motivos.map(m => `<option value="${esc(m)}" ${comum(itens,'motivo_atraso')===m?'selected':''}>${esc(m||'—')}</option>`).join('');
 
@@ -1205,10 +1339,9 @@ function renderIndicadores() {
   // Mix tipos
   const tipos = {};
   DB.forEach(i=>{ tipos[i.tipo]=(tipos[i.tipo]||0)+1; });
-  const colors = {'Produção nova':'#3949AB','Retrabalho':'#E65100','Higienização':'#0D47A1','Carry-over 2025':'#C1212D','Showroom':'#7B1FA2'};
   document.getElementById('chart-tipos').innerHTML = `<div class="donut-wrap">
     <div class="donut-legend">${Object.entries(tipos).map(([t,n])=>
-      `<div class="legend-item"><div class="legend-dot" style="background:${colors[t]||'#999'}"></div>${esc(t)}: <strong>${n}</strong></div>`
+      `<div class="legend-item"><div class="legend-dot" style="background:${tipoCor(t)}"></div>${esc(t)}: <strong>${n}</strong></div>`
     ).join('')}</div></div>`;
 
   // Situação
@@ -1231,7 +1364,6 @@ function openDetail(id) {
   document.getElementById('modal-title').textContent = item.produto;
   const s = calcStatus(item);
   const sc = statusClass(s);
-  const tc = tipoClass(item.tipo);
 
   document.getElementById('modal-body-content').innerHTML = `
     <div class="form-group"><label>Produto</label><input type="text" id="ed-produto" list="produtos-datalist" value="${esc(item.produto)}"></div>
@@ -1243,7 +1375,7 @@ function openDetail(id) {
     <div class="form-group"><label>Conclusão</label><input type="date" id="ed-conclusao" value="${item.conclusao||''}"></div>
     <div class="form-group"><label>Tipo</label>
       <select id="ed-tipo">
-        ${['Produção nova','Retrabalho','Higienização','Carry-over 2025','Showroom'].map(t=>`<option ${item.tipo===t?'selected':''}>${t}</option>`).join('')}
+        ${(TIPOS.some(t=>t.nome===item.tipo)?TIPOS:[{nome:item.tipo},...TIPOS]).map(t=>`<option ${item.tipo===t.nome?'selected':''}>${esc(t.nome)}</option>`).join('')}
       </select>
     </div>
     <div class="form-group" style="grid-column:1/-1"><label>Motivo atraso</label>
@@ -1399,14 +1531,32 @@ function adicionarProdutoPedido() {
     return;
   }
 
+  const horiz = ehHorizontal({ produto, produto_id });
+  const largEl = document.getElementById('fn-larg');
+  const altEl = document.getElementById('fn-alt');
+  const larg = largEl && largEl.value !== '' ? Number(largEl.value) : null;
+  const alt = altEl && altEl.value !== '' ? Number(altEl.value) : null;
+  const medidas = {};
+  if (horiz) {
+    const furosEl = document.getElementById('fn-furos');
+    const modeloEl = document.getElementById('fn-modelo');
+    if (furosEl && furosEl.value !== '') medidas.furos = Number(furosEl.value);
+    if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
+  }
+
   pedidoProdutos.push({
     produto,
     produto_id,
     etiqueta: etiqueta || null,
     especial: document.getElementById('fn-especial').checked,
+    largura: larg,
+    altura: alt,
+    medidas: Object.keys(medidas).length ? medidas : null,
+    horiz,
   });
   etiquetaEl.value = '';
   document.getElementById('fn-especial').checked = false;
+  ['fn-larg', 'fn-alt', 'fn-furos', 'fn-modelo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderProdutosPedido();
   etiquetaEl.focus(); // próxima leitura (mesmo produto selecionado = sequência rápida)
 }
@@ -1424,15 +1574,21 @@ function renderProdutosPedido() {
   } else {
     el.innerHTML = `
       <table style="width:100%">
-        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Etiqueta</th><th style="width:70px"></th></tr></thead>
+        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Etiqueta</th><th>Medidas</th><th style="width:70px"></th></tr></thead>
         <tbody>
-          ${pedidoProdutos.map((p, ix) => `
+          ${pedidoProdutos.map((p, ix) => {
+            const med = [];
+            if (p.largura != null || p.altura != null) med.push(`${p.largura != null ? p.largura : '?'}×${p.altura != null ? p.altura : '?'} cm`);
+            if (p.medidas) { if (p.medidas.furos != null) med.push(`${p.medidas.furos} furos`); if (p.medidas.modelo) med.push(esc(p.medidas.modelo)); }
+            const medTxt = med.length ? med.join(' · ') : '<span style="color:var(--text3)">—</span>';
+            return `
             <tr>
               <td>${ix + 1}</td>
               <td class="td-produto">${p.especial ? '<span class="st st-especial">★ ESPECIAL</span> ' : ''}${esc(p.produto)}</td>
               <td style="font-family:monospace">${p.etiqueta ? esc(p.etiqueta) : '<span style="color:var(--text3)">— vincular depois</span>'}</td>
+              <td style="font-size:11px">${medTxt}</td>
               <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="removerProdutoPedido(${ix})">remover</button></td>
-            </tr>`).join('')}
+            </tr>`; }).join('')}
         </tbody>
       </table>`;
   }
@@ -1463,6 +1619,9 @@ async function salvarNovo() {
     produto_id: p.produto_id,
     especial: p.especial,
     etiqueta: p.etiqueta || undefined,
+    largura: p.largura,
+    altura: p.altura,
+    medidas: p.medidas || undefined,
   }));
 
   try {
@@ -1476,13 +1635,14 @@ async function salvarNovo() {
 }
 
 function limparForm() {
-  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta'].forEach(id => document.getElementById(id).value = '');
+  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta','fn-larg','fn-alt','fn-furos','fn-modelo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fn-produto').value = '';
   document.getElementById('fn-produto-livre').style.display = 'none';
   document.getElementById('fn-data-cliente').value = '';
-  document.getElementById('fn-tipo').value = 'Produção nova';
+  document.getElementById('fn-tipo').value = tipoPadraoNome();
   document.getElementById('fn-motivo').value = '';
   document.getElementById('fn-especial').checked = false;
+  const hg = document.getElementById('fn-horiz-group'); if (hg) hg.style.display = 'none';
   pedidoProdutos = [];
   renderProdutosPedido();
 }
@@ -1842,7 +2002,7 @@ function processImportedRows(rows, sheetName) {
       prev_producao: fmtImportDate(get(row,'prev_producao')),
       conclusao:     fmtImportDate(get(row,'conclusao')),
       data_cliente:  fmtImportDate(get(row,'data_cliente')),
-      tipo:          String(get(row,'tipo')||'Produção nova').trim() || 'Produção nova',
+      tipo:          String(get(row,'tipo')||'').trim() || tipoPadraoNome() || 'Produção nova',
       motivo_atraso: String(get(row,'motivo_atraso')||'').trim(),
       observacoes:   String(get(row,'observacoes')||'').trim(),
       especial:      /^(s|sim|x|1|true)$/i.test(String(get(row,'especial')||'').trim()),
@@ -1969,7 +2129,7 @@ async function confirmarPdfImport() {
       qnt: parseInt(document.getElementById(`pdf-i-qnt-${i}`)?.value) || 1,
       chegada_pcp: hojeISO(),
       data_cliente: dataCliente,
-      tipo: 'Produção nova',
+      tipo: tipoPadraoNome() || 'Produção nova',
       motivo_atraso: '',
       observacoes: (document.getElementById(`pdf-i-obs-${i}`)?.value || '').trim(),
     });
@@ -2420,6 +2580,36 @@ function popularSelectProdutos() {
   }
   const dl = document.getElementById('produtos-datalist');
   if (dl) dl.innerHTML = ESTRUTURA.map(p => `<option value="${esc(p.nome)}">`).join('');
+}
+
+// Preenche o select de tipo do novo pedido a partir do cadastro (pcp_tipos).
+function popularSelectTipos() {
+  const sel = document.getElementById('fn-tipo');
+  if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = TIPOS.map(t => `<option>${esc(t.nome)}</option>`).join('');
+  if (atual && TIPOS.some(t => t.nome === atual)) sel.value = atual;
+  else sel.value = tipoPadraoNome();
+}
+
+// Produto atualmente selecionado no formulário de novo pedido.
+function fnProdutoSelecionado() {
+  const sel = document.getElementById('fn-produto');
+  const livre = document.getElementById('fn-produto-livre');
+  const produto = sel.value === '__livre__' ? (livre.value || '').trim().toUpperCase() : sel.value;
+  let produto_id = null;
+  if (sel.value && sel.value !== '__livre__') {
+    const opt = sel.options[sel.selectedIndex];
+    produto_id = opt && opt.dataset.id ? Number(opt.dataset.id) : null;
+  }
+  return { produto, produto_id };
+}
+
+// Mostra os campos de furos/modelo só quando o produto é horizontal (PH 25/50).
+function fnAtualizarHorizontal() {
+  const grp = document.getElementById('fn-horiz-group');
+  if (!grp) return;
+  grp.style.display = ehHorizontal(fnProdutoSelecionado()) ? '' : 'none';
 }
 
 // ─── ORDEM DE CORTE ──────────────────────────────────────────────────────────

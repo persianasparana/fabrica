@@ -21,6 +21,9 @@ yarn-error.log*
 *.log
 logs/
 
+# --- Backups gerados em runtime (ex.: bin/limpar-fila.js) ---
+server/backups/
+
 # --- Sistema operacional / editores ---
 .DS_Store
 Thumbs.db

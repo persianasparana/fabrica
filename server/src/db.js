@@ -130,6 +130,33 @@ export async function migrate() {
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS status_id BIGINT REFERENCES pcp_status(id) ON DELETE SET NULL`);
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_status ON pcp_itens (status_id)`);
 
+  // PCP: tipos de entrada de pedido (configuráveis pelo admin). Antes era uma
+  // lista fixa no código; agora o admin cadastra/edita/exclui e define a cor do
+  // badge, a ordem e qual é o tipo padrão. O item guarda o tipo como TEXTO
+  // (pcp_itens.tipo) — a renomeação de um tipo reflete nos itens existentes.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_tipos (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(40) UNIQUE NOT NULL,
+      cor        VARCHAR(7) NOT NULL DEFAULT '#3949AB',
+      ordem      INTEGER NOT NULL DEFAULT 0,
+      padrao     BOOLEAN NOT NULL DEFAULT FALSE,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  // Seed idempotente: preserva os tipos atuais e suas cores (não altera nada já
+  // existente; ON CONFLICT evita duplicar quando rodar de novo).
+  await q(`
+    INSERT INTO pcp_tipos (nome, cor, ordem, padrao) VALUES
+      ('Produção nova',    '#3949AB', 10, TRUE),
+      ('Retrabalho',       '#E65100', 20, FALSE),
+      ('Higienização',     '#0D47A1', 30, FALSE),
+      ('Carry-over 2025',  '#C1212D', 40, FALSE),
+      ('Showroom',         '#7B1FA2', 50, FALSE)
+    ON CONFLICT (nome) DO NOTHING
+  `);
+
   // PCP: peças individuais — cada peça tem etiqueta própria (gerada pelo
   // sistema de pedidos) e baixa de produção própria. O item agrega qnt peças.
   await q(`

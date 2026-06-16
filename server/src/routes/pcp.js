@@ -30,7 +30,6 @@ import { ah, HttpError } from '../util.js';
 const r = Router();
 r.use(requireAuth);
 
-const TIPOS = ['Produção nova', 'Retrabalho', 'Higienização', 'Carry-over 2025', 'Showroom'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const SELECT_ITEM = `
@@ -66,7 +65,11 @@ function validarItem(d, partial = false) {
     if (d[f] != null && d[f] !== '' && !DATE_RE.test(d[f]))
       throw new HttpError(422, `Data inválida em ${f} (use YYYY-MM-DD)`);
   }
-  if (d.tipo && !TIPOS.includes(d.tipo)) throw new HttpError(422, 'Tipo de produção inválido');
+  // O tipo é validado contra o cadastro de tipos (pcp_tipos) nas transações.
+  for (const f of ['largura', 'altura']) {
+    if (d[f] != null && d[f] !== '' && !(Number.isFinite(Number(d[f])) && Number(d[f]) > 0))
+      throw new HttpError(422, `Medida inválida em ${f} (use um número maior que zero)`);
+  }
   if (d.qnt != null && (!Number.isFinite(Number(d.qnt)) || Number(d.qnt) < 1))
     throw new HttpError(422, 'Quantidade deve ser um número >= 1');
   if (d.qnt != null && Number(d.qnt) > 500) throw new HttpError(422, 'Quantidade máxima por item: 500 peças');
@@ -85,6 +88,13 @@ async function assertStatus(exec, id) {
   if (id == null || id === '') return;
   const { rows } = await exec('SELECT 1 FROM pcp_status WHERE id = $1 AND ativo = TRUE', [Number(id)]);
   if (!rows[0]) throw new HttpError(422, 'Status de produção inexistente ou inativo');
+}
+
+/** Garante que o tipo de produção existe e está ativo (dentro da transação). */
+async function assertTipo(exec, nome) {
+  if (nome == null || nome === '') return;
+  const { rows } = await exec('SELECT 1 FROM pcp_tipos WHERE nome = $1 AND ativo = TRUE', [String(nome)]);
+  if (!rows[0]) throw new HttpError(422, 'Tipo de produção inexistente ou inativo');
 }
 
 /** Recalcula a conclusão do item a partir das peças (derivada). */
@@ -109,6 +119,14 @@ async function inserirItem(client, d, userId) {
   const conclusao = orNull(d.conclusao);
   const qnt = Number(d.qnt) || 1;
   const etiqueta = d.etiqueta != null && String(d.etiqueta).trim() ? String(d.etiqueta).trim() : null;
+  // Sem tipo informado, usa o tipo marcado como padrão no cadastro (pcp_tipos).
+  let tipo = d.tipo != null && String(d.tipo).trim() ? String(d.tipo).trim() : null;
+  if (!tipo) {
+    const { rows: pad } = await exec(
+      'SELECT nome FROM pcp_tipos WHERE padrao = TRUE AND ativo = TRUE ORDER BY ordem, id LIMIT 1'
+    );
+    tipo = (pad[0] && pad[0].nome) || 'Produção nova';
+  }
   const { rows } = await exec(
     `INSERT INTO pcp_itens
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
@@ -121,7 +139,7 @@ async function inserirItem(client, d, userId) {
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
       qnt, orNull(d.chegada_pcp), orNull(d.prev_inicial),
       orNull(d.prev_producao), conclusao, orNull(d.data_cliente),
-      d.tipo || 'Produção nova', d.motivo_atraso || '', (d.observacoes || '').trim(),
+      tipo, d.motivo_atraso || '', (d.observacoes || '').trim(),
       d.especial === true, userId, etiqueta,
     ]
   );
@@ -135,6 +153,22 @@ async function inserirItem(client, d, userId) {
     await exec(
       'UPDATE pcp_pecas SET cod_barras = $2, vinculada_em = now() WHERE item_id = $1 AND numero = 1',
       [id, etiqueta]
+    );
+  }
+  // Medidas informadas já no cadastro alimentam o cálculo de cortes. Como cada
+  // produto do formulário entra com qnt=1, a medida vale para a(s) peça(s) do item.
+  const larg = d.largura != null && d.largura !== '' ? Number(d.largura) : null;
+  const alt  = d.altura  != null && d.altura  !== '' ? Number(d.altura)  : null;
+  const medidas =
+    d.medidas && typeof d.medidas === 'object' && Object.keys(d.medidas).length ? d.medidas : null;
+  if (larg != null || alt != null || medidas != null) {
+    await exec(
+      `UPDATE pcp_pecas SET
+         largura = COALESCE($2, largura),
+         altura  = COALESCE($3, altura),
+         medidas = COALESCE($4::jsonb, medidas)
+       WHERE item_id = $1`,
+      [id, larg, alt, medidas ? JSON.stringify(medidas) : null]
     );
   }
   return id;
@@ -206,6 +240,13 @@ r.post(
     itens.forEach((d, i) => {
       try { validarItem(d); } catch (e) { throw new HttpError(422, `Item ${i + 1}: ${e.message}`); }
     });
+    // tipos válidos vêm do cadastro de tipos (admin), não de lista fixa
+    const { rows: tnames } = await q('SELECT nome FROM pcp_tipos WHERE ativo = TRUE');
+    const tiposValidos = new Set(tnames.map((t) => t.nome));
+    itens.forEach((d, i) => {
+      if (d.tipo && !tiposValidos.has(String(d.tipo)))
+        throw new HttpError(422, `Item ${i + 1}: tipo de produção “${d.tipo}” não está cadastrado`);
+    });
     // etiquetas repetidas dentro do próprio lote
     const etiquetas = itens
       .map((d) => (d.etiqueta != null ? String(d.etiqueta).trim() : ''))
@@ -242,6 +283,7 @@ r.put(
 
     await emTransacao(async (exec) => {
       await assertStatus(exec, d.status_id);
+      await assertTipo(exec, d.tipo);
       const result = await exec(
         `UPDATE pcp_itens SET
            produto       = COALESCE($2, produto),
@@ -366,6 +408,7 @@ r.put(
 
     const n = await emTransacao(async (exec) => {
       await assertStatus(exec, d.status_id);
+      await assertTipo(exec, d.tipo);
       const { rows: itens } = await exec('SELECT id FROM pcp_itens WHERE pedido = $1', [pedido]);
       if (!itens.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
 
@@ -877,6 +920,111 @@ r.delete(
     const result = await q('DELETE FROM pcp_status WHERE id = $1', [id]); // itens: ON DELETE SET NULL
     if (result.rowCount === 0) throw new HttpError(404, 'Status não encontrado');
     await audit(req.session.user.id, 'pcp', 'status.delete', { entityType: 'pcp_status', entityId: id });
+    res.json({ ok: true, itens_afetados: uso[0].c });
+  })
+);
+
+// ─── Tipos de entrada de pedido (configuráveis pelo admin) ──────────────────
+// O item guarda o tipo como TEXTO (pcp_itens.tipo). Renomear um tipo reflete
+// nos itens existentes; o tipo "padrão" é o pré-selecionado no novo pedido.
+
+// GET é aberto a qualquer usuário autenticado (alimenta os seletores)
+r.get(
+  '/tipos',
+  ah(async (req, res) => {
+    const { rows } = await q(
+      'SELECT id, nome, cor, ordem, padrao FROM pcp_tipos WHERE ativo = TRUE ORDER BY ordem, nome'
+    );
+    res.json({ data: rows });
+  })
+);
+
+r.post(
+  '/tipos',
+  requirePerm('tipos', 'editar'),
+  requireCsrf,
+  ah(async (req, res) => {
+    const nome = String(req.body?.nome || '').trim();
+    const cor = String(req.body?.cor || '#3949AB').trim();
+    const ordem = Number.isFinite(Number(req.body?.ordem)) ? Number(req.body.ordem) : 0;
+    const padrao = req.body?.padrao === true;
+    if (!nome) throw new HttpError(422, 'Nome do tipo é obrigatório');
+    if (nome.length > 40) throw new HttpError(422, 'Nome muito longo (máx. 40 caracteres)');
+    if (!COR_RE.test(cor)) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
+    const id = await emTransacao(async (exec) => {
+      const { rows } = await exec(
+        `INSERT INTO pcp_tipos (nome, cor, ordem, padrao) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (nome) DO NOTHING RETURNING id`,
+        [nome, cor, ordem, padrao]
+      );
+      if (!rows[0]) throw new HttpError(409, 'Já existe um tipo com esse nome');
+      const novoId = Number(rows[0].id);
+      if (padrao) await exec('UPDATE pcp_tipos SET padrao = FALSE WHERE id <> $1', [novoId]);
+      return novoId;
+    });
+    await audit(req.session.user.id, 'pcp', 'tipo.create', { entityType: 'pcp_tipo', entityId: id });
+    res.status(201).json({ id });
+  })
+);
+
+r.put(
+  '/tipos',
+  requirePerm('tipos', 'editar'),
+  requireCsrf,
+  ah(async (req, res) => {
+    const id = Number(req.query.id || 0);
+    if (!id) throw new HttpError(400, 'ID obrigatório');
+    const d = req.body || {};
+    if (d.cor != null && !COR_RE.test(String(d.cor))) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
+    if (d.nome != null && (!String(d.nome).trim() || String(d.nome).length > 40))
+      throw new HttpError(422, 'Nome inválido');
+    await emTransacao(async (exec) => {
+      const { rows: cur } = await exec('SELECT nome FROM pcp_tipos WHERE id = $1', [id]);
+      if (!cur[0]) throw new HttpError(404, 'Tipo não encontrado');
+      const novoNome = d.nome != null ? String(d.nome).trim() : null;
+      let result;
+      try {
+        result = await exec(
+          `UPDATE pcp_tipos SET nome = COALESCE($2, nome), cor = COALESCE($3, cor),
+                  ordem = COALESCE($4, ordem), padrao = COALESCE($5, padrao)
+           WHERE id = $1`,
+          [
+            id,
+            novoNome,
+            d.cor != null ? String(d.cor) : null,
+            d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
+            typeof d.padrao === 'boolean' ? d.padrao : null,
+          ]
+        );
+      } catch (e) {
+        if (e.code === '23505') throw new HttpError(409, 'Já existe um tipo com esse nome');
+        throw e;
+      }
+      if (result.rowCount === 0) throw new HttpError(404, 'Tipo não encontrado');
+      // Renomear reflete nos itens já cadastrados (tipo é armazenado como texto).
+      if (novoNome && novoNome !== cur[0].nome)
+        await exec('UPDATE pcp_itens SET tipo = $2, updated_at = now() WHERE tipo = $1', [cur[0].nome, novoNome]);
+      if (d.padrao === true) await exec('UPDATE pcp_tipos SET padrao = FALSE WHERE id <> $1', [id]);
+    });
+    await audit(req.session.user.id, 'pcp', 'tipo.update', { entityType: 'pcp_tipo', entityId: id });
+    res.json({ ok: true });
+  })
+);
+
+r.delete(
+  '/tipos',
+  requirePerm('tipos', 'editar'),
+  requireCsrf,
+  ah(async (req, res) => {
+    const id = Number(req.query.id || 0);
+    if (!id) throw new HttpError(400, 'ID obrigatório');
+    const { rows: cur } = await q('SELECT nome, padrao FROM pcp_tipos WHERE id = $1', [id]);
+    if (!cur[0]) throw new HttpError(404, 'Tipo não encontrado');
+    if (cur[0].padrao)
+      throw new HttpError(422, 'Não é possível excluir o tipo padrão. Defina outro tipo como padrão antes.');
+    const { rows: uso } = await q('SELECT COUNT(*)::int AS c FROM pcp_itens WHERE tipo = $1', [cur[0].nome]);
+    await q('DELETE FROM pcp_tipos WHERE id = $1', [id]);
+    await audit(req.session.user.id, 'pcp', 'tipo.delete', { entityType: 'pcp_tipo', entityId: id });
     res.json({ ok: true, itens_afetados: uso[0].c });
   })
 );
