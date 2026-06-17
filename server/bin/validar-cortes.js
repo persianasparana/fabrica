@@ -56,13 +56,14 @@ for (const c of casos) {
   }
 }
 
-// Demonstra o erro de unidade: medida em metros gera corte negativo (igual à planilha).
-console.log('\n[demonstração] mesma peça com medida em METROS (1.54 × 1.31) — resultado inválido:');
-const ruim = calcularCortes(
+// O pedido vem em metros; o sistema converte para cm no preenchimento (×100).
+console.log('\n[conversão] pedido em METROS (1.54) → o sistema multiplica por 100 → 154 cm:');
+const mParaCm = (m) => Math.round(m * 10000) / 100;
+const conv = calcularCortes(
   [{ nome: 'Tubo 32mm Natural', formula: 'L - 2.2' }],
-  { L: 1.54, A: 1.31, largura: 1.54, altura: 1.31 }
+  { L: mParaCm(1.54), A: mParaCm(1.31), largura: mParaCm(1.54), altura: mParaCm(1.31) }
 );
-console.log(`  Tubo 32mm Natural: ${ruim[0].valor}  → negativo = medida foi digitada em metros, não cm.`);
+console.log(`  1.54 m → ${mParaCm(1.54)} cm → Tubo 32mm Natural: ${conv[0].valor} cm  (correto)`);
 
 console.log(falhas ? `\n✗ ${falhas} divergência(s) com a planilha.` : '\n✓ Todos os cortes batem com a planilha.');
 process.exit(falhas ? 1 : 0);

@@ -1153,6 +1153,17 @@ function renderPedidoEditor() {
 }
 
 // ── Medidas por peça (largura/altura + furos/modelo p/ horizontais) ──────────
+// O pedido do outro sistema vem em METROS; o corte desce em CENTÍMETROS. Por isso
+// as medidas são digitadas em metros e o sistema converte (×100) para cm — que é
+// a unidade que as fórmulas de corte esperam. Armazenamento e cálculo: sempre cm.
+function mParaCm(m) {
+  if (m == null || m === '' || !Number.isFinite(Number(m))) return null;
+  return Math.round(Number(m) * 10000) / 100; // 1,54 m → 154 cm (2 casas)
+}
+function cmParaM(cm) {
+  if (cm == null || cm === '' || !Number.isFinite(Number(cm))) return '';
+  return Math.round(Number(cm) * 100) / 10000; // 154 cm → 1.54 m
+}
 function ehHorizontal(item) {
   if (!item) return false;
   const fam = String(item.familia || '').toUpperCase();
@@ -1183,8 +1194,8 @@ function renderPedidoMedidas(itens) {
       <div style="overflow-x:auto"><table style="width:100%;font-size:11px">
         <thead><tr>
           <th style="width:34px">#</th>
-          <th style="width:90px">Largura</th>
-          <th style="width:90px">Altura</th>
+          <th style="width:90px">Largura (m)</th>
+          <th style="width:90px">Altura (m)</th>
           ${horiz?'<th style="width:70px">Furos</th><th>Modelo</th>':''}
           <th style="width:64px"></th>
         </tr></thead>
@@ -1193,8 +1204,8 @@ function renderPedidoMedidas(itens) {
             const med = p.medidas || {};
             return `<tr>
               <td style="font-weight:700">#${p.numero}</td>
-              <td><input type="number" step="0.001" id="pm-larg-${p.id}" value="${p.largura!=null?esc(p.largura):''}" placeholder="L" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
-              <td><input type="number" step="0.001" id="pm-alt-${p.id}" value="${p.altura!=null?esc(p.altura):''}" placeholder="A" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+              <td><input type="number" step="0.001" id="pm-larg-${p.id}" value="${p.largura!=null?esc(cmParaM(p.largura)):''}" placeholder="ex: 1,54" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+              <td><input type="number" step="0.001" id="pm-alt-${p.id}" value="${p.altura!=null?esc(cmParaM(p.altura)):''}" placeholder="ex: 1,31" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
               ${horiz?`
                 <td><input type="number" step="1" id="pm-furos-${p.id}" value="${med.furos!=null?esc(med.furos):''}" placeholder="nº" style="width:60px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
                 <td><input type="text" id="pm-modelo-${p.id}" value="${med.modelo!=null?esc(med.modelo):''}" placeholder="modelo" style="width:100%;min-width:90px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>`:''}
@@ -1210,12 +1221,14 @@ function renderPedidoMedidas(itens) {
 async function salvarMedidaPeca(pecaId, horiz) {
   const larg = document.getElementById('pm-larg-'+pecaId);
   const alt = document.getElementById('pm-alt-'+pecaId);
+  const largM = larg && larg.value !== '' ? Number(larg.value) : null; // metros
+  const altM = alt && alt.value !== '' ? Number(alt.value) : null;
   const body = {
-    largura: larg && larg.value !== '' ? Number(larg.value) : null,
-    altura:  alt && alt.value !== '' ? Number(alt.value) : null,
+    largura: mParaCm(largM), // armazena em cm (unidade do cálculo)
+    altura:  mParaCm(altM),
   };
-  if ((body.largura != null && body.largura > 0 && body.largura < 10) || (body.altura != null && body.altura > 0 && body.altura < 10))
-    toast('Atenção: medidas em centímetros (ex.: 154, não 1,54).');
+  if ((largM != null && largM > 10) || (altM != null && altM > 10))
+    toast('Atenção: a medida é em metros (ex.: 1,54). O valor parece estar em cm — confira.');
   if (horiz) {
     const medidas = {};
     const furosEl = document.getElementById('pm-furos-'+pecaId);
@@ -1536,8 +1549,10 @@ function adicionarProdutoPedido() {
   const horiz = ehHorizontal({ produto, produto_id });
   const largEl = document.getElementById('fn-larg');
   const altEl = document.getElementById('fn-alt');
-  const larg = largEl && largEl.value !== '' ? Number(largEl.value) : null;
-  const alt = altEl && altEl.value !== '' ? Number(altEl.value) : null;
+  const largM = largEl && largEl.value !== '' ? Number(largEl.value) : null; // metros (como vem do pedido)
+  const altM = altEl && altEl.value !== '' ? Number(altEl.value) : null;
+  const larg = mParaCm(largM); // converte para cm (unidade do cálculo)
+  const alt = mParaCm(altM);
   const medidas = {};
   if (horiz) {
     const furosEl = document.getElementById('fn-furos');
@@ -1546,8 +1561,8 @@ function adicionarProdutoPedido() {
     if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
   }
 
-  if ((larg != null && larg > 0 && larg < 10) || (alt != null && alt > 0 && alt < 10))
-    toast('Atenção: informe as medidas em centímetros (ex.: 154, não 1,54).');
+  if ((largM != null && largM > 10) || (altM != null && altM > 10))
+    toast('Atenção: a medida é em metros (ex.: 1,54). O valor parece estar em cm — confira.');
 
   pedidoProdutos.push({
     produto,
