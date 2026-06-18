@@ -58,4 +58,16 @@ npm start                  # ou: npm run dev  (com --watch)
 Configuração por ambiente (ver `.env.example`): conexão PostgreSQL, `SESSION_SECRET`,
 `TRUST_PROXY`/`COOKIE_SECURE` (atrás de HTTPS), `SERVE_STATIC`, rate limiting.
 
+### Recuperar senha (esqueceu a do admin)
+
+Pelo servidor, na pasta `server/` (não há tela de "esqueci a senha"):
+
+```bash
+node bin/reset-senha.js --listar              # ver os usuários/admins
+node bin/reset-senha.js <usuario> <novaSenha> # redefine (mín. 8 caracteres)
+```
+
+Reativa o usuário e limpa o bloqueio por tentativas. Sem a senha no comando,
+ele pergunta. (Equivale a `npm run reset-senha -- <usuario> <novaSenha>`.)
+
 Implantação em produção: [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md).
