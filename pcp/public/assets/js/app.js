@@ -701,7 +701,7 @@ async function renderUsuariosAdmin() {
   cont.innerHTML = '<div style="color:var(--text3);font-size:12px">Carregando...</div>';
   try {
     const r = await api('pcp/usuarios');
-    usuariosCache = r.data || [];
+    usuariosCache = (r.data || []).map((u) => ({ ...u, id: Number(u.id), setores: (u.setores || []).map(Number) }));
   } catch(e){ cont.innerHTML = `<div style="color:var(--red);font-size:12px">${esc(e.message)}</div>`; return; }
   cont.innerHTML = `
     <div style="margin-bottom:12px"><button class="btn btn-red" onclick="abrirUsuarioEditor()">+ Novo usuário</button></div>
@@ -720,7 +720,7 @@ async function renderUsuariosAdmin() {
 }
 
 function abrirUsuarioEditor(id) {
-  const u = id ? usuariosCache.find(x=>x.id===id) : null;
+  const u = id ? usuariosCache.find(x=>Number(x.id)===Number(id)) : null;
   const perms = (u && u.permissoes) || {};
   const setoresU = (u && u.setores) || [];
   document.getElementById('modal-title').textContent = u ? `Usuário: ${u.username}` : 'Novo usuário';
