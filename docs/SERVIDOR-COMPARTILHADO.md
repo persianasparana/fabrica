@@ -1,23 +1,26 @@
 # Servidor compartilhado — regras para o fabrica
 
 O `fabrica` é implantado no servidor **`aplicativos` (192.168.0.207, Ubuntu 24.04)**,
-que **já roda dois sistemas em produção**: **Logística/Persianas** e
-**Agenda de Consultores**. Este resumo lista o que o fabrica deve respeitar.
+que **já roda outros sistemas em produção**: **Logística/Persianas**, **Agenda de
+Consultores**, **RH** e **Financeiro**. Este resumo lista o que o fabrica deve respeitar.
 
-> Fontes canônicas (mantidas nos outros repositórios):
-> `logistica/docs/INFRAESTRUTURA-COMPARTILHADA.md`,
-> `logistica/docs/MAPA-SERVIDOR-PARA-NOVOS-APPS.md`,
+> Fonte canônica única da infra (idêntica nos 6 repos): **`docs/MAPA-DO-SERVIDOR.md`**.
+> Detalhes adicionais: `logistica/docs/INFRAESTRUTURA-COMPARTILHADA.md`,
 > `logistica/docs/ACESSO-TAILSCALE.md`.
 
 ## Reservado — NÃO usar / NÃO tocar
 
 | Tipo | Reservado |
 |---|---|
-| Portas | 22, 80, 443, 3000, 3001, 3010, 3011, 5432 |
-| Processos PM2 | `persianas-api`, `agenda-api`, `agenda-admin` |
-| Bancos | `persianas_db`, `agenda_consultores` (e usuários `persianas_user`, `persianas`) |
-| Filesystem | `/var/www/persianas`, `/var/www/agenda` |
-| Nginx | qualquer `server`/`location` já existente (incl. `/`, `/api/`, `/uploads/`, `/app/`, `/agenda/`) |
+| Portas | 22, 80, 443, 3000, 3010, 3011, **3030 (RH)**, **3040 (Financeiro)**, 5432 |
+| Processos PM2 | `persianas-api`, `agenda-api`, `agenda-admin`, `rh-api`, `financeiro-api` |
+| Bancos | `persianas_db`, `agenda_consultores`, `rh_db`, `financeiro_db` (usuários `persianas_user`, `persianas`, `rh_user`, `financeiro_user`) |
+| Filesystem | `/var/www/persianas`, `/var/www/agenda`, `/var/www/rh`, `/var/www/financeiro` |
+| Nginx | qualquer `server`/`location` já existente (incl. `/`, `/api/`, `/uploads/`, `/app/`, `/agenda/`, `/rh/`, `/financeiro/`) |
+
+> ⚠️ **Correção (26/06/2026):** a porta **3001 NÃO é reservada** — versões antigas deste doc a listavam,
+> mas o diagnóstico do servidor confirmou que nada escuta nela. RH (3030) e Financeiro (3040) entraram
+> depois e estão de pé.
 
 **Nunca** rodar comandos globais sem alinhar: `pm2 kill`, `pm2 delete all`,
 `pm2 startup`, `systemctl restart nginx` sem testar, editar `nginx.conf`/
