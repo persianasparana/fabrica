@@ -37,6 +37,11 @@
 | **Fábrica** | 3020 | `127.0.0.1` ✅ | `fabrica-server` | `fabrica_db` | `fabrica_user` / `fabrica_user` | `/fabrica/` | `/var/www/fabrica` | `/healthz` |
 | **RH** | 3030 | `0.0.0.0` ⚠️ | `rh-api` | `rh_db` | `rh_user` / `rh_user` | `/rh/` | `/var/www/rh` | `/api/health` |
 | **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
+| **Compras** 🔜 | 3050 | `127.0.0.1` | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
+
+🔜 **Compras: planejado, ainda não deployado.** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
+stack dos outros). Infra reservada aqui; implementação na [ADR-0007](adr/0007-federar-apps-existentes.md)
+e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (só Nginx exposto).
 
 **Legenda dos health paths** (atenção — **não são padronizados**): Logística/RH/Financeiro usam
 `/api/health`; **Agenda usa `/health`**; **Fábrica usa `/healthz`**.
@@ -59,9 +64,10 @@
 | 3020 | `fabrica-server` | |
 | 3030 | `rh-api` | |
 | 3040 | `financeiro-api` | |
+| **3050** | `compras-api` (Compras) | 🔜 reservada; planejada, ainda não deployada |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
-| 3050+ | livre | próxima porta sugerida p/ novo app |
+| 3060+ | livre | próxima porta sugerida p/ novo app |
 
 ---
 
