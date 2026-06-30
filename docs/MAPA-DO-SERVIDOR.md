@@ -6,6 +6,8 @@
 > portas em outros docs — aponte para este arquivo.
 >
 > **Última verificação contra o servidor real:** 2026-06-26 (via `diag-servidor.sh`, ver §8).
+> **Última revisão dos repositórios:** 2026-06-30 — lido o repo `compras` (estado do ERP/Compras + Bling)
+> e o estado do **Pedido unificado** na Agenda (v2.23.0). Ver §6 (conflito aberto do Compras) e §2.
 
 ---
 
@@ -37,11 +39,11 @@
 | **Fábrica** | 3020 | `127.0.0.1` ✅ | `fabrica-server` | `fabrica_db` | `fabrica_user` / `fabrica_user` | `/fabrica/` | `/var/www/fabrica` | `/healthz` |
 | **RH** | 3030 | `0.0.0.0` ⚠️ | `rh-api` | `rh_db` | `rh_user` / `rh_user` | `/rh/` | `/var/www/rh` | `/api/health` |
 | **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
-| **Compras** 🔜 | 3050 | `127.0.0.1` | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
 
-🔜 **Compras: planejado, ainda não deployado.** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
-stack dos outros). Infra reservada aqui; implementação na [ADR-0007](adr/0007-federar-apps-existentes.md)
-e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (só Nginx exposto).
+**Compras** não é um app deste servidor (ver §6): o domínio de Compras é desenvolvido **dentro do
+ERP** (`persianasparana/ERP`, React/tRPC/Drizzle/MySQL). O repo `compras` é **só documentação**.
+O ERP **não roda em `aplicativos`** (diagnóstico de 26/06: sem MySQL/processo/porta). A porta 3050
+foi pré-reservada, mas a forma do Compras está **em conflito aberto** — ver §6.
 
 **Legenda dos health paths** (atenção — **não são padronizados**): Logística/RH/Financeiro usam
 `/api/health`; **Agenda usa `/health`**; **Fábrica usa `/healthz`**.
@@ -64,7 +66,7 @@ e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (s
 | 3020 | `fabrica-server` | |
 | 3030 | `rh-api` | |
 | 3040 | `financeiro-api` | |
-| **3050** | `compras-api` (Compras) | 🔜 reservada; planejada, ainda não deployada |
+| **3050** | (Compras) | ⚠️ pré-reservada, mas **condicional** — só vale se Compras virar app deste servidor (ver §6, conflito aberto). Hoje Compras vive no ERP. |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
 | 3060+ | livre | próxima porta sugerida p/ novo app |
@@ -108,23 +110,38 @@ Roles com login: `persianas`, `persianas_user`, `fabrica_user`, `rh_user`, `fina
 
 ---
 
-## 6. ERP / Compras — **PLANEJADO, não deployado neste servidor** (2026-06-26)
+## 6. ERP / Compras — estado real (revisado 2026-06-30, lendo o repo `compras`)
 
-O repositório `compras` é **documentação**; o código vive no repo `persianasparana/ERP`
-(stack **React 19 + tRPC 11 + Drizzle + MySQL `erp_persianas`** — diferente dos 5 apps acima).
+O repositório `compras` é **só documentação** (hub do domínio). O **código de Compras vive dentro do
+ERP** (`persianasparana/ERP`, **React 19 + tRPC 11 + Drizzle + MySQL**), que **já é um sistema grande e
+ativo** (~150 testes) com um **módulo de Compras profundo**: Ordem de Compra com parcelas, Solicitações,
+Recebimento, **Tabela de Preços por fornecedor (Metro/Bobina)**, Fichas de Bobina, Remessas de
+Industrialização, Não-Conformidades, Estoque (saldo/mínimo/ponto de pedido/movimentações/rolos/retalhos/
+inventário), NF de Entrada → Estoque e Financeiro (contas a pagar), e **PCP com curva ABC**.
 
-**Diagnóstico de 2026-06-26 confirmou que o ERP NÃO roda em `aplicativos`:** sem MySQL instalado,
-sem processo, sem porta escutando, sem `/var/www/erp`. Quando for deployado, reservar porta (3050+),
-instalar MySQL ao lado do PostgreSQL e adicionar `location /compras/` no Nginx.
+**Entregue no ERP** (commit `ccea117`, branch `claude/peaceful-lovelace-85pjad`): **integração Bling**
+pré-configurada (OAuth2 API v3; sync produtos→componentes, saldos→estoque, contatos→fornecedores; logs;
+tela `/compras/bling`). `tsc` 0 erros, **155 testes**, build ok. Ainda **não ativado em servidor**
+(faltam `db:push`, criar app no Bling, conectar/sincronizar). Detalhes: `compras/docs/04` e `05`.
 
-### ⚠️ Decisão de integração EM ABERTO (fonte da verdade)
-O ERP tem módulos de **Financeiro** (`contas_pagar`) e **PCP**, mas já existem como apps
-standalone: **Financeiro (3040, PostgreSQL)** e **Fábrica/PCP (3020, PostgreSQL)**. É preciso
-decidir quem é a fonte da verdade antes de integrar — senão haverá dado duplicado:
+**Onde roda:** o ERP **NÃO está em `aplicativos`** (diagnóstico 26/06: sem MySQL/processo/porta). Logo
+está em outro ambiente (dev) ou ainda não deployado em produção. **A confirmar.**
 
-- [ ] Apps standalone (3040/3020) são a fonte; ERP consome via HTTP?
-- [ ] ERP absorve Financeiro/PCP; standalone viram transitórios?
-- [ ] Convivência com sincronização bidirecional definida?
+### 🔴 CONFLITO ABERTO — duas decisões opostas sobre Compras (precisa o cliente decidir)
+Duas conversas decidiram caminhos **incompatíveis** para o Compras:
+
+| Origem | Decisão | Implicação |
+|---|---|---|
+| Repo `compras` (00-CONTEXTO, jun/2026) | **Evoluir Compras DENTRO do ERP** (MySQL/tRPC); repo `compras` é doc; Bling como ponte | Compras = módulo do ERP; nada de app na 3050 |
+| Esta conversa, [ADR-0007](adr/0007-federar-apps-existentes.md) | **Federar apps Node/PostgreSQL**; ERP "fora de escopo"; Compras como 6º app (3050) | Compras = app Node próprio; ERP de lado |
+
+**Não podem coexistir.** Enquanto não for resolvido, a porta 3050 e o ADR-0007 estão **suspensos**.
+Recomendação: **decidir explicitamente** (a) Compras no ERP (e então definir como o ERP conversa com os
+5 apps Node), ou (b) Compras como app Node federado (e então o módulo do ERP/Bling é descartado/portado).
+
+### ⚠️ Fonte da verdade Financeiro/PCP (relacionado)
+O ERP tem módulos de **Financeiro** e **PCP**, que também existem como apps standalone
+(Financeiro 3040, Fábrica/PCP 3020). Mesma decisão de "quem é o dono" continua em aberto (ver ADR-0003).
 
 ---
 
