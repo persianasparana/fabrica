@@ -6,6 +6,8 @@
 > portas em outros docs — aponte para este arquivo.
 >
 > **Última verificação contra o servidor real:** 2026-06-26 (via `diag-servidor.sh`, ver §8).
+> **Atualização 2026-06-30:** Compras **deployado** (PM2 `compras-api` on-line, banco `compras_db`
+> criado, Nginx `/compras/` roteado) e **integração Fase 4 (Compras→Financeiro: NF→conta a pagar) ativa**.
 
 ---
 
@@ -37,11 +39,13 @@
 | **Fábrica** | 3020 | `127.0.0.1` ✅ | `fabrica-server` | `fabrica_db` | `fabrica_user` / `fabrica_user` | `/fabrica/` | `/var/www/fabrica` | `/healthz` |
 | **RH** | 3030 | `0.0.0.0` ⚠️ | `rh-api` | `rh_db` | `rh_user` / `rh_user` | `/rh/` | `/var/www/rh` | `/api/health` |
 | **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
-| **Compras** 🔜 | 3050 | `127.0.0.1` | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
+| **Compras** ✅ | 3050 | `127.0.0.1` ✅ | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
 
-🔜 **Compras: planejado, ainda não deployado.** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
-stack dos outros). Infra reservada aqui; implementação na [ADR-0007](adr/0007-federar-apps-existentes.md)
-e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (só Nginx exposto).
+✅ **Compras: deployado (2026-06-30).** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
+stack dos outros). PM2 `compras-api` on-line, bind `127.0.0.1`, banco `compras_db`/`compras_user`,
+Nginx `/compras/` roteado. Detalhes na [ADR-0007](adr/0007-federar-apps-existentes.md) e
+[`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). **Integração Fase 4 ativa** (NF→conta a
+pagar no Financeiro; ver §7 e `docs/INTEGRACAO-FINANCEIRO-FASE4.md`).
 
 **Legenda dos health paths** (atenção — **não são padronizados**): Logística/RH/Financeiro usam
 `/api/health`; **Agenda usa `/health`**; **Fábrica usa `/healthz`**.
@@ -64,7 +68,7 @@ e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (s
 | 3020 | `fabrica-server` | |
 | 3030 | `rh-api` | |
 | 3040 | `financeiro-api` | |
-| **3050** | `compras-api` (Compras) | 🔜 reservada; planejada, ainda não deployada |
+| **3050** | `compras-api` (Compras) | ✅ ativo (deployado 2026-06-30) |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
 | 3060+ | livre | próxima porta sugerida p/ novo app |
@@ -84,11 +88,13 @@ e [`PLANO-INTEGRACAO-ERP.md`](PLANO-INTEGRACAO-ERP.md). Bindar em `127.0.0.1` (s
 /rh/                    → http://127.0.0.1:3030/              (RH)
 /financeiro/api/        → http://127.0.0.1:3040/api/          (Financeiro backend)
 /financeiro/            → alias /var/www/financeiro/painel/   (painel estático)
-/compras  /compras/*    → ❌ NÃO existe rota. Hoje cai no catch-all `/` (index da Logística → 200 falso).
+/compras/api/           → http://127.0.0.1:3050/api/          (Compras backend)
+/compras/               → alias /var/www/compras/painel/      (painel estático)
 ```
 
-> ⚠️ **`/compras` responde 200 hoje por engano** (catch-all da Logística serve o `index.html`).
-> Não há app de Compras servido aqui. Ver §6.
+> ✅ **`/compras/` roteado (2026-06-30)** via `snippets/compras.conf` (idempotente por
+> `compras/deploy/nginx-apply.sh`). Usa `^~` + `types{}` explícito (bug #4). Callback do Bling:
+> `/compras/api/integracoes/bling/callback` → `:3050/api/integracoes/bling/callback`.
 
 ---
 
@@ -100,29 +106,31 @@ agenda_consultores    dono: persianas           tabelas: persianas (63)   ⚠️
 fabrica_db            dono: fabrica_user         tabelas: fabrica_user (15)
 rh_db                 dono: rh_user              tabelas: rh_user (15)
 financeiro_db         dono: financeiro_user      tabelas: financeiro_user (12)
+compras_db            dono: compras_user         tabelas: compras_user (19)
 ```
-Roles com login: `persianas`, `persianas_user`, `fabrica_user`, `rh_user`, `financeiro_user`, `postgres`.
+Roles com login: `persianas`, `persianas_user`, `fabrica_user`, `rh_user`, `financeiro_user`, `compras_user`, `postgres`.
 
 > ⚠️ A **Agenda** usa o role compartilhado **`persianas`** (não há `agenda_user`). Os demais apps
 > têm role dedicado. Considerar criar `agenda_user` no futuro (migração de owner — cuidado).
 
 ---
 
-## 6. Compras — **app Node/PostgreSQL (scaffold pronto, não deployado)** (atualizado 2026-06-30)
+## 6. Compras — **app Node/PostgreSQL (deployado 2026-06-30)** (atualizado 2026-06-30)
 
 Desde a [ADR-0007](adr/0007-federar-apps-existentes.md), o **código do Compras vive no
 repo `compras`** (não mais no ERP MySQL) como **6º app Node/Express + PostgreSQL** — mesma
 stack dos outros 5. O repo deixou de ser "só documentação".
 
-**Estado (30/06):** scaffold implementado e testado localmente — `backend/` com `server.js`
-(porta 3050, bind `127.0.0.1`, health `compras-api`), auth JWT, middleware `X-Service-Key`
-(ADR-0008), `migrations/001_schema.sql`, rotas `/api/v1/{auth,fornecedores,produtos,estoque,
-ordens-compra,bling}`, **integração Bling** (OAuth2 v3 + sync), `painel/` e `deploy/`.
-`npm test` + boot `/api/health` validados. Ver `compras/docs/STATUS-COMPRAS.md`.
+**Estado (30/06): em produção.** `backend/server.js` (porta 3050, bind `127.0.0.1`, health
+`compras-api`), auth JWT + middleware `X-Service-Key` (ADR-0008), migrations `001`→`004`, rotas
+`/api/v1/{auth,fornecedores,produtos,estoque,ordens-compra,notas-fiscais,nao-conformidades,
+fichas-bobina,dashboard,analises,simuladores,bling}`, **integração Bling** (OAuth2 v3 + sync),
+`painel/` e `deploy/`. PM2 `compras-api` on-line, banco `compras_db`/`compras_user` criado,
+Nginx `/compras/` roteado. Ver `compras/docs/STATUS-COMPRAS.md` e `GUIA-DO-INTEGRADOR.md`.
 
-**Falta deployar em `aplicativos`:** criar role/banco `compras_user`/`compras_db`, copiar o
-`.env`, rodar `init-db`, subir PM2 `compras-api` e incluir `snippets/compras.conf` no Nginx
-(corrige o `/compras` que hoje cai no catch-all). Passo a passo em `compras/deploy/setup.sh`.
+**Integração Fase 4 (ativa):** ao lançar NF manual (`gera_conta_pagar=TRUE`), o Compras faz push
+ao Financeiro (`:3040`) criando conta a pagar, via `X-Service-Key` (mesma `SERVICE_KEY` nos dois
+`.env`). Idempotente + reconciliação. Ver `compras/docs/INTEGRACAO-FINANCEIRO-FASE4.md`.
 
 ### ✅ Decisão de fonte da verdade (resolvida)
 O **ERP MySQL/tRPC ficou fora de escopo** (ADR-0007). Não há mais duplicação a decidir:
@@ -136,8 +144,11 @@ instalado neste servidor.
 
 - Comunicação **HTTP REST entre backends** — **nunca** cross-database query.
 - Não há SSO: Logística (JWT+2FA), Agenda (JWT RS256), Fábrica (sessão+cookie), RH/Financeiro (JWT).
+- Auth serviço-a-serviço por header **`X-Service-Key`** (ADR-0008): mesma `SERVICE_KEY` no `.env`
+  dos dois lados. **Ativa hoje:** Compras (`:3050`) → Financeiro (`:3040`), endpoint
+  `POST /api/v1/integracao/contas-pagar` (Fase 4 — NF vira conta a pagar).
 - Integrações com escopo a definir: Logística↔Fábrica/PCP, Logística↔Agenda (clientes),
-  Compras(ERP)↔Financeiro/PCP (ver §6, cross-host quando o ERP subir).
+  Fábrica/PCP↔Compras (Fase 3 — solicitação de insumo), Agenda(Pedido)↔Financeiro (contas a receber).
 - Fábrica expõe `POST /api/pcp/itens/lote` como ponto de extensão p/ importação de pedidos.
 
 ---
@@ -157,6 +168,11 @@ mudança de infra e atualize a §2/§3 deste arquivo.
 ---
 
 ## 9. Histórico de correções de documentação
+
+**2026-06-30** — **Compras deployado + integração Fase 4.** §2/§3: Compras `:3050` de "🔜 planejado"
+→ **✅ ativo**. §4: `/compras/` deixou de cair no catch-all → roteado (`snippets/compras.conf`).
+§5: banco `compras_db`/`compras_user` (19 tabelas) adicionado. §6: estado → em produção. §7:
+registrada a 1ª integração serviço-a-serviço ativa (Compras→Financeiro, `X-Service-Key`).
 
 **2026-06-26** — primeira auditoria cruzada dos 6 repos contra o servidor real. Corrigido:
 - Lista de portas da Logística (`INFRAESTRUTURA-COMPARTILHADA.md`) ia só até 3020 → faltavam RH(3030) e Financeiro(3040).
