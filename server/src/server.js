@@ -17,6 +17,7 @@ import authRoutes from './routes/auth.js';
 import pcpRoutes from './routes/pcp.js';
 import adminRoutes from './routes/admin.js';
 import qualidadeRoutes from './routes/qualidade.js';
+import comercialRoutes from './routes/comercial.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
@@ -81,6 +82,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/pcp', pcpRoutes);
 app.use('/api/pcp', adminRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
+// Ciclo do pedido (Fase B) — avaliação do PCP + produção (Comercial :3010)
+app.use('/api/comercial', comercialRoutes);
 
 // Frontends estáticos (opcional — o Nginx também pode servir diretamente)
 if (process.env.SERVE_STATIC !== '0') {

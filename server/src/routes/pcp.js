@@ -56,7 +56,7 @@ const SELECT_ITEM = `
 const fmtItem = async (id, exec = q) =>
   (await exec(`${SELECT_ITEM} WHERE i.id = $1`, [id])).rows[0];
 
-function validarItem(d, partial = false) {
+export function validarItem(d, partial = false) {
   if (!partial) {
     if (!d.produto || !String(d.produto).trim()) throw new HttpError(422, 'Produto é obrigatório');
     if (!d.pedido || !String(d.pedido).trim()) throw new HttpError(422, 'Número do pedido é obrigatório');
@@ -103,7 +103,7 @@ async function sincronizarConclusaoItem(exec, itemId) {
 /** Insere item + suas peças (dentro da transação do chamador).
  *  `etiqueta` (opcional) é vinculada à peça 1 — bipada no cadastro do pedido;
  *  nesse caso a chegada ao PCP é registrada automaticamente se não informada. */
-async function inserirItem(client, d, userId) {
+export async function inserirItem(client, d, userId) {
   const exec = client.query.bind(client);
   const conclusao = orNull(d.conclusao);
   const qnt = Number(d.qnt) || 1;
@@ -149,7 +149,7 @@ function trataEtiquetaDuplicada(e) {
 }
 
 /** Executa fn dentro de uma transação. */
-async function emTransacao(fn) {
+export async function emTransacao(fn) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

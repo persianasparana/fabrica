@@ -67,7 +67,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo'];
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','comercial'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -204,7 +204,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',status:'Status de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -214,6 +214,7 @@ function goTo(page) {
   document.getElementById('page-title').textContent = titles[page];
   if (page === 'fila') renderFila();
   if (page === 'alertas') renderAlertas();
+  if (page === 'comercial') renderComercial();
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
