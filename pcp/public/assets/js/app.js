@@ -81,6 +81,7 @@ function aplicarPermissoes() {
   document.querySelectorAll('#sidebar nav a[data-page]').forEach((a) => {
     const aba = a.dataset.page;
     if (a.hasAttribute('data-admin')) return; // abas de admin já tratadas acima
+    if (aba === 'manual') return; // o Manual é visível pra todos os logados
     a.style.display = podeVer(aba) ? '' : 'none';
   });
   const nb = document.getElementById('btn-novo-topo');
@@ -216,7 +217,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -233,6 +234,7 @@ function goTo(page) {
   if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
   if (page === 'etiquetas') { renderEtiquetas(); setTimeout(()=>document.getElementById('etq-pedidos')?.focus(), 80); }
   if (page === 'expedicao') { renderExpedicao(); setTimeout(()=>document.getElementById('exp-codigo')?.focus(), 80); }
+  if (page === 'manual') renderManual();
   if (page === 'status') renderStatusAdmin();
   if (page === 'tipos') renderTiposAdmin();
   if (page === 'setores') renderSetoresAdmin();

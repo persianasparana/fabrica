@@ -16,6 +16,7 @@
 <script src="assets/js/etiquetas.js" defer></script>
 <script src="assets/js/regras-estrutura.js" defer></script>
 <script src="assets/js/expedicao.js" defer></script>
+<script src="assets/js/manual.js" defer></script>
 </head>
 <div id="app">
 
@@ -97,6 +98,10 @@
     <a onclick="goTo('novo')" data-page="novo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span>Novo Pedido</span>
+    </a>
+    <a onclick="goTo('manual')" data-page="manual">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Manual</span>
     </a>
   </nav>
   <div class="sidebar-footer" id="sf-count"></div>
@@ -469,6 +474,11 @@
       <div id="exp-pedido-resultado"></div>
       <div id="exp-mapa"></div>
       <div id="exp-gavetas-admin"></div>
+    </div>
+
+    <!-- MANUAL DO USUÁRIO -->
+    <div class="section" id="sec-manual">
+      <div id="manual-conteudo"></div>
     </div>
 
     <!-- EDITAR PEDIDO (em massa) -->
