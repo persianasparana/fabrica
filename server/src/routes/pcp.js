@@ -40,6 +40,8 @@ const SELECT_ITEM = `
          to_char(i.conclusao,    'YYYY-MM-DD') AS conclusao,
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
+         i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
+         i.ambiente, i.atributos, i.comercial_item_id,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pc.pecas, '[]'::json) AS pecas
   FROM pcp_itens i
@@ -77,6 +79,14 @@ export function validarItem(d, partial = false) {
   if (d.observacoes && String(d.observacoes).length > 5000) throw new HttpError(422, 'Observações muito longas');
   if (d.etiqueta != null && String(d.etiqueta).trim().length > 64)
     throw new HttpError(422, 'Etiqueta muito longa (máx. 64 caracteres)');
+  // Spec estruturada (F1) — todos opcionais
+  if (d.cliente != null && String(d.cliente).length > 160) throw new HttpError(422, 'Nome de cliente muito longo');
+  for (const f of ['colecao', 'cor_tecido', 'cor_perfil', 'acionamento', 'ambiente']) {
+    if (d[f] != null && String(d[f]).length > 120) throw new HttpError(422, `Campo ${f} muito longo (máx. 120)`);
+  }
+  if (d.atributos !== undefined && d.atributos !== null &&
+      (typeof d.atributos !== 'object' || Array.isArray(d.atributos)))
+    throw new HttpError(422, 'Campo atributos deve ser um objeto { chave: valor }');
   if (d.status_id != null && d.status_id !== '' && !Number.isInteger(Number(d.status_id)))
     throw new HttpError(422, 'Status de produção inválido');
 }
@@ -130,10 +140,12 @@ export async function inserirItem(client, d, userId) {
   const { rows } = await exec(
     `INSERT INTO pcp_itens
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
-        conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by)
+        conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by,
+        cliente, colecao, cor_tecido, cor_perfil, acionamento, ambiente, atributos, comercial_item_id)
      VALUES ($1,$2,$3,$4,
              COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
-             $6,$7,$8,$9,$10,$11,$12,$13,$14)
+             $6,$7,$8,$9,$10,$11,$12,$13,$14,
+             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
@@ -141,6 +153,11 @@ export async function inserirItem(client, d, userId) {
       orNull(d.prev_producao), conclusao, orNull(d.data_cliente),
       tipo, d.motivo_atraso || '', (d.observacoes || '').trim(),
       d.especial === true, userId, etiqueta,
+      orNull(d.cliente), orNull(d.colecao), orNull(d.cor_tecido), orNull(d.cor_perfil),
+      orNull(d.acionamento), orNull(d.ambiente),
+      d.atributos && typeof d.atributos === 'object' && !Array.isArray(d.atributos)
+        ? JSON.stringify(d.atributos) : null,
+      orNull(d.comercial_item_id),
     ]
   );
   const id = Number(rows[0].id);
@@ -153,6 +170,16 @@ export async function inserirItem(client, d, userId) {
     await exec(
       'UPDATE pcp_pecas SET cod_barras = $2, vinculada_em = now() WHERE item_id = $1 AND numero = 1',
       [id, etiqueta]
+    );
+  }
+  // F2 — código PRÓPRIO por peça ("número de série" da peça manufaturada):
+  // PP<item>-<n>, curto e único; a peça já nasce vinculada (some o passo de
+  // "vincular etiqueta" do fluxo SYSOP). Usado na importação do Comercial.
+  if (d.gerar_etiquetas === true) {
+    await exec(
+      `UPDATE pcp_pecas SET cod_barras = 'PP' || item_id || '-' || numero, vinculada_em = now()
+       WHERE item_id = $1 AND cod_barras IS NULL`,
+      [id]
     );
   }
   // Medidas informadas já no cadastro alimentam o cálculo de cortes. Como cada

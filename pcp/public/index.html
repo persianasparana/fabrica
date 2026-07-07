@@ -10,8 +10,10 @@
 <link rel="stylesheet" href="assets/fonts/manrope.css">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/vendor/pdf.min.js" defer></script>
+<script src="assets/vendor/qrcode.js" defer></script>
 <script src="assets/js/app.js" defer></script>
 <script src="assets/js/comercial.js" defer></script>
+<script src="assets/js/etiquetas.js" defer></script>
 </head>
 <div id="app">
 
@@ -65,6 +67,10 @@
     <a onclick="goTo('ordemcorte')" data-page="ordemcorte">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
       <span>Ordem de Corte</span>
+    </a>
+    <a onclick="goTo('etiquetas')" data-page="etiquetas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><rect x="6" y="6" width="2" height="2"/><line x1="11" y1="9" x2="15" y2="13"/><line x1="9" y1="11" x2="13" y2="15"/></svg>
+      <span>Etiquetas</span>
     </a>
     <a onclick="goTo('status')" data-page="status" data-admin style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 18.8 6.2 21l.9-5.3L3.3 12l5.3-.8z"/></svg>
@@ -401,6 +407,25 @@
       <div id="oc-conteudo">
         <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Pré-visualizar”.</div>
       </div>
+    </div>
+
+    <!-- ETIQUETAS PRÓPRIAS -->
+    <div class="section" id="sec-etiquetas">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Pedidos (separe por vírgula)</label>
+            <input type="text" id="etq-pedidos" placeholder="Ex: PED-2026-0012, 18500" style="width:100%;font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')etqPreview()">
+          </div>
+          <button class="btn btn-black" onclick="etqPreview()">🔍 Pré-visualizar</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px">Uma etiqueta por peça, agrupadas por setor — cada setor usa o SEU modelo (parametrizável abaixo, pelo admin). O código da peça (PP…) é o mesmo em todas as etiquetas dela, como um número de série; peças antigas sem código ganham um na primeira impressão.</div>
+      </div>
+      <div id="etq-avisos"></div>
+      <div id="etq-conteudo">
+        <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Pré-visualizar”.</div>
+      </div>
+      <div id="etq-modelos-box" data-admin style="display:none"></div>
     </div>
 
     <!-- EDITAR PEDIDO (em massa) -->

@@ -123,12 +123,19 @@ r.post(
         dataCliente = d.toISOString().slice(0, 10);
       }
       const itens = (detalhe.itens || []).filter((it) => Number(it.quantidade) > 0);
-      const especs = (it) =>
-        [
-          it.colecao, it.corTecido,
-          Number(it.larguraCm) > 0 ? `${(Number(it.larguraCm) / 100).toFixed(2)}×${(Number(it.alturaCm) / 100).toFixed(2)}m` : null,
-          it.ambiente, it.observacoesTecnicas,
-        ].filter(Boolean).join(' · ');
+      const cliente = (detalhe.client && (detalhe.client.nome || detalhe.client.name)) || null;
+      // F1 — spec ESTRUTURADA: colunas próprias + atributos custom do formulário
+      // dinâmico do Comercial (alimentam etiquetas e as futuras regras de
+      // estrutura automática). Campos BASE sem coluna própria vão no JSONB.
+      const atributosDe = (it) => {
+        const a = (it.atributos && typeof it.atributos === 'object' && !Array.isArray(it.atributos))
+          ? { ...it.atributos } : {};
+        if (it.acabamento) a.acabamento = it.acabamento;
+        if (it.janela) a.janela = it.janela;
+        if (it.corComponentes) a.cor_componentes = it.corComponentes;
+        return a;
+      };
+      const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
       await emTransacao(async (exec, client) => {
         for (const it of itens) {
           await inserirItem(client, {
@@ -137,7 +144,20 @@ r.post(
             qnt: Math.min(Number(it.quantidade) || 1, 500),
             data_cliente: dataCliente,
             tipo: 'Produção nova',
-            observacoes: especs(it).slice(0, 5000),
+            observacoes: String(it.observacoesTecnicas || '').slice(0, 5000),
+            cliente: cliente ? String(cliente).slice(0, 160) : null,
+            colecao: s120(it.colecao),
+            cor_tecido: s120(it.corTecido),
+            cor_perfil: s120(it.corPerfil),
+            acionamento: s120(it.acionamento),
+            ambiente: s120(it.ambiente),
+            atributos: atributosDe(it),
+            comercial_item_id: it.id != null ? String(it.id).slice(0, 64) : null,
+            // medidas por peça (cm) — alimentam a Ordem de Corte e a etiqueta
+            largura: Number(it.larguraCm) > 0 ? Number(it.larguraCm) : null,
+            altura: Number(it.alturaCm) > 0 ? Number(it.alturaCm) : null,
+            // F2 — a peça já nasce com o código próprio PP<item>-<n>
+            gerar_etiquetas: true,
           }, req.session.user.id);
           importados += 1;
         }

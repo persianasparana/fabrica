@@ -139,7 +139,7 @@ async function comLiberar(id, codigo) {
     const r = await api(`comercial/pedidos/${id}/liberar`, { method: 'POST', body: {} });
     toast(r.jaNaFila
       ? `${codigo} liberado (itens já estavam na fila).`
-      : `${codigo} liberado — ${r.importados} item(ns) importado(s) pra Fila de Produção.`);
+      : `${codigo} liberado — ${r.importados} item(ns) importado(s) pra Fila de Produção. Etiquetas prontas na aba Etiquetas.`);
     renderComercial();
     if (typeof carregarDados === 'function') carregarDados(); // refresca a fila local
   } catch (e) { toast('Erro: ' + e.message); }

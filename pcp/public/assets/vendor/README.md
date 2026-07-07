@@ -7,6 +7,8 @@ o acesso é via VPN/rede interna).
 |---|---|---|---|
 | `pdf.min.js` + `pdf.worker.min.js` | [pdf.js](https://mozilla.github.io/pdf.js/) | 3.11.174 | Importação de ordens de produção em PDF |
 | `xlsx.full.min.js` | [SheetJS CE](https://sheetjs.com/) | 0.18.5 | Importação de planilhas Excel (carregado sob demanda) |
+| `qrcode.js` | [qrcode-generator](https://www.npmjs.com/package/qrcode-generator) (Kazuhiko Arase, MIT) | 1.4.4 | QR das etiquetas próprias (leitura por celular) |
 
 Estes arquivos DEVEM ser versionados no git. Para atualizar, baixe a nova
-versão do pacote npm correspondente (`pdfjs-dist`, `xlsx`) e substitua.
+versão do pacote npm correspondente (`pdfjs-dist`, `xlsx`, `qrcode-generator`)
+e substitua.

@@ -310,4 +310,75 @@ export async function migrate() {
   // Config chave/valor do PCP (ex.: modo padrão da ordem de corte: individual|lote)
   await q(`CREATE TABLE IF NOT EXISTS pcp_config (chave VARCHAR(64) PRIMARY KEY, valor TEXT)`);
   await q(`INSERT INTO pcp_config (chave, valor) VALUES ('ordem_corte_modo_padrao', 'individual') ON CONFLICT (chave) DO NOTHING`);
+
+  // ─── Spec estruturada do item (F1 — etiquetas/estrutura automática) ───────
+  // A importação do Comercial (rota /api/comercial/.../liberar) preenche estes
+  // campos; antes a spec chegava achatada em `observacoes`. Aditivo.
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS cliente     VARCHAR(160)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS colecao     VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS cor_tecido  VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS cor_perfil  VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS acionamento VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS ambiente    VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS atributos   JSONB NOT NULL DEFAULT '{}'`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS comercial_item_id VARCHAR(64)`);
+
+  // ─── Etiquetas próprias (F2) ──────────────────────────────────────────────
+  // Modelos parametrizáveis pelo admin: formato físico (mm), setores que usam,
+  // campos exibidos (dicionário + atributos custom) e tipo de código impresso.
+  // `setores = []` significa "vale para todos os setores" (fallback); um modelo
+  // com o setor listado explicitamente tem prioridade sobre o fallback.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_etiqueta_modelos (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(80) UNIQUE NOT NULL,
+      largura_mm NUMERIC(6,1) NOT NULL DEFAULT 100,
+      altura_mm  NUMERIC(6,1) NOT NULL DEFAULT 24,
+      setores    JSONB NOT NULL DEFAULT '[]',
+      campos     JSONB NOT NULL DEFAULT '[]',
+      codigo     VARCHAR(10) NOT NULL DEFAULT 'AMBOS',
+      padrao     BOOLEAN NOT NULL DEFAULT FALSE,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  // Seed: modelo 100×24mm (térmica contínua Argox iX4-250 — formato atual do
+  // cliente, "Etiqueta Produção 10.40 x 2.50" do SYSOP), campos espelhando a
+  // etiqueta de referência. Idempotente; o admin edita depois.
+  await q(`
+    INSERT INTO pcp_etiqueta_modelos (nome, largura_mm, altura_mm, setores, campos, codigo, padrao)
+    VALUES ('Produção 100×24 (padrão)', 100, 24, '[]', $1::jsonb, 'AMBOS', TRUE)
+    ON CONFLICT (nome) DO NOTHING
+  `, [JSON.stringify([
+    { chave: 'pedido',       rotulo: 'Pedido',   tam: 'G', negrito: true },
+    { chave: 'peca',         rotulo: 'Peça',     tam: 'G', negrito: true },
+    { chave: 'produto',      rotulo: '',         tam: 'G', negrito: true },
+    { chave: 'medidas',      rotulo: 'Med',      tam: 'G', negrito: true },
+    { chave: 'colecao',      rotulo: 'Col',      tam: 'M', negrito: false },
+    { chave: 'cor_tecido',   rotulo: 'Cor Tec',  tam: 'M', negrito: false },
+    { chave: 'acionamento',  rotulo: 'Acion',    tam: 'M', negrito: false },
+    { chave: 'ambiente',     rotulo: 'Amb',      tam: 'M', negrito: false },
+    { chave: 'data_cliente', rotulo: 'Prazo',    tam: 'M', negrito: false },
+    { chave: 'cliente',      rotulo: 'Cliente',  tam: 'P', negrito: false },
+    { chave: 'marca',        rotulo: '',         tam: 'P', negrito: false },
+  ])]);
+
+  // Log de impressão/reimpressão de etiquetas (rastreabilidade, igual à ordem
+  // de corte). `pecas` = [{ id, codigo }] impressas na tacada.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_etiqueta_log (
+      id         BIGSERIAL PRIMARY KEY,
+      pedido     VARCHAR(64),
+      pedidos    JSONB NOT NULL DEFAULT '[]',
+      setor_id   BIGINT REFERENCES pcp_setores(id) ON DELETE SET NULL,
+      modelo_id  BIGINT REFERENCES pcp_etiqueta_modelos(id) ON DELETE SET NULL,
+      pecas      JSONB NOT NULL DEFAULT '[]',
+      tipo       VARCHAR(16) NOT NULL DEFAULT 'impressao',
+      por        BIGINT,
+      por_nome   VARCHAR(128),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_etiqueta_log_pedido ON pcp_etiqueta_log (pedido)`);
 }

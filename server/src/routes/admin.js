@@ -15,7 +15,7 @@ r.use(requireAuth);
 const COR_RE = /^#[0-9a-fA-F]{6}$/;
 const NIVEIS = ['none', 'ver', 'editar'];
 // Abas governadas pela matriz de permissões (as de admin não entram aqui)
-export const ABAS = ['painel', 'fila', 'alertas', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'novo', 'tipos', 'comercial'];
+export const ABAS = ['painel', 'fila', 'alertas', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'novo', 'tipos', 'comercial', 'etiquetas'];
 
 // ─── Setores de produção ─────────────────────────────────────────────────────
 

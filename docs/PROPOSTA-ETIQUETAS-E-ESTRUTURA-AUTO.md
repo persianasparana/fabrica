@@ -1,8 +1,20 @@
 # Proposta — Etiquetas próprias + Estrutura do Produto automática (PCP)
 
-> **Status: PROPOSTA (07/07/2026)** — desenho organizado do fluxo, aguardando as
-> decisões do cliente no final. Substitui a dependência das etiquetas do SYSOP e
-> automatiza a escolha da Estrutura do Produto por regras condicionais.
+> **Status: F1 + F2 IMPLEMENTADAS (07/07/2026)** — decisões do cliente:
+> etiqueta térmica **100×24 mm** contínua (Argox iX4-250 PPLB em rede,
+> 192.168.0.253), conteúdo "bem melhor e com informações selecionadas por mim"
+> (modelos parametrizáveis); leitor da fábrica lê **barras (Code 128)** e a
+> etiqueta leva também **QR** que o celular abre no PCP (`?codigo=PP…`);
+> "RTC" não existe no processo — era só o planejamento de corte (Ordem de
+> Corte), já amarrado; **mesmo código em todas as etiquetas da peça** (número
+> de série da peça manufaturada). F3 (regras de estrutura) e F4 são as próximas.
+>
+> Entregue: colunas de spec estruturada em `pcp_itens` + medidas por peça +
+> código próprio `PP<item>-<n>` na importação do Comercial (F1); tabela
+> `pcp_etiqueta_modelos` (+seed 100×24), `pcp_etiqueta_log`, rotas
+> `/api/pcp/etiquetas/*`, aba **Etiquetas** no PCP (prévia por setor, impressão
+> em lote por formato, reimpressão avulsa, editor de modelos do admin, Code 128
+> em SVG próprio + QR vendorizado `qrcode-generator`), deep-link `?codigo=` (F2).
 >
 > Pedido do cliente: _"precisamos adaptar para criar uma etiqueta própria [...]
 > campos parametrizáveis de forma flexível [...] diferentes setores [...] impressão
@@ -116,24 +128,26 @@ Comercial** (em vez de "contém" no nome) — mais robusto quando os nomes varia
 
 ## Fases e estimativas
 
-| Fase | Entrega | Estimativa |
+| Fase | Entrega | Estado |
 |---|---|---|
-| **F1** | Spec estruturada na importação + colunas novas | 0,5–1 dia |
-| **F2** | Etiquetas: código próprio por peça + modelos por setor + impressão em lote + log | 2–3 dias |
+| **F1** | Spec estruturada na importação + colunas novas | ✅ 07/07/2026 |
+| **F2** | Etiquetas: código próprio por peça + modelos por setor + impressão em lote + log | ✅ 07/07/2026 |
 | **F3** | Regras de estrutura automática + editor + "testar" + pendências | 2–3 dias |
-| **F4** | Amarração fina com Ordem de Corte / RTC + ajustes de uso real | 1 dia |
+| **F4** | Amarração fina com Ordem de Corte + ajustes de uso real | 1 dia |
 
-## Decisões do cliente (responder pra eu começar)
+## Decisões do cliente — RESPONDIDAS (07/07/2026)
 
-1. **Impressora das etiquetas**: térmica (qual tamanho da etiqueta — 80×50mm?
-   100×50?) e/ou folha A4 adesiva em grade? (O formato é parametrizável, mas
-   quero criar os modelos iniciais no tamanho REAL de vocês.)
-2. **Leitor de código**: o leitor atual da bipagem lê código de barras 1D
-   (Code128) normal? Ou prefere QR?
-3. **RTC**: me explica em uma frase o que é o RTC no processo de vocês (não
-   achei no código) — pra eu amarrar no lugar certo.
-4. **Mesmo código em todas as etiquetas da peça** (recomendo: o conteúdo muda
-   por setor, o código é o mesmo — a bipagem sabe a peça) — ok?
+1. **Impressora**: Argox iX4-250 (PPLB) em rede (192.168.0.253), etiqueta
+   térmica contínua **100×24 mm** (no SYSOP: "Etiqueta Produção 10.40 x 2.50",
+   retrato). → modelo seed criado nesse formato; conteúdo de referência da
+   etiqueta SYSOP (nº item, peça n/total, datas, produto, medidas, coleções,
+   cores, ambiente, barras) coberto pelo dicionário de campos.
+2. **Leitor**: lê barras 1D comum → Code 128 impresso; **e** QR adicional para
+   o CELULAR identificar as informações do pedido (abre `pcp/?codigo=PP…`).
+3. **RTC**: o cliente não reconhece o termo (veio da mensagem "os planejamentos
+   de corte e rtc") → tratado como só o planejamento de corte / Ordem de Corte.
+4. **Mesmo código em todas as etiquetas da peça**: confirmado — "quase como o
+   número de série da peça manufaturada, tal qual o padrão da indústria".
 
 _Criado em 07/07/2026 · Relacionado: agenda-consultores/docs/CICLO-DO-PEDIDO.md
 (Fases B/C) e PROPOSTA-v2.28-OPCOES-PRECIFICADAS.md (specs que alimentam as regras)._

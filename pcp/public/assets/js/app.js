@@ -68,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos','comercial'];
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos','comercial','etiquetas'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -216,7 +216,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -231,6 +231,7 @@ function goTo(page) {
   if (page === 'indicadores') renderIndicadores();
   if (page === 'estrutura') renderEstrutura();
   if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
+  if (page === 'etiquetas') { renderEtiquetas(); setTimeout(()=>document.getElementById('etq-pedidos')?.focus(), 80); }
   if (page === 'status') renderStatusAdmin();
   if (page === 'tipos') renderTiposAdmin();
   if (page === 'setores') renderSetoresAdmin();
@@ -559,6 +560,23 @@ async function concluir(id) {
 }
 
 // ─── BUSCA ───────────────────────────────────────────────────────────────────
+// QR da etiqueta lido no celular (?codigo=PP1042-3): localiza a peça e abre a
+// busca já no pedido dela, com um aviso do que foi encontrado.
+function abrirPecaPorCodigo(codigo) {
+  if (!codigo) return;
+  let achado = null;
+  for (const item of DB) {
+    const p = (item.pecas || []).find((x) => String(x.cod_barras || '') === codigo);
+    if (p) { achado = { item, peca: p }; break; }
+  }
+  if (!achado) { toast(`Código ${codigo} não encontrado na fila.`); return; }
+  if (!podeVer('busca')) { toast('Sem permissão para a busca.'); return; }
+  goTo('busca');
+  const inp = document.getElementById('busca-input');
+  if (inp) { inp.value = String(achado.item.pedido); renderBusca(); }
+  toast(`Peça ${codigo} · nº ${achado.peca.numero} — ${achado.item.produto} (pedido ${achado.item.pedido})`);
+}
+
 function renderBusca() {
   const q = document.getElementById('busca-input').value.toLowerCase().trim();
   const results = document.getElementById('busca-results');
@@ -693,7 +711,7 @@ async function excluirSetor(id, nome) {
 }
 
 // ─── USUÁRIOS (admin) ────────────────────────────────────────────────────────
-const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido',tipos:'Tipos de Produção (cadastrar/editar)'};
+const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido',tipos:'Tipos de Produção (cadastrar/editar)',comercial:'Pedidos Comercial',etiquetas:'Etiquetas (ver/imprimir)'};
 let usuariosCache = [];
 
 async function renderUsuariosAdmin() {
@@ -3109,6 +3127,9 @@ document.getElementById('btn-sair').addEventListener('click', sair);
     renderAll();
     aplicarPermissoes();
     if (!podeVer(currentPage)) goTo(primeiraAbaVisivel());
+    // Deep-link do QR das etiquetas próprias (leitura por celular)
+    const codigoQR = new URLSearchParams(location.search).get('codigo');
+    if (codigoQR) abrirPecaPorCodigo(codigoQR.trim());
   } catch (e) {
     // 401 já redirecionou para o login; demais erros ficam visíveis
     console.error(e);
