@@ -33,7 +33,16 @@ export async function chamar(metodo, caminho, body) {
   const texto = await resp.text();
   let payload;
   try { payload = texto ? JSON.parse(texto) : {}; } catch { payload = { raw: texto }; }
-  if (!resp.ok) throw new HttpError(resp.status, payload.message || `Comercial respondeu HTTP ${resp.status}`);
+  if (!resp.ok) {
+    // NUNCA repassar 401/403 do Comercial ao navegador: o frontend trata 401
+    // como "sessão caiu" e desloga o usuário (bug real, 07/07/2026). Chave de
+    // serviço errada é problema de INTEGRAÇÃO (502), não de autenticação.
+    if (resp.status === 401 || resp.status === 403) {
+      throw new HttpError(502,
+        'O Comercial recusou a chave de serviço (X-Service-Key). Confira se COMERCIAL_SERVICE_KEY no .env da fábrica é IDÊNTICA ao SERVICE_API_KEY do .env do Comercial e reinicie o fabrica-server.');
+    }
+    throw new HttpError(resp.status, payload.message || `Comercial respondeu HTTP ${resp.status}`);
+  }
   return payload;
 }
 
