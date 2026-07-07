@@ -20,6 +20,7 @@ import { requireAuth, requireCsrf, requirePerm, audit } from '../auth.js';
 import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
 import { inserirItem, emTransacao } from './pcp.js';
+import { regrasAtivas, selecionarEstrutura, contextoDeSpec } from '../estrutura-regras.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -136,10 +137,23 @@ r.post(
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
+      // F3 — seleção automática da Estrutura do Produto pelas regras
+      // condicionais (primeira que casa vence; sem match → estrutura pendente)
+      const regras = await regrasAtivas();
+      const estruturaDe = (it) => {
+        const regra = selecionarEstrutura(contextoDeSpec({
+          produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
+          cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+          atributos: atributosDe(it), largura: it.larguraCm, altura: it.alturaCm,
+          qnt: it.quantidade,
+        }), regras);
+        return regra ? Number(regra.produto_id) : null;
+      };
       await emTransacao(async (exec, client) => {
         for (const it of itens) {
           await inserirItem(client, {
             produto: String(it.tipo || 'Peça').slice(0, 160),
+            produto_id: estruturaDe(it),
             pedido: codigo,
             qnt: Math.min(Number(it.quantidade) || 1, 500),
             data_cliente: dataCliente,

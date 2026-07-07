@@ -229,7 +229,7 @@ function goTo(page) {
   if (page === 'comercial') renderComercial();
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
-  if (page === 'estrutura') renderEstrutura();
+  if (page === 'estrutura') { renderEstrutura(); renderRegrasEstrutura(); }
   if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
   if (page === 'etiquetas') { renderEtiquetas(); setTimeout(()=>document.getElementById('etq-pedidos')?.focus(), 80); }
   if (page === 'status') renderStatusAdmin();
@@ -518,8 +518,11 @@ function renderFila() {
     const s = calcStatus(item);
     const sc = statusClass(s);
     const done = pecasConcluidas(item), tot = pecasTotal(item);
+    const estrPend = !item.produto_id && item.comercial_item_id
+      ? ' <span class="st st-atencao" style="font-size:9px" title="Nenhuma regra de estrutura casou com a spec — escolha a estrutura no item ou ajuste as regras (aba Estrutura do Produto)">estrutura pendente</span>'
+      : '';
     return `<tr>
-      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}</td>
+      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}${estrPend}</td>
       <td>${esc(item.pedido)}</td>
       <td style="text-align:center">${done > 0 && done < tot ? `<b style="color:var(--blue)">${done}/${tot}</b>` : tot}</td>
       <td>${fmtDate(item.data_cliente)}</td>

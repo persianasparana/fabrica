@@ -381,4 +381,23 @@ export async function migrate() {
     )
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_etiqueta_log_pedido ON pcp_etiqueta_log (pedido)`);
+
+  // ─── Regras de seleção automática da Estrutura do Produto (F3) ───────────
+  // Cada regra aponta para UMA estrutura (pcp_produtos) e tem condições em E
+  // sobre a spec estruturada do item (F1): [{ campo, operador, valor, valor2? }].
+  // Menor prioridade avalia primeiro; a primeira que casar vence. Item sem
+  // regra que case fica com produto_id NULL = "estrutura pendente" na fila.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_estrutura_regras (
+      id         BIGSERIAL PRIMARY KEY,
+      descricao  VARCHAR(160) NOT NULL,
+      produto_id BIGINT NOT NULL REFERENCES pcp_produtos(id) ON DELETE CASCADE,
+      prioridade INTEGER NOT NULL DEFAULT 100,
+      condicoes  JSONB NOT NULL DEFAULT '[]',
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_estrutura_regras_prio ON pcp_estrutura_regras (prioridade, id)`);
 }

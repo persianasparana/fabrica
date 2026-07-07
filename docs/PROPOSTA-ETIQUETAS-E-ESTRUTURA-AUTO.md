@@ -1,6 +1,6 @@
 # Proposta — Etiquetas próprias + Estrutura do Produto automática (PCP)
 
-> **Status: F1 + F2 IMPLEMENTADAS (07/07/2026)** — decisões do cliente:
+> **Status: F1 + F2 + F3 + F4 IMPLEMENTADAS (07/07/2026)** — decisões do cliente:
 > etiqueta térmica **100×24 mm** contínua (Argox iX4-250 PPLB em rede,
 > 192.168.0.253), conteúdo "bem melhor e com informações selecionadas por mim"
 > (modelos parametrizáveis); leitor da fábrica lê **barras (Code 128)** e a
@@ -14,7 +14,14 @@
 > `pcp_etiqueta_modelos` (+seed 100×24), `pcp_etiqueta_log`, rotas
 > `/api/pcp/etiquetas/*`, aba **Etiquetas** no PCP (prévia por setor, impressão
 > em lote por formato, reimpressão avulsa, editor de modelos do admin, Code 128
-> em SVG próprio + QR vendorizado `qrcode-generator`), deep-link `?codigo=` (F2).
+> em SVG próprio + QR vendorizado `qrcode-generator`), deep-link `?codigo=` (F2);
+> `pcp_estrutura_regras` + motor de avaliação (`estrutura-regras.js`, condições
+> em E, prioridade, texto sem acento/caixa), aplicação automática ao liberar do
+> Comercial, rotas `/api/pcp/estrutura-regras/*` (CRUD + `/testar` + `/aplicar`),
+> editor de regras na aba Estrutura com **"testar com uma peça de exemplo"** e
+> **reaplicar na fila**, badge **"estrutura pendente"** na fila (F3); aviso de
+> estrutura pendente na Ordem de Corte — com a estrutura selecionada, os cortes
+> saem sozinhos (F4).
 >
 > Pedido do cliente: _"precisamos adaptar para criar uma etiqueta própria [...]
 > campos parametrizáveis de forma flexível [...] diferentes setores [...] impressão
@@ -132,8 +139,8 @@ Comercial** (em vez de "contém" no nome) — mais robusto quando os nomes varia
 |---|---|---|
 | **F1** | Spec estruturada na importação + colunas novas | ✅ 07/07/2026 |
 | **F2** | Etiquetas: código próprio por peça + modelos por setor + impressão em lote + log | ✅ 07/07/2026 |
-| **F3** | Regras de estrutura automática + editor + "testar" + pendências | 2–3 dias |
-| **F4** | Amarração fina com Ordem de Corte + ajustes de uso real | 1 dia |
+| **F3** | Regras de estrutura automática + editor + "testar" + pendências | ✅ 07/07/2026 |
+| **F4** | Amarração fina com Ordem de Corte + ajustes de uso real | ✅ 07/07/2026 (ajustes finos conforme uso real) |
 
 ## Decisões do cliente — RESPONDIDAS (07/07/2026)
 

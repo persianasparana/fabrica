@@ -76,7 +76,11 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
 
   for (const item of itens) {
     const cortes = Array.isArray(item.cortes) ? item.cortes : [];
-    if (!item.produto_id || !cortes.length) {
+    if (!item.produto_id) {
+      avisos.push(`Pedido ${item.pedido}: item "${item.produto}" com ESTRUTURA PENDENTE — defina a Estrutura do Produto no item ou cadastre uma regra de seleção automática (aba Estrutura do Produto).`);
+      continue;
+    }
+    if (!cortes.length) {
       avisos.push(`Pedido ${item.pedido}: produto "${item.produto}" sem cortes parametrizados na Estrutura.`);
       continue;
     }
