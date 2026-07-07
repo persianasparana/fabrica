@@ -18,6 +18,8 @@ import pcpRoutes from './routes/pcp.js';
 import adminRoutes from './routes/admin.js';
 import qualidadeRoutes from './routes/qualidade.js';
 import comercialRoutes from './routes/comercial.js';
+import integracaoRoutes from './routes/integracao.js';
+import ordemCorteRoutes from './routes/ordem-corte.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
@@ -81,9 +83,12 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/pcp', pcpRoutes);
 app.use('/api/pcp', adminRoutes);
+app.use('/api/pcp/ordem-corte', ordemCorteRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
 // Ciclo do pedido (Fase B) — avaliação do PCP + produção (Comercial :3010)
 app.use('/api/comercial', comercialRoutes);
+// Integração servidor-a-servidor (Logística) — autenticada por X-API-Key, não usa sessão
+app.use('/api/integracao', integracaoRoutes);
 
 // Frontends estáticos (opcional — o Nginx também pode servir diretamente)
 if (process.env.SERVE_STATIC !== '0') {

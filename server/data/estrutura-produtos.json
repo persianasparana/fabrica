@@ -2086,20 +2086,70 @@
       "unidade": "m",
       "cortes": [
         {
-          "nome": "Cabeçalho 25mm",
-          "formula": "L",
-          "dim": "L"
-        },
-        {
-          "nome": "Lâmina 25mm (cada)",
-          "formula": "L",
+          "key": "m2",
+          "nome": "M² (área)",
           "dim": "L",
-          "qtdFormula": "ph25NumLaminas(A)"
+          "formula": "L*A*qtde"
         },
         {
+          "key": "furos",
+          "nome": "Nº de Furos (cab.)",
+          "dim": "L",
+          "formula": "SE(L<1.205;3;SE(L<1.7;4;SE(L<2.2;5;6)))"
+        },
+        {
+          "key": "modelo",
+          "nome": "Modelo de Lâmina",
+          "dim": "L",
+          "formula": "SE(L<1.205;2;SE(L<1.7;4;SE(L<2.2;3;4)))"
+        },
+        {
+          "key": "qtd_laminas",
+          "nome": "Nº de Lâminas",
+          "dim": "A",
+          "formula": "A*46+1"
+        },
+        {
+          "key": "furo_central",
+          "nome": "Furos Central",
+          "dim": "L",
+          "formula": "SE(furos>1;furos-1;0)"
+        },
+        {
+          "key": "esp_furo",
+          "nome": "Espaçamento Furo",
+          "dim": "L",
+          "formula": "SE(furos>1;(L-0.2)/(furos-1);0)"
+        },
+        {
+          "key": "corda1",
+          "nome": "Corda 1",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.4; 0)"
+        },
+        {
+          "key": "corda2",
+          "nome": "Corda 2",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); 2*A+0.4+(L/1.65); 0)"
+        },
+        {
+          "key": "corda3",
+          "nome": "Corda 3",
+          "dim": "A",
+          "formula": "SE(OU(modelo=3;modelo=4); 0; A+0.3+(furo_central*esp_furo))"
+        },
+        {
+          "key": "corda4",
+          "nome": "Corda 4",
+          "dim": "A",
+          "formula": "SE(modelo=4; A+0.4+(L-0.3); 0)"
+        },
+        {
+          "key": "cadarco",
           "nome": "Cadarço/Fita",
-          "formula": "A + 0.08",
-          "dim": "A"
+          "dim": "A",
+          "formula": "A+0.08"
         }
       ],
       "componentes": [
@@ -2117,7 +2167,8 @@
           "qtd": 0.1
         }
       ],
-      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.2) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.4).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.4 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph25NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.2) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.4).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.4 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph25NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }",
+      "calculo_extra_fonte": "Horizontais: furos/cordas/lâminas. PH25 deriva furos e modelo da largura; PH50 recebe furos e modelo como medida da peça."
     },
     {
       "chave": "ph-50mm-aluminio",
@@ -2127,20 +2178,58 @@
       "unidade": "m",
       "cortes": [
         {
-          "nome": "Cabeçalho 50mm Alumínio",
-          "formula": "L",
-          "dim": "L"
-        },
-        {
-          "nome": "Lâmina 50mm Alumínio (cada)",
-          "formula": "L",
+          "key": "m2",
+          "nome": "M² (área)",
           "dim": "L",
-          "qtdFormula": "ph50NumLaminas(A)"
+          "formula": "L*A*qtde"
         },
         {
+          "key": "qtd_laminas",
+          "nome": "Nº de Lâminas",
+          "dim": "A",
+          "formula": "(A-0.05)/0.044"
+        },
+        {
+          "key": "furo_central",
+          "nome": "Furos Central",
+          "dim": "L",
+          "formula": "SE(furos>1;furos-1;0)"
+        },
+        {
+          "key": "esp_furo",
+          "nome": "Espaçamento Furo",
+          "dim": "L",
+          "formula": "SE(furos>1;(L-0.303)/(furos-1);0)"
+        },
+        {
+          "key": "corda1",
+          "nome": "Corda 1",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.6; 0)"
+        },
+        {
+          "key": "corda2",
+          "nome": "Corda 2",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.4+(L/1.65); 0)"
+        },
+        {
+          "key": "corda3",
+          "nome": "Corda 3",
+          "dim": "A",
+          "formula": "SE(OU(modelo=3;modelo=4); 0; A+0.3+(furo_central*esp_furo))"
+        },
+        {
+          "key": "corda4",
+          "nome": "Corda 4",
+          "dim": "A",
+          "formula": "SE(modelo=4; A+0.5+(L-0.3); 0)"
+        },
+        {
+          "key": "cadarco",
           "nome": "Cadarço/Fita",
-          "formula": "A + 0.25",
-          "dim": "A"
+          "dim": "A",
+          "formula": "A+0.25"
         }
       ],
       "componentes": [
@@ -2158,7 +2247,8 @@
           "qtd": 0.15
         }
       ],
-      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.6).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (Z * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.5 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+      "calculoExtraFonte": "{\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (A + 0.6).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (A + 0.4 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (A + 0.3 + (Z * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (A + 0.5 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }",
+      "calculo_extra_fonte": "Horizontais: furos/cordas/lâminas. PH25 deriva furos e modelo da largura; PH50 recebe furos e modelo como medida da peça."
     },
     {
       "chave": "ph-50mm-mad-sintetica",
@@ -2168,20 +2258,58 @@
       "unidade": "m",
       "cortes": [
         {
-          "nome": "Cabeçalho 50mm Mad. Sintética",
-          "formula": "L",
-          "dim": "L"
-        },
-        {
-          "nome": "Lâmina 50mm Mad. Sintética (cada)",
-          "formula": "L",
+          "key": "m2",
+          "nome": "M² (área)",
           "dim": "L",
-          "qtdFormula": "ph50NumLaminas(A)"
+          "formula": "L*A*qtde"
         },
         {
+          "key": "qtd_laminas",
+          "nome": "Nº de Lâminas",
+          "dim": "A",
+          "formula": "(A-0.05)/0.044"
+        },
+        {
+          "key": "furo_central",
+          "nome": "Furos Central",
+          "dim": "L",
+          "formula": "SE(furos>1;furos-1;0)"
+        },
+        {
+          "key": "esp_furo",
+          "nome": "Espaçamento Furo",
+          "dim": "L",
+          "formula": "SE(furos>1;(L-0.303)/(furos-1);0)"
+        },
+        {
+          "key": "corda1",
+          "nome": "Corda 1",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.6; 0)"
+        },
+        {
+          "key": "corda2",
+          "nome": "Corda 2",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.4+(L/1.65); 0)"
+        },
+        {
+          "key": "corda3",
+          "nome": "Corda 3",
+          "dim": "A",
+          "formula": "SE(OU(modelo=3;modelo=4); 0; A+0.3+(furo_central*esp_furo))"
+        },
+        {
+          "key": "corda4",
+          "nome": "Corda 4",
+          "dim": "A",
+          "formula": "SE(modelo=4; A+0.5+(L-0.3); 0)"
+        },
+        {
+          "key": "cadarco",
           "nome": "Cadarço/Fita",
-          "formula": "A + 0.25",
-          "dim": "A"
+          "dim": "A",
+          "formula": "A+0.25"
         }
       ],
       "componentes": [
@@ -2195,7 +2323,8 @@
           "obs": "Pode variar com a largura"
         }
       ],
-      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }",
+      "calculo_extra_fonte": "Horizontais: furos/cordas/lâminas. PH25 deriva furos e modelo da largura; PH50 recebe furos e modelo como medida da peça."
     },
     {
       "chave": "ph-50mm-mad-natural",
@@ -2205,20 +2334,58 @@
       "unidade": "m",
       "cortes": [
         {
-          "nome": "Cabeçalho 50mm Mad. Natural",
-          "formula": "L",
-          "dim": "L"
-        },
-        {
-          "nome": "Lâmina 50mm Mad. Natural (cada)",
-          "formula": "L",
+          "key": "m2",
+          "nome": "M² (área)",
           "dim": "L",
-          "qtdFormula": "ph50NumLaminas(A)"
+          "formula": "L*A*qtde"
         },
         {
+          "key": "qtd_laminas",
+          "nome": "Nº de Lâminas",
+          "dim": "A",
+          "formula": "(A-0.05)/0.044"
+        },
+        {
+          "key": "furo_central",
+          "nome": "Furos Central",
+          "dim": "L",
+          "formula": "SE(furos>1;furos-1;0)"
+        },
+        {
+          "key": "esp_furo",
+          "nome": "Espaçamento Furo",
+          "dim": "L",
+          "formula": "SE(furos>1;(L-0.303)/(furos-1);0)"
+        },
+        {
+          "key": "corda1",
+          "nome": "Corda 1",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.6; 0)"
+        },
+        {
+          "key": "corda2",
+          "nome": "Corda 2",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.4+(L/1.65); 0)"
+        },
+        {
+          "key": "corda3",
+          "nome": "Corda 3",
+          "dim": "A",
+          "formula": "SE(OU(modelo=3;modelo=4); 0; A+0.3+(furo_central*esp_furo))"
+        },
+        {
+          "key": "corda4",
+          "nome": "Corda 4",
+          "dim": "A",
+          "formula": "SE(modelo=4; A+0.5+(L-0.3); 0)"
+        },
+        {
+          "key": "cadarco",
           "nome": "Cadarço/Fita",
-          "formula": "A + 0.25",
-          "dim": "A"
+          "dim": "A",
+          "formula": "A+0.25"
         }
       ],
       "componentes": [
@@ -2231,7 +2398,8 @@
           "qtd": 2
         }
       ],
-      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }",
+      "calculo_extra_fonte": "Horizontais: furos/cordas/lâminas. PH25 deriva furos e modelo da largura; PH50 recebe furos e modelo como medida da peça."
     },
     {
       "chave": "ph-50mm-pvc",
@@ -2241,20 +2409,58 @@
       "unidade": "m",
       "cortes": [
         {
-          "nome": "Cabeçalho 50mm PVC",
-          "formula": "L",
-          "dim": "L"
-        },
-        {
-          "nome": "Lâmina 50mm PVC (cada)",
-          "formula": "L",
+          "key": "m2",
+          "nome": "M² (área)",
           "dim": "L",
-          "qtdFormula": "ph50NumLaminas(A)"
+          "formula": "L*A*qtde"
         },
         {
+          "key": "qtd_laminas",
+          "nome": "Nº de Lâminas",
+          "dim": "A",
+          "formula": "(A-0.05)/0.044"
+        },
+        {
+          "key": "furo_central",
+          "nome": "Furos Central",
+          "dim": "L",
+          "formula": "SE(furos>1;furos-1;0)"
+        },
+        {
+          "key": "esp_furo",
+          "nome": "Espaçamento Furo",
+          "dim": "L",
+          "formula": "SE(furos>1;(L-0.303)/(furos-1);0)"
+        },
+        {
+          "key": "corda1",
+          "nome": "Corda 1",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.6; 0)"
+        },
+        {
+          "key": "corda2",
+          "nome": "Corda 2",
+          "dim": "A",
+          "formula": "SE(OU(modelo=2;modelo=3;modelo=4); A+0.4+(L/1.65); 0)"
+        },
+        {
+          "key": "corda3",
+          "nome": "Corda 3",
+          "dim": "A",
+          "formula": "SE(OU(modelo=3;modelo=4); 0; A+0.3+(furo_central*esp_furo))"
+        },
+        {
+          "key": "corda4",
+          "nome": "Corda 4",
+          "dim": "A",
+          "formula": "SE(modelo=4; A+0.5+(L-0.3); 0)"
+        },
+        {
+          "key": "cadarco",
           "nome": "Cadarço/Fita",
-          "formula": "A + 0.25",
-          "dim": "A"
+          "dim": "A",
+          "formula": "A+0.25"
         }
       ],
       "componentes": [
@@ -2267,7 +2473,8 @@
           "qtd": 2
         }
       ],
-      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }"
+      "calculoExtraFonte": "{\n      const M = (L < 1.205) ? 2 : (L < 1.7) ? 4 : (L < 2.2) ? 3 : 4;\n      const I = (L < 1.205) ? 3 : (L < 1.7) ? 4 : (L < 2.2) ? 5 : 6;\n      const X = I - 1;\n      const Z = X > 0 ? (L - 0.303) / X : 0;\n      const cordas = {};\n      if ([2, 3, 4].includes(M)) {\n        cordas[\"Corda 1 (m)\"] = (2 * A + 1.1).toFixed(3);\n        cordas[\"Corda 2 (m)\"] = (2 * A + 0.9 + (L / 1.65)).toFixed(3);\n      }\n      if (![3, 4].includes(M)) cordas[\"Corda 3 (m)\"] = (2 * A + 0.8 + (X * Z)).toFixed(3);\n      if (M === 4) cordas[\"Corda 4 (m)\"] = (2 * A + 1 + (L - 0.3)).toFixed(3);\n      return {\n        \"Nº de furos cabeçalho\": I,\n        \"Nº de lâminas (cabeçalho)\": M,\n        \"Nº de lâminas (total)\": ph50NumLaminas(A),\n        \"Espaçamento furos centrais (m)\": Z.toFixed(3),\n        ...cordas,\n      };\n    }",
+      "calculo_extra_fonte": "Horizontais: furos/cordas/lâminas. PH25 deriva furos e modelo da largura; PH50 recebe furos e modelo como medida da peça."
     }
   ]
 }

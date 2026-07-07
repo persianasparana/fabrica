@@ -15,7 +15,7 @@ r.use(requireAuth);
 const COR_RE = /^#[0-9a-fA-F]{6}$/;
 const NIVEIS = ['none', 'ver', 'editar'];
 // Abas governadas pela matriz de permissões (as de admin não entram aqui)
-export const ABAS = ['painel', 'fila', 'alertas', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'novo', 'comercial'];
+export const ABAS = ['painel', 'fila', 'alertas', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'novo', 'tipos', 'comercial'];
 
 // ─── Setores de produção ─────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ r.get(
   '/setores',
   ah(async (req, res) => {
     const { rows } = await q(`
-      SELECT s.id, s.nome, s.cor, s.ordem, s.status_id,
+      SELECT s.id, s.nome, s.cor, s.ordem, s.status_id, s.ordem_corte,
              st.nome AS status_nome, st.cor AS status_cor, st.final AS status_final
       FROM pcp_setores s
       LEFT JOIN pcp_status st ON st.id = s.status_id
@@ -47,9 +47,9 @@ r.post(
     if (!COR_RE.test(cor)) throw new HttpError(422, 'Cor inválida (use #RRGGBB)');
     if (status_id) await assertStatusExiste(status_id);
     const { rows } = await q(
-      `INSERT INTO pcp_setores (nome, cor, ordem, status_id) VALUES ($1,$2,$3,$4)
+      `INSERT INTO pcp_setores (nome, cor, ordem, status_id, ordem_corte) VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (nome) DO NOTHING RETURNING id`,
-      [nome, cor, ordem, status_id]
+      [nome, cor, ordem, status_id, req.body?.ordem_corte === true]
     );
     if (!rows[0]) throw new HttpError(409, 'Já existe um setor com esse nome');
     await audit(req.session.user.id, 'pcp', 'setor.create', { entityType: 'pcp_setor', entityId: Number(rows[0].id) });
@@ -75,12 +75,14 @@ r.put(
       result = await q(
         `UPDATE pcp_setores SET
            nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem),
-           status_id = CASE WHEN $5 THEN NULL ELSE COALESCE($6::bigint, status_id) END
+           status_id = CASE WHEN $5 THEN NULL ELSE COALESCE($6::bigint, status_id) END,
+           ordem_corte = COALESCE($7, ordem_corte)
          WHERE id = $1`,
         [
           id, d.nome != null ? String(d.nome).trim() : null, d.cor != null ? String(d.cor) : null,
           d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
           limparStatus, status_id,
+          typeof d.ordem_corte === 'boolean' ? d.ordem_corte : null,
         ]
       );
     } catch (e) {

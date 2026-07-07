@@ -30,6 +30,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       <span>Fila de Produção</span>
     </a>
+    <a onclick="goTo('fila'); var s=document.getElementById('fila-situacao'); if(s){s.value='concluido'; renderFila();}" data-page="arquivo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      <span>Arquivo (baixados)</span>
+    </a>
     <a onclick="goTo('alertas')" data-page="alertas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span>Alertas</span>
@@ -58,9 +62,17 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       <span>Estrutura do Produto</span>
     </a>
+    <a onclick="goTo('ordemcorte')" data-page="ordemcorte">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+      <span>Ordem de Corte</span>
+    </a>
     <a onclick="goTo('status')" data-page="status" data-admin style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 18.8 6.2 21l.9-5.3L3.3 12l5.3-.8z"/></svg>
       <span>Status (admin)</span>
+    </a>
+    <a onclick="goTo('tipos')" data-page="tipos" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      <span>Tipos de Produção</span>
     </a>
     <a onclick="goTo('setores')" data-page="setores" data-admin style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -147,9 +159,9 @@
             <option value="">Todos (status prod.)</option>
           </select>
           <select id="fila-situacao" onchange="renderFila()">
-            <option value="">Concluídos + abertos</option>
-            <option value="aberto">Somente em aberto</option>
-            <option value="concluido">Somente concluídos</option>
+            <option value="aberto" selected>Em produção (ativos)</option>
+            <option value="">Ativos + arquivados</option>
+            <option value="concluido">📦 Arquivo (baixados)</option>
           </select>
           <div class="spacer"></div>
           <span id="fila-count" style="font-size:11px;color:var(--text3)"></span>
@@ -357,6 +369,40 @@
       <div id="status-conteudo"></div>
     </div>
 
+    <!-- TIPOS DE PRODUÇÃO (admin) -->
+    <div class="section" id="sec-tipos">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+        Cadastre, edite e exclua os tipos de entrada de pedido (ex.: Produção nova, Retrabalho). Defina a cor do badge e qual é o tipo padrão do novo pedido. Renomear um tipo atualiza os pedidos existentes.
+      </div>
+      <div id="tipos-conteudo"></div>
+    </div>
+
+    <!-- ORDEM DE CORTE -->
+    <div class="section" id="sec-ordemcorte">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Pedidos (separe por vírgula)</label>
+            <input type="text" id="oc-pedidos" placeholder="Ex: 18500, 18501, 18502" style="width:100%;font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')ocPreview()">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Modo</label>
+            <div style="display:flex;gap:6px">
+              <button id="oc-modo-individual" class="btn btn-red" onclick="ocSetModo('individual')">Individual</button>
+              <button id="oc-modo-lote" class="btn btn-outline" onclick="ocSetModo('lote')">Lote</button>
+            </div>
+          </div>
+          <button class="btn btn-black" onclick="ocPreview()">🔍 Pré-visualizar</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px">Individual = uma ordem por pedido. Lote = uma ordem agrupando todos os pedidos. Os cortes saem agrupados por setor (apenas setores marcados como “imprime ordem de corte”).</div>
+      </div>
+      <div id="oc-status-box"></div>
+      <div id="oc-avisos"></div>
+      <div id="oc-conteudo">
+        <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Pré-visualizar”.</div>
+      </div>
+    </div>
+
     <!-- EDITAR PEDIDO (em massa) -->
     <div class="section" id="sec-pedido">
       <div class="toolbar">
@@ -380,10 +426,7 @@
           <div class="form-group"><label>Chegada PCP</label><input type="date" id="fn-chegada"></div>
           <div class="form-group"><label>Prev. produção</label><input type="date" id="fn-prev-prod"></div>
           <div class="form-group"><label>Tipo</label>
-            <select id="fn-tipo">
-              <option>Produção nova</option><option>Retrabalho</option>
-              <option>Higienização</option><option>Showroom</option><option>Carry-over 2025</option>
-            </select>
+            <select id="fn-tipo"><option>Carregando…</option></select>
           </div>
           <div class="form-group"><label>Motivo atraso</label>
             <select id="fn-motivo">
@@ -405,8 +448,19 @@
         </div>
         <div class="form-grid">
           <div class="form-group" style="grid-column:1/-1"><label>Produto <span style="font-weight:400;text-transform:none;color:var(--text3)">(da Estrutura do Produto)</span></label>
-            <select id="fn-produto" onchange="toggleProdutoLivre()"><option value="">Carregando...</option></select>
-            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px">
+            <select id="fn-produto" onchange="toggleProdutoLivre();fnAtualizarHorizontal()"><option value="">Carregando...</option></select>
+            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px" oninput="fnAtualizarHorizontal()">
+          </div>
+          <div class="form-group"><label>Largura (m)</label>
+            <input type="number" step="0.001" id="fn-larg" placeholder="ex: 1,54"></div>
+          <div class="form-group"><label>Altura (m)</label>
+            <input type="number" step="0.001" id="fn-alt" placeholder="ex: 1,31"></div>
+          <div class="form-group" id="fn-horiz-group" style="display:none;grid-column:1/-1">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Produto horizontal (PH 25 / PH 50) — informe nº de furos e modelo.</div>
+            <div class="form-grid" style="margin:0">
+              <div class="form-group"><label>Nº de furos</label><input type="number" step="1" id="fn-furos" placeholder="furos"></div>
+              <div class="form-group"><label>Modelo</label><input type="text" id="fn-modelo" placeholder="modelo"></div>
+            </div>
           </div>
           <div class="form-group"><label>Etiqueta da peça (bipe aqui)</label>
             <input type="text" id="fn-etiqueta" placeholder="Aguardando leitura..." autocomplete="off"

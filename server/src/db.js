@@ -130,6 +130,33 @@ export async function migrate() {
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS status_id BIGINT REFERENCES pcp_status(id) ON DELETE SET NULL`);
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_status ON pcp_itens (status_id)`);
 
+  // PCP: tipos de entrada de pedido (configuráveis pelo admin). Antes era uma
+  // lista fixa no código; agora o admin cadastra/edita/exclui e define a cor do
+  // badge, a ordem e qual é o tipo padrão. O item guarda o tipo como TEXTO
+  // (pcp_itens.tipo) — a renomeação de um tipo reflete nos itens existentes.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_tipos (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(40) UNIQUE NOT NULL,
+      cor        VARCHAR(7) NOT NULL DEFAULT '#3949AB',
+      ordem      INTEGER NOT NULL DEFAULT 0,
+      padrao     BOOLEAN NOT NULL DEFAULT FALSE,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  // Seed idempotente: preserva os tipos atuais e suas cores (não altera nada já
+  // existente; ON CONFLICT evita duplicar quando rodar de novo).
+  await q(`
+    INSERT INTO pcp_tipos (nome, cor, ordem, padrao) VALUES
+      ('Produção nova',    '#3949AB', 10, TRUE),
+      ('Retrabalho',       '#E65100', 20, FALSE),
+      ('Higienização',     '#0D47A1', 30, FALSE),
+      ('Carry-over 2025',  '#C1212D', 40, FALSE),
+      ('Showroom',         '#7B1FA2', 50, FALSE)
+    ON CONFLICT (nome) DO NOTHING
+  `);
+
   // PCP: peças individuais — cada peça tem etiqueta própria (gerada pelo
   // sistema de pedidos) e baixa de produção própria. O item agrega qnt peças.
   await q(`
@@ -250,4 +277,37 @@ export async function migrate() {
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_nc_data ON nao_conformidades (data_ocorrencia)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_nc_status ON nao_conformidades (status)`);
+
+  // ─── Corte / Ordem de Produção ──────────────────────────────────────────
+  // Medidas por peça que alimentam o cálculo de cortes. Híbrido: chegam na
+  // importação quando existirem e são editáveis no PCP. `medidas` (JSONB)
+  // guarda entradas extras específicas de alguns produtos.
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS largura NUMERIC(8,2)`);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS altura  NUMERIC(8,2)`);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS medidas JSONB`);
+
+  // Setor que imprime ordem de produção de corte (parâmetro marcado pelo admin).
+  // Cada corte do produto aponta para um setor via cortes[].setor_id (JSONB).
+  await q(`ALTER TABLE pcp_setores ADD COLUMN IF NOT EXISTS ordem_corte BOOLEAN NOT NULL DEFAULT FALSE`);
+
+  // Log de impressão/reimpressão das ordens de corte (rastreabilidade).
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_ordem_corte_log (
+      id         BIGSERIAL PRIMARY KEY,
+      pedido     VARCHAR(64),
+      setor_id   BIGINT REFERENCES pcp_setores(id) ON DELETE SET NULL,
+      modo       VARCHAR(16) NOT NULL DEFAULT 'individual',
+      tipo       VARCHAR(16) NOT NULL DEFAULT 'impressao',
+      pedidos    JSONB NOT NULL DEFAULT '[]',
+      por        BIGINT,
+      por_nome   VARCHAR(128),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_pedido ON pcp_ordem_corte_log (pedido)`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_setor ON pcp_ordem_corte_log (setor_id)`);
+
+  // Config chave/valor do PCP (ex.: modo padrão da ordem de corte: individual|lote)
+  await q(`CREATE TABLE IF NOT EXISTS pcp_config (chave VARCHAR(64) PRIMARY KEY, valor TEXT)`);
+  await q(`INSERT INTO pcp_config (chave, valor) VALUES ('ordem_corte_modo_padrao', 'individual') ON CONFLICT (chave) DO NOTHING`);
 }
