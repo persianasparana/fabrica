@@ -115,12 +115,15 @@ if (process.env.SERVE_STATIC !== '0') {
 // 404 para rotas de API desconhecidas
 app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 
-// Tratamento de erros -> JSON
+// Tratamento de erros -> JSON. 502/503 são erros de INTEGRAÇÃO (Comercial/
+// Logística fora do ar, chave de serviço errada) — a mensagem é escrita pra
+// orientar o usuário e DEVE chegar ao navegador; só o 500 genérico é mascarado.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const status = err.status || 500;
   if (status >= 500) console.error('[erro]', err);
-  res.status(status).json({ error: status >= 500 ? 'Erro interno do servidor' : err.message });
+  const expor = status < 500 || status === 502 || status === 503;
+  res.status(status).json({ error: expor ? err.message : 'Erro interno do servidor' });
 });
 
 async function start() {
