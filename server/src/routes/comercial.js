@@ -21,38 +21,11 @@ import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
 import { inserirItem, emTransacao } from './pcp.js';
 import { regrasAtivas, selecionarEstrutura, contextoDeSpec } from '../estrutura-regras.js';
+// Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
+import { chamar } from '../comercial-client.js';
 
 const r = Router();
 r.use(requireAuth);
-
-const base = () => (process.env.COMERCIAL_API_BASE || 'http://127.0.0.1:3010').replace(/\/+$/, '');
-const chave = () => process.env.COMERCIAL_SERVICE_KEY || '';
-const configurado = () => Boolean(base() && chave());
-
-async function chamar(metodo, caminho, body) {
-  if (!configurado()) {
-    throw new HttpError(503, 'Integração com o Comercial não configurada (COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY)');
-  }
-  let resp;
-  try {
-    resp = await fetch(`${base()}${caminho}`, {
-      method: metodo,
-      headers: {
-        'X-Service-Key': chave(),
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch (err) {
-    throw new HttpError(502, `Comercial inacessível: ${err.message}`);
-  }
-  const texto = await resp.text();
-  let payload;
-  try { payload = texto ? JSON.parse(texto) : {}; } catch { payload = { raw: texto }; }
-  if (!resp.ok) throw new HttpError(resp.status, payload.message || `Comercial respondeu HTTP ${resp.status}`);
-  return payload;
-}
 
 // ===== GET /pedidos?status= — fila (default: aguardando avaliação do PCP) =====
 r.get(

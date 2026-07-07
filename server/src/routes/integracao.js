@@ -98,6 +98,8 @@ r.get(
     const { rows } = await q(
       `SELECT pp.cod_barras, pp.numero,
               to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
+              (SELECT g.nome FROM pcp_gavetas g WHERE g.id = pp.gaveta_id) AS gaveta,
+              to_char(pp.guardada_em, 'YYYY-MM-DD HH24:MI') AS guardada_em,
               i.pedido, i.produto,
               (SELECT SUM(i2.qnt)::int FROM pcp_itens i2 WHERE i2.pedido = i.pedido) AS total_pecas_pedido,
               (SELECT COUNT(*) FILTER (WHERE p2.conclusao IS NOT NULL)::int
@@ -110,6 +112,40 @@ r.get(
     );
     if (!rows[0]) throw new HttpError(404, 'Etiqueta não encontrada na fábrica');
     res.json(rows[0]);
+  })
+);
+
+// Fase C do ciclo — localização das peças de um pedido nas gavetas da
+// expedição. A logística usa isto ao agendar a instalação ("indicando onde
+// cada peça de cada pedido se encontra").
+r.get(
+  '/expedicao',
+  ah(async (req, res) => {
+    const pedido = String(req.query.pedido || '').trim();
+    if (!pedido) throw new HttpError(422, 'Parâmetro "pedido" obrigatório');
+    const { rows } = await q(
+      `SELECT pp.cod_barras AS codigo, pp.numero,
+              to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
+              g.nome AS gaveta,
+              to_char(pp.guardada_em, 'YYYY-MM-DD HH24:MI') AS guardada_em,
+              i.pedido, i.produto, i.cliente, i.ambiente
+       FROM pcp_pecas pp
+       JOIN pcp_itens i ON i.id = pp.item_id
+       LEFT JOIN pcp_gavetas g ON g.id = pp.gaveta_id
+       WHERE i.pedido = $1
+       ORDER BY pp.item_id, pp.numero`,
+      [pedido]
+    );
+    if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado na fábrica`);
+    const guardadas = rows.filter((x) => x.gaveta).length;
+    res.json({
+      pedido,
+      total_pecas: rows.length,
+      embaladas: rows.filter((x) => x.conclusao).length,
+      guardadas,
+      completo_na_expedicao: guardadas === rows.length,
+      pecas: rows,
+    });
   })
 );
 

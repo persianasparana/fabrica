@@ -15,6 +15,7 @@
 <script src="assets/js/comercial.js" defer></script>
 <script src="assets/js/etiquetas.js" defer></script>
 <script src="assets/js/regras-estrutura.js" defer></script>
+<script src="assets/js/expedicao.js" defer></script>
 </head>
 <div id="app">
 
@@ -68,6 +69,10 @@
     <a onclick="goTo('ordemcorte')" data-page="ordemcorte">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
       <span>Ordem de Corte</span>
+    </a>
+    <a onclick="goTo('expedicao')" data-page="expedicao">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      <span>Expedição</span>
     </a>
     <a onclick="goTo('etiquetas')" data-page="etiquetas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><rect x="6" y="6" width="2" height="2"/><line x1="11" y1="9" x2="15" y2="13"/><line x1="9" y1="11" x2="13" y2="15"/></svg>
@@ -428,6 +433,42 @@
         <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Pré-visualizar”.</div>
       </div>
       <div id="etq-modelos-box" data-admin style="display:none"></div>
+    </div>
+
+    <!-- EXPEDIÇÃO (GAVETAS) -->
+    <div class="section" id="sec-expedicao">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Ação</label>
+            <div style="display:flex;gap:6px">
+              <button id="exp-modo-guardar" class="btn btn-red" onclick="expSetModo('guardar')">Guardar</button>
+              <button id="exp-modo-retirar" class="btn btn-outline" onclick="expSetModo('retirar')">Retirar</button>
+            </div>
+          </div>
+          <div id="exp-gaveta-wrap">
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Gaveta</label>
+            <select id="exp-gaveta" style="font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><option value="">Carregando…</option></select>
+          </div>
+          <div style="flex:1;min-width:220px">
+            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Código da peça (bipe a etiqueta)</label>
+            <input type="text" id="exp-codigo" placeholder="Ex: PP1042-3" autocomplete="off" style="width:100%;font-size:15px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')expBipar()">
+          </div>
+          <button class="btn btn-black" onclick="expBipar()">✔ Confirmar</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px">Guardar = peça EMBALADA entra na gaveta escolhida (bipar de novo em outra gaveta = transferência). Retirar = saída para a instalação. Quando todas as peças de um pedido do Comercial estiverem guardadas, ele vira NA EXPEDIÇÃO sozinho.</div>
+      </div>
+      <div id="exp-feedback"></div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 10px">
+        <div style="flex:1;min-width:200px">
+          <input type="text" id="exp-busca-pedido" placeholder="Onde está o pedido…? (nº/PED-…)" style="width:100%;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')expBuscarPedido()">
+        </div>
+        <button class="btn btn-outline" style="font-size:11px" onclick="expBuscarPedido()">🔍 Localizar pedido</button>
+        <button class="btn btn-outline" style="font-size:11px" onclick="expCarregarMapa()">↻ Atualizar mapa</button>
+      </div>
+      <div id="exp-pedido-resultado"></div>
+      <div id="exp-mapa"></div>
+      <div id="exp-gavetas-admin"></div>
     </div>
 
     <!-- EDITAR PEDIDO (em massa) -->

@@ -68,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos','comercial','etiquetas'];
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos','comercial','etiquetas','expedicao'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -216,7 +216,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -232,6 +232,7 @@ function goTo(page) {
   if (page === 'estrutura') { renderEstrutura(); renderRegrasEstrutura(); }
   if (page === 'ordemcorte') { ocInit(); setTimeout(()=>document.getElementById('oc-pedidos')?.focus(), 80); }
   if (page === 'etiquetas') { renderEtiquetas(); setTimeout(()=>document.getElementById('etq-pedidos')?.focus(), 80); }
+  if (page === 'expedicao') { renderExpedicao(); setTimeout(()=>document.getElementById('exp-codigo')?.focus(), 80); }
   if (page === 'status') renderStatusAdmin();
   if (page === 'tipos') renderTiposAdmin();
   if (page === 'setores') renderSetoresAdmin();
@@ -714,7 +715,7 @@ async function excluirSetor(id, nome) {
 }
 
 // ─── USUÁRIOS (admin) ────────────────────────────────────────────────────────
-const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido',tipos:'Tipos de Produção (cadastrar/editar)',comercial:'Pedidos Comercial',etiquetas:'Etiquetas (ver/imprimir)'};
+const ABA_LABELS = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bipagem:'Bipagem',estrutura:'Estrutura do Produto',novo:'Novo Pedido',tipos:'Tipos de Produção (cadastrar/editar)',comercial:'Pedidos Comercial',etiquetas:'Etiquetas (ver/imprimir)',expedicao:'Expedição (gavetas)'};
 let usuariosCache = [];
 
 async function renderUsuariosAdmin() {

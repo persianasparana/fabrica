@@ -22,6 +22,7 @@ import integracaoRoutes from './routes/integracao.js';
 import ordemCorteRoutes from './routes/ordem-corte.js';
 import etiquetasRoutes from './routes/etiquetas.js';
 import estruturaRegrasRoutes from './routes/estrutura-regras.js';
+import expedicaoRoutes from './routes/expedicao.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
@@ -88,6 +89,7 @@ app.use('/api/pcp', adminRoutes);
 app.use('/api/pcp/ordem-corte', ordemCorteRoutes);
 app.use('/api/pcp/etiquetas', etiquetasRoutes);
 app.use('/api/pcp/estrutura-regras', estruturaRegrasRoutes);
+app.use('/api/pcp/expedicao', expedicaoRoutes);
 app.use('/api/qualidade', qualidadeRoutes);
 // Ciclo do pedido (Fase B) — avaliação do PCP + produção (Comercial :3010)
 app.use('/api/comercial', comercialRoutes);

@@ -400,4 +400,41 @@ export async function migrate() {
     )
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_estrutura_regras_prio ON pcp_estrutura_regras (prioridade, id)`);
+
+  // ─── Expedição: gavetas (Fase C do ciclo do pedido) ───────────────────────
+  // Peça embalada (baixa) é GUARDADA numa gaveta bipando a etiqueta; a
+  // logística consulta onde cada peça está (via /api/integracao) e RETIRA na
+  // hora da instalação. Quando todas as peças de um PED-… estão guardadas, o
+  // pedido federado avança sozinho para NA_EXPEDICAO no Comercial.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_gavetas (
+      id         BIGSERIAL PRIMARY KEY,
+      nome       VARCHAR(60) UNIQUE NOT NULL,
+      descricao  VARCHAR(160) NOT NULL DEFAULT '',
+      ordem      INTEGER NOT NULL DEFAULT 0,
+      ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS gaveta_id BIGINT REFERENCES pcp_gavetas(id) ON DELETE SET NULL`);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS guardada_em TIMESTAMPTZ`);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS guardada_por BIGINT`);
+  await q(`CREATE INDEX IF NOT EXISTS idx_pecas_gaveta ON pcp_pecas (gaveta_id)`);
+
+  // Movimentações da expedição (entrada/transferência/saída por peça)
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_expedicao_log (
+      id          BIGSERIAL PRIMARY KEY,
+      peca_id     BIGINT REFERENCES pcp_pecas(id) ON DELETE SET NULL,
+      codigo      VARCHAR(64),
+      pedido      VARCHAR(64),
+      gaveta_id   BIGINT REFERENCES pcp_gavetas(id) ON DELETE SET NULL,
+      gaveta_nome VARCHAR(60),
+      acao        VARCHAR(16) NOT NULL,
+      por         BIGINT,
+      por_nome    VARCHAR(128),
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_expedicao_log_pedido ON pcp_expedicao_log (pedido)`);
 }

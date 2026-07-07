@@ -26,6 +26,8 @@ import { Router } from 'express';
 import { requireAuth, requireAdmin, requireCsrf, requirePerm, audit } from '../auth.js';
 import { q, pool } from '../db.js';
 import { ah, HttpError } from '../util.js';
+// Fase C do ciclo — avanço automático do pedido federado (fire-and-forget)
+import { avancarPedidoSilencioso, ehPedidoComercial } from '../comercial-client.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -50,7 +52,9 @@ const SELECT_ITEM = `
     SELECT json_agg(json_build_object(
              'id', pp.id, 'numero', pp.numero, 'cod_barras', pp.cod_barras,
              'conclusao', to_char(pp.conclusao, 'YYYY-MM-DD'),
-             'largura', pp.largura, 'altura', pp.altura, 'medidas', pp.medidas
+             'largura', pp.largura, 'altura', pp.altura, 'medidas', pp.medidas,
+             'gaveta_id', pp.gaveta_id,
+             'gaveta', (SELECT g.nome FROM pcp_gavetas g WHERE g.id = pp.gaveta_id)
            ) ORDER BY pp.numero) AS pecas
     FROM pcp_pecas pp WHERE pp.item_id = i.id
   ) pc ON TRUE`;
@@ -535,7 +539,8 @@ r.post(
     if (!setorId) throw new HttpError(422, 'Selecione o setor');
 
     const { rows } = await q(
-      `SELECT pp.id, pp.item_id, pp.numero, to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao, i.produto_id
+      `SELECT pp.id, pp.item_id, pp.numero, to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
+              i.produto_id, i.pedido
        FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE pp.cod_barras = $1`,
       [codigo]
     );
@@ -614,6 +619,23 @@ r.post(
 
     if (out.acao !== 'jafoi')
       await audit(req.session.user.id, 'pcp', 'bip.' + out.acao, { entityType: 'pcp_peca', entityId: Number(peca.id) });
+
+    // Ciclo do pedido (Fase C) — avanço automático do estado federado, sem
+    // atrasar a resposta da bipagem: 1º início → EM_PRODUCAO; última baixa
+    // do pedido → EMBALADO.
+    if (ehPedidoComercial(peca.pedido)) {
+      if (out.acao === 'inicio') {
+        avancarPedidoSilencioso(peca.pedido, 'EM_PRODUCAO', req.session.user.full_name);
+      } else if (out.acao === 'baixa') {
+        q(`SELECT BOOL_AND(pp.conclusao IS NOT NULL) AS tudo
+           FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id
+           WHERE i.pedido = $1`, [peca.pedido])
+          .then(({ rows: chk }) => {
+            if (chk[0]?.tudo) avancarPedidoSilencioso(peca.pedido, 'EMBALADO', req.session.user.full_name);
+          })
+          .catch((e) => console.warn(`[ciclo] Falha ao checar baixa de ${peca.pedido}: ${e.message}`));
+      }
+    }
     res.json({
       acao: out.acao,
       setor_nome: out.setor_nome,
