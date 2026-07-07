@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1D1D1B">
+<title>Fotos E-commerce — Persianas Paraná</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="../assets/brand/logos/favicon.png">
+<link rel="apple-touch-icon" href="../assets/brand/logos/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/manrope.css">
+<style>
+:root { --black:#1D1D1B; --red:#C1212D; --gold:#C6B784; --bg:#F4F4F2; --border:#E0E0E0; --text3:#8a8a86; --ok:#15803D; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Manrope',Arial,sans-serif; background:var(--bg); color:var(--black); padding-bottom:70px; }
+header { background:var(--black); color:#fff; padding:14px 16px calc(14px + env(safe-area-inset-top)) 16px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:5; }
+header img { height:26px; }
+header .tit { font-size:15px; font-weight:800; letter-spacing:.03em; flex:1; }
+header .quem { font-size:11px; color:var(--gold); }
+.wrap { max-width:560px; margin:0 auto; padding:14px; }
+.card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
+h2 { font-size:15px; font-weight:800; margin-bottom:10px; }
+label { display:block; font-size:11px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:.05em; margin:10px 0 4px; }
+input, select, textarea { width:100%; font-size:16px; padding:12px; border:1.5px solid var(--border); border-radius:10px; font-family:inherit; background:#fff; outline:none; }
+input:focus, select:focus, textarea:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(198,183,132,.25); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.btn { width:100%; min-height:52px; border:none; border-radius:12px; font-family:inherit; font-size:15px; font-weight:800; letter-spacing:.04em; cursor:pointer; }
+.btn-red { background:var(--red); color:#fff; }
+.btn-black { background:var(--black); color:#fff; }
+.btn-ghost { background:#fff; color:var(--black); border:1.5px solid var(--border); }
+.btn:disabled { opacity:.5; }
+.thumbs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+.thumb { position:relative; border-radius:10px; overflow:hidden; aspect-ratio:1; background:#eee; }
+.thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.thumb button { position:absolute; top:4px; right:4px; background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:8px; width:28px; height:28px; font-size:14px; }
+.btn-cam { display:flex; align-items:center; justify-content:center; gap:8px; min-height:64px; border:2px dashed var(--gold); border-radius:12px; background:#FBF8EF; color:var(--black); font-weight:800; font-size:15px; width:100%; font-family:inherit; }
+.msg { border-radius:10px; padding:12px; font-size:14px; font-weight:700; margin-top:12px; display:none; text-align:center; }
+.msg.ok { display:block; background:rgba(21,128,61,.1); color:var(--ok); border:1.5px solid var(--ok); }
+.msg.erro { display:block; background:rgba(193,33,45,.08); color:var(--red); border:1.5px solid var(--red); }
+.tabs { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--black); padding-bottom:env(safe-area-inset-bottom); z-index:5; }
+.tabs button { flex:1; background:none; border:none; color:#bbb; font-family:inherit; font-size:12px; font-weight:700; padding:12px 0 10px; }
+.tabs button.ativo { color:var(--gold); }
+.reg { border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px; display:flex; gap:12px; background:#fff; }
+.reg img { width:84px; height:84px; object-fit:cover; border-radius:10px; background:#eee; flex-shrink:0; }
+.reg .info { flex:1; min-width:0; font-size:13px; }
+.reg .info b { font-size:14px; }
+.reg .meta { color:var(--text3); font-size:12px; margin-top:2px; }
+.reg .acoes { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.reg .acoes button { font-size:12px; font-weight:700; padding:7px 10px; border-radius:8px; border:1.5px solid var(--border); background:#fff; font-family:inherit; }
+.vazio { text-align:center; color:var(--text3); padding:30px 10px; font-size:13px; }
+.progresso { font-size:13px; font-weight:700; color:var(--gold); text-align:center; margin-top:8px; }
+#view-login .card { margin-top:12vh; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <img src="../assets/brand/logos/logo-branco.png" alt="Persianas Paraná">
+  <div class="tit">FOTOS E-COMMERCE</div>
+  <div class="quem" id="quem"></div>
+</header>
+
+<!-- LOGIN (mesmo usuário do PCP) -->
+<div id="view-login" class="wrap hidden">
+  <div class="card">
+    <h2>Entrar (usuário do PCP)</h2>
+    <label for="lg-user">Usuário</label>
+    <input id="lg-user" autocomplete="username">
+    <label for="lg-pass">Senha</label>
+    <input id="lg-pass" type="password" autocomplete="current-password">
+    <div style="height:12px"></div>
+    <button class="btn btn-black" id="lg-entrar">Entrar</button>
+    <div class="msg" id="lg-msg"></div>
+  </div>
+</div>
+
+<!-- NOVA PEÇA -->
+<div id="view-nova" class="wrap hidden">
+  <div class="card">
+    <h2 id="form-titulo">📷 Nova peça</h2>
+
+    <button type="button" class="btn-cam" id="btn-cam">📷 Tirar / escolher fotos</button>
+    <input type="file" id="input-fotos" accept="image/*" capture="environment" multiple class="hidden">
+    <div class="thumbs" id="thumbs"></div>
+
+    <label for="f-titulo">Nome / título da peça</label>
+    <input id="f-titulo" placeholder="Ex: Rolô Premium Sheer Cinza 1,80×1,40">
+    <div class="grid2">
+      <div><label for="f-familia">Linha</label>
+        <select id="f-familia"><option value=""></option>
+          <option>SOFT</option><option>PREMIUM</option><option>MOTORIZADAS</option>
+          <option>INTERMEDIARIO</option><option>ACOPLADA</option><option>ROMANA</option><option>HORIZONTAL</option>
+        </select></div>
+      <div><label for="f-produto">Produto / modelo</label><input id="f-produto" placeholder="Ex: Rolô Soft"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="f-acabamento">Acabamento</label><input id="f-acabamento" placeholder="Ex: Bandô Vision"></div>
+      <div><label for="f-acionamento">Acionamento</label>
+        <select id="f-acionamento"><option value=""></option><option>Manual</option><option>Motorizado</option></select></div>
+    </div>
+    <div class="grid2">
+      <div><label for="f-trilho">Trilho plus</label>
+        <select id="f-trilho"><option value=""></option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+      <div><label for="f-bando">Bandô</label>
+        <select id="f-bando"><option value=""></option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+    </div>
+    <label for="f-colecao">Coleção (tecido)</label>
+    <input id="f-colecao" placeholder="Ex: Luminous Sheer">
+    <div class="grid2">
+      <div><label for="f-cor">Cor do tecido</label><input id="f-cor"></div>
+      <div><label for="f-corperfil">Cor do perfil</label><input id="f-corperfil"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="f-largura">Largura (cm)</label><input id="f-largura" type="number" inputmode="decimal"></div>
+      <div><label for="f-altura">Altura (cm)</label><input id="f-altura" type="number" inputmode="decimal"></div>
+    </div>
+    <label for="f-comando">Tamanho do comando (se manual)</label>
+    <input id="f-comando" placeholder="Ex: 1,20 m">
+    <label for="f-obs">Observações</label>
+    <textarea id="f-obs" rows="3" placeholder="Livre — detalhes pro anúncio"></textarea>
+
+    <div style="height:14px"></div>
+    <button class="btn btn-red" id="btn-salvar">💾 Salvar peça + fotos</button>
+    <button class="btn btn-ghost hidden" id="btn-cancelar" style="margin-top:8px">Cancelar edição</button>
+    <div class="progresso" id="progresso"></div>
+    <div class="msg" id="form-msg"></div>
+  </div>
+</div>
+
+<!-- GALERIA -->
+<div id="view-galeria" class="wrap hidden">
+  <div class="card">
+    <h2>🖼 Peças fotografadas</h2>
+    <input id="g-busca" placeholder="Buscar por nome, coleção, cor…">
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" id="btn-csv">⬇ Baixar CSV (specs + links das fotos)</button>
+  </div>
+  <div id="g-lista"><div class="vazio">Carregando…</div></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button data-view="nova" class="ativo">📷 Nova peça</button>
+  <button data-view="galeria">🖼 Galeria</button>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

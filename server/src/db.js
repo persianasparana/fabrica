@@ -437,4 +437,42 @@ export async function migrate() {
     )
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_expedicao_log_pedido ON pcp_expedicao_log (pedido)`);
+
+  // ─── Fotos p/ e-commerce (mini-PWA /pcp/fotos/) ───────────────────────────
+  // Registro = uma peça fotografada com a spec (mesmo vocabulário da F1) +
+  // N arquivos de foto no disco (uploads/ecommerce, fora do git).
+  await q(`
+    CREATE TABLE IF NOT EXISTS ecommerce_fotos_registros (
+      id          BIGSERIAL PRIMARY KEY,
+      titulo      VARCHAR(160) NOT NULL DEFAULT '',
+      familia     VARCHAR(40),
+      produto     VARCHAR(160),
+      acabamento  VARCHAR(120),
+      trilho_plus BOOLEAN,
+      bando       BOOLEAN,
+      colecao     VARCHAR(120),
+      cor_tecido  VARCHAR(120),
+      cor_perfil  VARCHAR(120),
+      largura_cm  NUMERIC(8,2),
+      altura_cm   NUMERIC(8,2),
+      acionamento VARCHAR(60),
+      comando     VARCHAR(60),
+      observacoes TEXT NOT NULL DEFAULT '',
+      criado_por  BIGINT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS ecommerce_fotos_arquivos (
+      id          BIGSERIAL PRIMARY KEY,
+      registro_id BIGINT NOT NULL REFERENCES ecommerce_fotos_registros(id) ON DELETE CASCADE,
+      arquivo     VARCHAR(200) NOT NULL,
+      mime        VARCHAR(60) NOT NULL DEFAULT 'image/jpeg',
+      tamanho     INTEGER,
+      ordem       INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await q(`CREATE INDEX IF NOT EXISTS idx_ecommerce_fotos_reg ON ecommerce_fotos_arquivos (registro_id)`);
 }

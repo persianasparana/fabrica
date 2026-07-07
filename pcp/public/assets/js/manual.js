@@ -96,6 +96,14 @@ function renderManual() {
       `${b('Usuários')}: perfis e permissão por aba (nenhum/ver/editar) — inclui as abas Pedidos Comercial, Etiquetas e Expedição.`
     )}`)}
 
+  ${S('📷 Fotos p/ E-commerce (app do celular)', `Mini-aplicativo em ${b('<a href="fotos/" style="color:var(--red)">…/pcp/fotos/</a>')} —
+    abra no navegador do celular e use "Adicionar à tela inicial" pra instalar (mesmo login do PCP).
+    ${ol(
+      'Tire/escolha as fotos (são comprimidas no aparelho automaticamente).',
+      'Preencha a spec: linha (Soft/Premium…), produto, acabamento, trilho plus, bandô, coleção, cores, medidas, comando e observações.',
+      `${b('Salvar')} grava tudo; a aba ${b('Galeria')} lista as peças (editar, adicionar fotos, excluir) e o botão ${b('Baixar CSV')} exporta as specs com os links das fotos pro e-commerce.`
+    )}`)}
+
   ${S('❓ Problemas comuns', `${ul(
       '“O Comercial recusou a chave de serviço” em Pedidos Comercial → problema de integração (avise o admin — conferir COMERCIAL_SERVICE_KEY), sua sessão continua válida.',
       'Voltou pra tela de login → sessão expirou (8h). Entre de novo.',

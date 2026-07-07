@@ -42,3 +42,6 @@ coverage/
 
 # Observação: o Chart.js é vendorizado de propósito em
 # qualidade/public/assets/vendor/ e DEVE ser versionado.
+
+# Fotos do e-commerce (mini-PWA /pcp/fotos) — nunca versionar
+uploads/
