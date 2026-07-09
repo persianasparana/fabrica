@@ -2088,7 +2088,14 @@
         {
           "nome": "Cabeçalho 25mm",
           "formula": "L",
-          "dim": "L"
+          "dim": "L",
+          "barra": 4.9
+        },
+        {
+          "nome": "Base 25mm",
+          "formula": "L",
+          "dim": "L",
+          "barra": 4.9
         },
         {
           "nome": "Lâmina 25mm (cada)",

@@ -995,6 +995,7 @@ function renderPedidoEditor() {
       <div style="margin-top:14px;display:flex;gap:8px">
         <button class="btn btn-red" onclick="salvarPedido()">Salvar dados do pedido</button>
         <button class="btn btn-outline" onclick="carregarPedido()">Recarregar</button>
+        <button class="btn btn-black" onclick="abrirOrdemCorte()">🖨 Ordem de corte</button>
         <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
       </div>
     </div>`;
@@ -1005,6 +1006,11 @@ function aplicarPedidoResposta(r) {
   (r.itens || []).forEach(it => aplicarItemAtualizado(it));
   renderPedidoEditor();
   renderAll();
+}
+
+function abrirOrdemCorte() {
+  if (!pedidoCarregado) return;
+  window.open('ordem-corte.html?pedido=' + encodeURIComponent(pedidoCarregado.pedido), '_blank');
 }
 
 async function pedidoAcao(acao) {
@@ -1135,6 +1141,8 @@ function openDetail(id) {
     <div class="form-group"><label>Produto</label><input type="text" id="ed-produto" list="produtos-datalist" value="${esc(item.produto)}"></div>
     <div class="form-group"><label>Nº Pedido</label><input type="text" id="ed-pedido" value="${esc(item.pedido)}"></div>
     <div class="form-group"><label>Quantidade</label><input type="number" id="ed-qnt" value="${item.qnt}" min="1"></div>
+    <div class="form-group"><label>Largura (medida)</label><input type="number" id="ed-largura" step="0.001" min="0" value="${item.largura != null ? item.largura : ''}"></div>
+    <div class="form-group"><label>Altura (medida)</label><input type="number" id="ed-altura" step="0.001" min="0" value="${item.altura != null ? item.altura : ''}"></div>
     <div class="form-group"><label>Data do cliente</label><input type="date" id="ed-data-cliente" value="${item.data_cliente||''}"></div>
     <div class="form-group"><label>Chegada PCP</label><input type="date" id="ed-chegada" value="${item.chegada_pcp||''}"></div>
     <div class="form-group"><label>Prev. produção</label><input type="date" id="ed-prev-prod" value="${item.prev_producao||''}"></div>
@@ -1246,6 +1254,8 @@ async function salvarEdicao() {
     observacoes: document.getElementById('ed-obs').value.trim(),
     especial: document.getElementById('ed-especial').checked,
     status_id: document.getElementById('ed-status').value === '' ? null : Number(document.getElementById('ed-status').value),
+    largura: document.getElementById('ed-largura').value === '' ? null : parseFloat(document.getElementById('ed-largura').value),
+    altura: document.getElementById('ed-altura').value === '' ? null : parseFloat(document.getElementById('ed-altura').value),
   };
   try {
     const r = await api('pcp/itens?id=' + editingId, { method: 'PUT', body: payload });
@@ -1297,14 +1307,22 @@ function adicionarProdutoPedido() {
     return;
   }
 
+  const largura = parseFloat(String(document.getElementById('fn-largura').value).replace(',', '.')) || null;
+  const altura = parseFloat(String(document.getElementById('fn-altura').value).replace(',', '.')) || null;
+
   pedidoProdutos.push({
     produto,
     produto_id,
     etiqueta: etiqueta || null,
     especial: document.getElementById('fn-especial').checked,
+    largura,
+    altura,
+    unidade: unidadeDoProdutoSelecionado(),
   });
   etiquetaEl.value = '';
   document.getElementById('fn-especial').checked = false;
+  document.getElementById('fn-largura').value = '';
+  document.getElementById('fn-altura').value = '';
   renderProdutosPedido();
   etiquetaEl.focus(); // próxima leitura (mesmo produto selecionado = sequência rápida)
 }
@@ -1322,12 +1340,13 @@ function renderProdutosPedido() {
   } else {
     el.innerHTML = `
       <table style="width:100%">
-        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Etiqueta</th><th style="width:70px"></th></tr></thead>
+        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Medida (L×A)</th><th>Etiqueta</th><th style="width:70px"></th></tr></thead>
         <tbody>
           ${pedidoProdutos.map((p, ix) => `
             <tr>
               <td>${ix + 1}</td>
               <td class="td-produto">${p.especial ? '<span class="st st-especial">★ ESPECIAL</span> ' : ''}${esc(p.produto)}</td>
+              <td>${p.largura && p.altura ? `${String(p.largura).replace('.', ',')} × ${String(p.altura).replace('.', ',')} ${p.unidade || ''}` : '<span style="color:var(--text3)">—</span>'}</td>
               <td style="font-family:monospace">${p.etiqueta ? esc(p.etiqueta) : '<span style="color:var(--text3)">— vincular depois</span>'}</td>
               <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="removerProdutoPedido(${ix})">remover</button></td>
             </tr>`).join('')}
@@ -1361,6 +1380,8 @@ async function salvarNovo() {
     produto_id: p.produto_id,
     especial: p.especial,
     etiqueta: p.etiqueta || undefined,
+    largura: p.largura || undefined,
+    altura: p.altura || undefined,
   }));
 
   try {
@@ -1374,7 +1395,7 @@ async function salvarNovo() {
 }
 
 function limparForm() {
-  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta'].forEach(id => document.getElementById(id).value = '');
+  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta','fn-largura','fn-altura'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fn-produto').value = '';
   document.getElementById('fn-produto-livre').style.display = 'none';
   document.getElementById('fn-data-cliente').value = '';
@@ -1390,6 +1411,22 @@ function toggleProdutoLivre() {
   const mostrar = document.getElementById('fn-produto').value === '__livre__';
   livre.style.display = mostrar ? 'block' : 'none';
   if (mostrar) livre.focus();
+  atualizarUnidadeMedida();
+}
+
+function unidadeDoProdutoSelecionado() {
+  const sel = document.getElementById('fn-produto');
+  if (!sel || !sel.value || sel.value === '__livre__') return 'cm';
+  const opt = sel.options[sel.selectedIndex];
+  const p = opt && opt.dataset.id ? ESTRUTURA.find((x) => x.id === Number(opt.dataset.id)) : null;
+  return p && p.unidade === 'm' ? 'm' : 'cm';
+}
+function atualizarUnidadeMedida() {
+  const u = unidadeDoProdutoSelecionado();
+  const l = document.getElementById('fn-unidade-l');
+  const a = document.getElementById('fn-unidade-a');
+  if (l) l.textContent = `(${u})`;
+  if (a) a.textContent = `(${u})`;
 }
 
 // ─── EXPORT EXCEL ─────────────────────────────────────────────────────────────
@@ -2069,6 +2106,7 @@ function renderEstrutura() {
                   ${c.qtd && c.qtd > 1 ? `<span style="color:var(--text3)"> ×${c.qtd}</span>` : ''}
                   ${c.qtdFormula ? `<span style="color:var(--text3)"> ×(${esc(c.qtdFormula)})</span>` : ''}
                   ${c.setor_id ? `<span class="st-prod" style="margin-left:4px;background:var(--gray-bg);color:var(--text2);border:1px solid var(--border)">${esc(setorNome(c.setor_id))}</span>` : '<span style="color:var(--amber);font-size:9px;margin-left:4px">sem setor</span>'}
+                  ${c.barra ? `<span class="st-prod" style="margin-left:4px;background:var(--black);color:var(--gold);border:1px solid var(--gold)">barra ${String(c.barra).replace('.', ',')} m</span>` : ''}
                 </li>`).join('')}
               ${(p.roteiro && p.roteiro.length) ? `<div style="margin-top:8px;font-size:10px;color:var(--text3)">Roteiro: ${p.roteiro.map(r=>{const dep=(r.depende_de||[]).map(d=>setorNome(d)).join(', ');return esc(setorNome(r.setor_id))+(dep?` (após ${esc(dep)})`:'');}).join(' · ')}</div>` : ''}
               </ul>
@@ -2133,13 +2171,16 @@ function setorOptions(sel) {
 function corteParaEstado(c) {
   return { nome: c.nome||'', formula: c.formula||'', dim: (c.dim==='A'?'A':'L'),
            qtdRaw: c.qtdFormula ? c.qtdFormula : (c.qtd && c.qtd>1 ? String(c.qtd) : ''),
-           setor_id: c.setor_id!=null ? Number(c.setor_id) : null };
+           setor_id: c.setor_id!=null ? Number(c.setor_id) : null,
+           barraRaw: c.barra != null ? String(c.barra).replace('.', ',') : '' };
 }
 function estadoParaCorte(e) {
   const c = { nome: e.nome.trim(), formula: e.formula.trim(), dim: e.dim==='A'?'A':'L' };
   if (e.setor_id) c.setor_id = Number(e.setor_id);
   const q = (e.qtdRaw||'').trim();
   if (q) { if (/^\d+$/.test(q)) { if (Number(q)>1) c.qtd = Number(q); } else c.qtdFormula = q; }
+  const b = parseFloat(String(e.barraRaw || '').replace(',', '.'));
+  if (Number.isFinite(b) && b > 0) c.barra = b;
   return c;
 }
 
@@ -2151,12 +2192,13 @@ function epDelCorte(i) { epCortes.splice(i,1); renderEpCortes(); renderEpRoteiro
 function renderEpCortes() {
   const el = document.getElementById('ep-cortes-lista'); if (!el) return;
   el.innerHTML = epCortes.length ? epCortes.map((c,i)=>`
-    <div style="display:grid;grid-template-columns:1.3fr 1fr 42px 56px 1fr 24px;gap:4px;align-items:center;margin-bottom:5px">
+    <div style="display:grid;grid-template-columns:1.3fr 1fr 42px 52px 1fr 58px 24px;gap:4px;align-items:center;margin-bottom:5px">
       <input type="text" value="${esc(c.nome)}" placeholder="Parte" oninput="epSet(${i},'nome',this.value)" style="font-size:11px">
       <input type="text" value="${esc(c.formula)}" placeholder="L - 2.2" oninput="epSet(${i},'formula',this.value)" style="font-size:11px;font-family:monospace">
       <select onchange="epSet(${i},'dim',this.value)" style="font-size:11px"><option ${c.dim==='L'?'selected':''}>L</option><option ${c.dim==='A'?'selected':''}>A</option></select>
       <input type="text" value="${esc(c.qtdRaw)}" placeholder="qtd" oninput="epSet(${i},'qtdRaw',this.value)" style="font-size:11px" title="número ou fórmula (ex: garrasPorLargura(L))">
       <select onchange="epSetSetor(${i},this.value)" style="font-size:11px">${setorOptions(c.setor_id)}</select>
+      <input type="text" value="${esc(c.barraRaw)}" placeholder="barra m" oninput="epSet(${i},'barraRaw',this.value)" style="font-size:11px" title="comprimento da barra em metros (ex: 4,90) — usado na Ordem de Corte">
       <button class="btn btn-outline" style="padding:2px 0;font-size:10px;color:var(--red);border-color:var(--red)" onclick="epDelCorte(${i})" title="remover">✕</button>
     </div>`).join('') : '<div style="font-size:11px;color:var(--text3)">Nenhum corte. Adicione as partes fabricadas (cada uma com seu setor).</div>';
 }
@@ -2225,7 +2267,7 @@ function abrirProdutoModal(id) {
       </select>
     </div>
     <div class="form-group" style="grid-column:1/-1">
-      <label>Fórmulas de corte — parte · fórmula · dim · qtd · setor de fabricação</label>
+      <label>Fórmulas de corte — parte · fórmula · dim · qtd · setor · barra (m)</label>
       <div id="ep-cortes-lista"></div>
       <button class="btn btn-outline" style="margin-top:4px;font-size:11px" onclick="epAddCorte()">+ adicionar corte</button>
     </div>

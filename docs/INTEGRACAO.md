@@ -123,7 +123,8 @@ têm baixa).
 
 Campos do item: `produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial,
 prev_producao, conclusao, data_cliente, tipo, motivo_atraso, observacoes,
-especial(bool), status_id`. Datas em `YYYY-MM-DD`. `tipo` ∈ {Produção nova,
+especial(bool), status_id, largura, altura` (medidas na unidade do produto —
+cm, ou m nas PH; alimentam a Ordem de Corte). Datas em `YYYY-MM-DD`. `tipo` ∈ {Produção nova,
 Retrabalho, Higienização, Carry-over 2025, Showroom}.
 
 ### 3.3 PCP — pedido (edição em massa) (`/api/pcp/pedido`)

@@ -393,6 +393,10 @@
             <select id="fn-produto" onchange="toggleProdutoLivre()"><option value="">Carregando...</option></select>
             <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px">
           </div>
+          <div class="form-group"><label>Largura <span id="fn-unidade-l" style="font-weight:400;text-transform:none;color:var(--text3)"></span></label>
+            <input type="number" id="fn-largura" step="0.001" min="0" placeholder="ex: 0,985"></div>
+          <div class="form-group"><label>Altura <span id="fn-unidade-a" style="font-weight:400;text-transform:none;color:var(--text3)"></span></label>
+            <input type="number" id="fn-altura" step="0.001" min="0" placeholder="ex: 2,37"></div>
           <div class="form-group"><label>Etiqueta da peça (bipe aqui)</label>
             <input type="text" id="fn-etiqueta" placeholder="Aguardando leitura..." autocomplete="off"
               style="font-family:monospace;letter-spacing:.05em;border-color:var(--red)"

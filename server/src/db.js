@@ -114,6 +114,21 @@ export async function migrate() {
   await q(`CREATE INDEX IF NOT EXISTS idx_itens_data_cliente ON pcp_itens (data_cliente)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS especial BOOLEAN NOT NULL DEFAULT FALSE`);
 
+  // Medidas da peça (na unidade do produto: cm, ou m nas PH) — usadas na
+  // Ordem de Corte para avaliar as fórmulas e otimizar as barras.
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS largura NUMERIC(10,3)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS altura  NUMERIC(10,3)`);
+
+  // Backfill: recupera medidas registradas nas observações no formato
+  // "0,985 x 2,37 m" (importações antigas). Idempotente (só onde está NULL).
+  await q(`
+    UPDATE pcp_itens SET
+      largura = REPLACE((regexp_match(observacoes, '(\\d+[.,]\\d+)\\s*x\\s*(\\d+[.,]\\d+)\\s*m', 'i'))[1], ',', '.')::numeric,
+      altura  = REPLACE((regexp_match(observacoes, '(\\d+[.,]\\d+)\\s*x\\s*(\\d+[.,]\\d+)\\s*m', 'i'))[2], ',', '.')::numeric
+    WHERE largura IS NULL
+      AND observacoes ~* '\\d+[.,]\\d+\\s*x\\s*\\d+[.,]\\d+\\s*m'
+  `);
+
   // PCP: status de produção configuráveis (admin cadastra/exclui). Atribuídos
   // manualmente pelo PCP por item ou no pedido inteiro — distinto do indicador
   // de prazo (vencido/atenção) e da baixa por peça.
@@ -250,4 +265,26 @@ export async function migrate() {
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_nc_data ON nao_conformidades (data_ocorrencia)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_nc_status ON nao_conformidades (status)`);
+
+  // Data-fix PH 25mm: cabeçalho e base vêm em BARRAS de 4,90 m (informado pela
+  // fábrica). Marca a barra no corte do cabeçalho e garante o corte da base.
+  // Idempotente; o admin pode ajustar depois pela Estrutura do Produto.
+  const { rows: ph } = await q(`SELECT id, cortes FROM pcp_produtos WHERE chave = 'ph-25mm'`);
+  if (ph[0]) {
+    const cortes = ph[0].cortes || [];
+    let mudou = false;
+    for (const c of cortes) {
+      if (/cabe[cç]alho/i.test(c.nome || '') && c.barra == null) { c.barra = 4.9; mudou = true; }
+    }
+    if (!cortes.some((c) => /base/i.test(c.nome || ''))) {
+      const iCab = cortes.findIndex((c) => /cabe[cç]alho/i.test(c.nome || ''));
+      cortes.splice(iCab + 1, 0, { nome: 'Base 25mm', formula: 'L', dim: 'L', barra: 4.9 });
+      mudou = true;
+    }
+    if (mudou) {
+      await q('UPDATE pcp_produtos SET cortes = $2::jsonb, updated_at = now() WHERE id = $1', [
+        ph[0].id, JSON.stringify(cortes),
+      ]);
+    }
+  }
 }

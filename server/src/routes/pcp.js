@@ -41,6 +41,7 @@ const SELECT_ITEM = `
          to_char(i.conclusao,    'YYYY-MM-DD') AS conclusao,
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
+         i.largura::float8 AS largura, i.altura::float8 AS altura,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pc.pecas, '[]'::json) AS pecas
   FROM pcp_itens i
@@ -75,7 +76,13 @@ function validarItem(d, partial = false) {
     throw new HttpError(422, 'Etiqueta muito longa (máx. 64 caracteres)');
   if (d.status_id != null && d.status_id !== '' && !Number.isInteger(Number(d.status_id)))
     throw new HttpError(422, 'Status de produção inválido');
+  for (const f of ['largura', 'altura']) {
+    if (d[f] != null && d[f] !== '' && (!Number.isFinite(Number(d[f])) || Number(d[f]) <= 0 || Number(d[f]) > 100000))
+      throw new HttpError(422, `Medida inválida em ${f}`);
+  }
 }
+
+const numOuNull = (v) => (v == null || v === '' ? null : Number(v));
 
 const orNull = (v) => (v === undefined || v === null || v === '' ? null : v);
 
@@ -111,10 +118,11 @@ async function inserirItem(client, d, userId) {
   const { rows } = await exec(
     `INSERT INTO pcp_itens
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
-        conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by)
+        conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by,
+        largura, altura)
      VALUES ($1,$2,$3,$4,
              COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
-             $6,$7,$8,$9,$10,$11,$12,$13,$14)
+             $6,$7,$8,$9,$10,$11,$12,$13,$14,$16,$17)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
@@ -122,6 +130,7 @@ async function inserirItem(client, d, userId) {
       orNull(d.prev_producao), conclusao, orNull(d.data_cliente),
       d.tipo || 'Produção nova', d.motivo_atraso || '', (d.observacoes || '').trim(),
       d.especial === true, userId, etiqueta,
+      numOuNull(d.largura), numOuNull(d.altura),
     ]
   );
   const id = Number(rows[0].id);
@@ -256,6 +265,8 @@ r.put(
            observacoes   = COALESCE($16, observacoes),
            especial      = COALESCE($17, especial),
            status_id     = CASE WHEN $18 THEN NULL ELSE COALESCE($19::bigint, status_id) END,
+           largura       = CASE WHEN $20 THEN NULL ELSE COALESCE($21::numeric, largura) END,
+           altura        = CASE WHEN $22 THEN NULL ELSE COALESCE($23::numeric, altura)  END,
            updated_at    = now()
          WHERE id = $1`,
         [
@@ -274,6 +285,10 @@ r.put(
           typeof d.especial === 'boolean' ? d.especial : null,
           d.status_id === null,
           d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null,
+          d.largura === null,
+          numOuNull(d.largura),
+          d.altura === null,
+          numOuNull(d.altura),
         ]
       );
       if (result.rowCount === 0) throw new HttpError(404, 'Item não encontrado');

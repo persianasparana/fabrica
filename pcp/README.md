@@ -18,6 +18,7 @@ fórmulas de corte e componentes/BOM).
 | **Fila de Produção** | Tabela completa com busca, filtros por status/tipo/situação e por data (período, mês, semana, próximos N dias), ordenação e paginação |
 | **Alertas** | Pedidos vencidos e prestes a vencer |
 | **Buscar Pedido** | Busca por número de pedido, produto ou observações |
+| **Ordem de Corte** | Página própria e **imprimível** por pedido (`ordem-corte.html?pedido=N`): avalia as fórmulas da Estrutura com as **medidas (L×A)** de cada peça, totaliza material por corte e otimiza as **barras** (ex.: cabeçalho/base em barras de 4,90 m) com plano de corte por barra, sobra e aproveitamento; totais de componentes (BOM). Botão 🖨 na aba Editar Pedido |
 | **Editar Pedido** | Edição em massa de **todos os produtos/peças de um pedido**: muda prazo, tipo, motivo, ★ especial e observações de uma vez, e **conclui ou reabre todas as peças** num clique. Também exclui o pedido inteiro |
 | **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
 | **Bipagem** | **Por setor** (Início/Fim): o operador escolhe o setor + Início/Fim e bipa a etiqueta. O Início assume o status do setor (após as dependências do roteiro estarem "fim"); o Fim do setor cujo status é **final** dá a **baixa** da peça. Os setores ofertados respeitam os do usuário |
@@ -44,7 +45,7 @@ pcp/public/
 
 ## Dados (PostgreSQL — ver `../server`)
 
-- `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, ★ especial)
+- `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, ★ especial, **largura/altura** da peça)
 - `pcp_pecas` — peças individuais de cada item (etiqueta única + baixa própria); a conclusão do item é derivada das peças
 - `pcp_produtos` — estrutura do produto (fórmulas de corte e BOM em JSONB)
 - `pcp_status` — status de produção configuráveis (admin), com flag `final`; `pcp_itens.status_id` referencia o status atual
