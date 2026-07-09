@@ -86,6 +86,7 @@
     <button class="btn btn-outline" onclick="exportXLSX()" style="font-size:11px">⬇ Exportar CSV</button>
     <button class="btn btn-outline" onclick="document.getElementById('import-file').click()" style="font-size:11px">⬆ Importar Excel</button>
     <button class="btn btn-outline" onclick="document.getElementById('import-pdf-file').click()" style="font-size:11px;color:#C1212D;border-color:#C1212D">📄 Importar PDF</button>
+    <button class="btn btn-outline" onclick="openJsonPaste()" style="font-size:11px" title="Colar JSON extraído de um PDF pelo Claude">📋 Importar JSON</button>
     <input type="file" id="import-pdf-file" accept=".pdf" style="display:none" onchange="importPDFDirect(event)">
     <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFile(event)">
     <button class="btn btn-red" id="btn-novo-topo" onclick="openModal()">+ Novo Pedido</button>
