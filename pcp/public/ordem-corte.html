@@ -21,6 +21,12 @@ body { font-family: 'Manrope', Arial, sans-serif; font-size: 12px; color: var(--
 }
 #acoes .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
 #acoes .aviso { font-size: 11px; color: var(--text3); margin-left: auto; }
+#acoes .ctrl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); font-weight: 700; }
+#acoes .ctrl input, #acoes .ctrl select {
+  font-family: inherit; font-size: 12px; font-weight: 700; padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--black);
+}
+#acoes .ctrl input { width: 62px; text-align: right; }
 
 /* Cabeçalho do documento */
 .doc-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--black); padding-bottom: 12px; margin-bottom: 14px; }
@@ -49,12 +55,41 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .barra-sobra { min-width: 110px; text-align: right; color: var(--text2); }
 .aproveitamento { font-size: 11px; color: var(--text2); margin: 4px 0 2px; }
 
+/* Plano em desenho — barras proporcionais */
+.barra-viz { margin: 7px 0 11px; }
+.barra-viz__cab { display: flex; justify-content: space-between; align-items: baseline; font-size: 10px; color: var(--text2); margin-bottom: 3px; }
+.barra-viz__tag { display: inline-block; background: var(--black); color: var(--gold); border-radius: 999px; padding: 1px 9px; font-weight: 800; font-size: 10px; }
+.barra-viz__track {
+  display: flex; height: 34px; border: 1px solid var(--black); border-radius: 4px;
+  overflow: hidden; background: #fff;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.barra-viz__track .seg {
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+  font-size: 9px; font-weight: 800; color: #fff; overflow: hidden;
+  border-right: 1px solid rgba(255,255,255,.65);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.barra-viz__track .seg span { padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barra-viz__track .seg:nth-child(odd)  { background: var(--black); }
+.barra-viz__track .seg:nth-child(even) { background: #8a6d24; }   /* dourado escuro p/ texto branco */
+.barra-viz__sobra {
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+  font-size: 9px; font-weight: 700; color: var(--text2); overflow: hidden;
+  background: repeating-linear-gradient(45deg,#efeee9,#efeee9 4px,#e2e0d8 4px,#e2e0d8 8px);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+/* Alternância entre desenho e texto (data-modo no <body>, definido pelo JS) */
+body[data-modo="desenho"] .plano-texto { display: none; }
+body[data-modo="texto"]   .plano-desenho { display: none; }
+
 .alerta { background: #FFF6E5; border: 1px solid #E9B44C; border-radius: 6px; padding: 8px 12px; font-size: 11px; margin: 10px 0; }
 .rodape { margin-top: 26px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); display: flex; justify-content: space-between; }
 .quebra { page-break-inside: avoid; }
 
 @media print {
-  body { background: #fff; font-size: 11px; }
+  body { background: #fff; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #pagina { max-width: none; padding: 0; }
   #acoes { display: none !important; }
   h2 { page-break-after: avoid; }
@@ -67,8 +102,19 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 <div id="pagina">
   <div id="acoes">
     <button class="btn btn-red" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn" id="exportar" title="Exportar resumo de compra e cortes (CSV/Excel)">⬇ Exportar CSV</button>
+    <label class="ctrl">Barra (m)
+      <input type="text" id="barra" inputmode="decimal" title="Comprimento da barra em metros — recalcula o plano ao vivo">
+    </label>
+    <label class="ctrl">Plano
+      <select id="modo" title="Como mostrar o plano das barras">
+        <option value="desenho">Desenho</option>
+        <option value="texto">Texto</option>
+        <option value="ambos">Ambos</option>
+      </select>
+    </label>
     <button class="btn" onclick="window.close()">Fechar</button>
-    <span class="aviso">Somente esta página sai na impressão.</span>
+    <span class="aviso">Só o documento sai na impressão.</span>
   </div>
   <div id="conteudo">
     <div style="padding:40px;text-align:center;color:#888;font-size:13px">Carregando a ordem de corte…</div>

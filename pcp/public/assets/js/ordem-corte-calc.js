@@ -123,8 +123,23 @@
     return v;
   }
 
+  // ── Agrupa cortes idênticos (mesmo comprimento, arredondado a mm) ────────────
+  // devolve [{comprimento, qtd, rotulos:[...]}] em ordem decrescente.
+  function agruparCortes(cortes) {
+    const m = new Map();
+    for (const c of cortes) {
+      const chave = c.comprimento.toFixed(3);
+      if (!m.has(chave)) m.set(chave, { comprimento: c.comprimento, qtd: 0, rotulos: [] });
+      const g = m.get(chave);
+      g.qtd += 1;
+      if (c.rotulo && g.rotulos.indexOf(c.rotulo) === -1) g.rotulos.push(c.rotulo);
+    }
+    return [...m.values()].sort((a, b) => b.comprimento - a.comprimento);
+  }
+
   // ── Otimização de barras (First-Fit Decreasing) ─────────────────────────────
-  // cortes: [{comprimento, rotulo}] · devolve { barras:[{cortes,sobra}], ... }
+  // cortes: [{comprimento, rotulo}] · devolve { barras:[{cortes,resumo,usado,sobra}],
+  //   padroes:[{layout,usado,sobra,vezes}], ... }
   function planejarBarras(cortes, comprimentoBarra) {
     const EPS = 1e-9;
     const invalidos = cortes.filter((c) => c.comprimento > comprimentoBarra + EPS);
@@ -143,10 +158,29 @@
       alvo.cortes.push(c);
       alvo.restante -= c.comprimento;
     }
+
+    const barrasOut = barras.map((b) => ({
+      cortes: b.cortes,
+      resumo: agruparCortes(b.cortes),
+      usado: Math.max(0, comprimentoBarra - b.restante),
+      sobra: Math.max(0, b.restante),
+    }));
+
+    // Padrões: agrupa barras com o MESMO conjunto de cortes (assinatura por
+    // comprimentos+qtd), para o desenho mostrar "×N barras iguais".
+    const padMap = new Map();
+    for (const b of barrasOut) {
+      const assin = b.resumo.map((g) => `${g.comprimento.toFixed(3)}x${g.qtd}`).join('|');
+      if (!padMap.has(assin)) padMap.set(assin, { layout: b.resumo, usado: b.usado, sobra: b.sobra, vezes: 0 });
+      padMap.get(assin).vezes += 1;
+    }
+    const padroes = [...padMap.values()].sort((a, b) => b.vezes - a.vezes || b.usado - a.usado);
+
     const totalCorte = validos.reduce((a, c) => a + c.comprimento, 0);
     return {
       comprimentoBarra,
-      barras: barras.map((b) => ({ cortes: b.cortes, sobra: Math.max(0, b.restante) })),
+      barras: barrasOut,
+      padroes,
       numBarras: barras.length,
       totalCorte,
       totalComprado: barras.length * comprimentoBarra,
@@ -158,7 +192,10 @@
 
   // ── Agregação do pedido ─────────────────────────────────────────────────────
   // itens: itens do pedido (mesma resposta da API). estruturaPorId: Map id->produto.
-  function calcularOrdemCorte(itens, estruturaPorId) {
+  // opts.barraPadrao: se > 0, sobrepõe o comprimento de barra de TODOS os cortes
+  //   que já têm barra definida na Estrutura (não inventa plano para tecido).
+  function calcularOrdemCorte(itens, estruturaPorId, opts) {
+    const barraPadrao = opts && opts.barraPadrao > 0 ? Number(opts.barraPadrao) : null;
     const grupos = new Map(); // produto_id|nome -> grupo
     const semMedida = [];
     const semEstrutura = [];
@@ -194,23 +231,27 @@
         }
         const numCortes = linhas.reduce((a, l) => a + l.qtd, 0);
         const totalUnidade = linhas.reduce((a, l) => a + l.comprimento * l.qtd, 0);
+        const barraCfg = c.barra != null ? Number(c.barra) : null;
+        // só cortes com barra na Estrutura entram no plano; barraPadrao só sobrepõe o comprimento.
+        const barraUsada = barraCfg ? (barraPadrao || barraCfg) : null;
         const corte = {
           nome: c.nome,
           dim: c.dim || 'L',
           formula: c.formula,
-          barra: c.barra != null ? Number(c.barra) : null,
+          barra: barraCfg,        // o que a Estrutura define
+          barraUsada,             // o que foi usado no plano (pode ser sobreposto)
           numCortes,
           totalUnidade,           // na unidade do produto
           totalMetros: paraMetros(totalUnidade),
           unidade,
           erros,
         };
-        if (corte.barra && numCortes > 0) {
+        if (barraUsada && numCortes > 0) {
           const individuais = [];
           for (const l of linhas)
             for (let k = 0; k < l.qtd; k++)
               individuais.push({ comprimento: paraMetros(l.comprimento), rotulo: l.rotulo });
-          corte.plano = planejarBarras(individuais, corte.barra);
+          corte.plano = planejarBarras(individuais, barraUsada);
         }
         cortes.push(corte);
       }
@@ -235,7 +276,43 @@
     return { grupos: resultado, semMedida, semEstrutura };
   }
 
-  const api = { FUNCOES, avaliarFormula, planejarBarras, calcularOrdemCorte };
+  // ── Resumo de compra: barras a comprar por material (soma entre produtos) ─────
+  // Consolida cortes de mesmo nome + mesmo comprimento de barra.
+  function resumoCompras(calcRes) {
+    const m = new Map();
+    for (const g of calcRes.grupos) {
+      for (const c of g.cortes) {
+        if (!c.plano || !c.plano.numBarras) continue;
+        const chave = `${c.nome}@@${c.plano.comprimentoBarra}`;
+        if (!m.has(chave)) {
+          m.set(chave, { nome: c.nome, barra: c.plano.comprimentoBarra, numBarras: 0, totalCorte: 0, totalComprado: 0, sobraTotal: 0 });
+        }
+        const r = m.get(chave);
+        r.numBarras += c.plano.numBarras;
+        r.totalCorte += c.plano.totalCorte;
+        r.totalComprado += c.plano.totalComprado;
+        r.sobraTotal += c.plano.sobraTotal;
+      }
+    }
+    const linhas = [...m.values()]
+      .map((r) => Object.assign(r, { aproveitamento: r.totalComprado ? r.totalCorte / r.totalComprado : 0 }))
+      .sort((a, b) => b.numBarras - a.numBarras || a.nome.localeCompare(b.nome));
+    return { linhas, totalBarras: linhas.reduce((a, r) => a + r.numBarras, 0) };
+  }
+
+  // ── Comprimento de barra mais comum na Estrutura (default do controle) ────────
+  function barraPadraoSugerida(estruturaPorId) {
+    const cont = new Map();
+    const produtos = estruturaPorId instanceof Map ? [...estruturaPorId.values()] : (estruturaPorId || []);
+    for (const p of produtos)
+      for (const c of (p.cortes || []))
+        if (c.barra != null) { const b = Number(c.barra); cont.set(b, (cont.get(b) || 0) + 1); }
+    let melhor = null; let max = 0;
+    for (const [b, n] of cont) if (n > max) { max = n; melhor = b; }
+    return melhor || 4.9;
+  }
+
+  const api = { FUNCOES, avaliarFormula, agruparCortes, planejarBarras, calcularOrdemCorte, resumoCompras, barraPadraoSugerida };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdemCorteCalc = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
