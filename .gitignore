@@ -2,7 +2,7 @@
 # Persianas Paraná — fabrica (monorepo)
 # ============================================================================
 
-# --- Node / Vite (pcp/frontend) ---
+# --- Node (server/ e pcp/frontend) ---
 node_modules/
 dist/
 .vite/
@@ -12,23 +12,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# --- PHP / Composer ---
-vendor/
-composer.lock
-
-# --- Configuração ativa e dados sensíveis (NUNCA versionar) ---
-**/config/config.php
-**/data/*.db
-**/data/*.db-shm
-**/data/*.db-wal
-**/data/*.sqlite
-**/data/logs/
-**/data/*.log
-
-# --- Ambiente ---
+# --- Ambiente / segredos (NUNCA versionar) ---
 .env
 .env.local
 .env.*.local
+
+# --- Logs ---
+*.log
+logs/
 
 # --- Sistema operacional / editores ---
 .DS_Store
@@ -45,3 +36,6 @@ Thumbs.db
 !shared/**/*.zip
 coverage/
 .cache/
+
+# Observação: o Chart.js é vendorizado de propósito em
+# qualidade/public/assets/vendor/ e DEVE ser versionado.

@@ -143,7 +143,8 @@
       }
     }
 
-    const res = await fetch('api/' + path, opts);
+    // Caminho relativo: funciona na raiz (/qualidade/) e sob subpath (/fabrica/qualidade/).
+    const res = await fetch('../api/' + path, opts);
 
     if (res.status === 401) {
       window.location.href = 'login.html';
@@ -158,14 +159,14 @@
   }
 
   async function carregarSessao() {
-    const data = await api('auth.php');
+    const data = await api('auth/session');
     state.user = data.user;
     state.csrfToken = data.csrf_token;
     $('#user-name').textContent = data.user.full_name || data.user.username;
   }
 
   async function carregarNCs() {
-    const data = await api('ncs.php');
+    const data = await api('qualidade/ncs');
     state.ncs = data.data || [];
   }
 
@@ -256,11 +257,7 @@
     }
 
     el.innerHTML = lista.map(renderCard).join('');
-
-    // Anexa handlers
-    el.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', handleCardAction);
-    });
+    bindCardActions(el);
   }
 
   function renderCard(nc) {
@@ -274,6 +271,7 @@
 
     const causa = nc.causa_raiz ? `<div class="card-aside"><strong>Causa raiz</strong>${escapeHtml(nc.causa_raiz)}</div>` : '';
     const acao = nc.acao_imediata ? `<div class="card-aside"><strong>Ação imediata</strong>${escapeHtml(nc.acao_imediata)}</div>` : '';
+    const acaoCorr = nc.acao_corretiva ? `<div class="card-aside"><strong>Ação corretiva</strong>${escapeHtml(nc.acao_corretiva)}</div>` : '';
 
     const meta = [];
     if (nc.responsavel) meta.push(`Resp: ${escapeHtml(nc.responsavel)}`);
@@ -281,6 +279,11 @@
     const metaStr = meta.length ? `<span class="meta">${meta.join(' · ')}</span>` : '';
 
     const titulo = nc.pedido ? `Pedido ${escapeHtml(nc.pedido)}` : fmtData(nc.data_ocorrencia);
+
+    // Select inline de status (valor atual pré-selecionado)
+    const statusOpts = ['Aberta', 'Em andamento', 'Encerrada'].map(s =>
+      `<option value="${s}"${nc.status === s ? ' selected' : ''}>${s}</option>`
+    ).join('');
 
     return `
       <article class="card" data-id="${nc.id}">
@@ -297,16 +300,28 @@
         <div class="card-body">${escapeHtml(nc.descricao)}</div>
         ${causa}
         ${acao}
+        ${acaoCorr}
         <div class="tags">${tagsSet}${tagsOri}</div>
         <div class="card-foot">
           ${metaStr}
           <div class="actions">
-            <button class="btn-secondary" data-action="status" data-id="${nc.id}">Atualizar status</button>
+            <select class="status-select" data-action="status" data-id="${nc.id}" aria-label="Alterar status">${statusOpts}</select>
             <button class="btn-secondary" data-action="delete" data-id="${nc.id}">Excluir</button>
           </div>
         </div>
       </article>
     `;
+  }
+
+  // Anexa os handlers das ações do card: clique no botão Excluir e
+  // mudança no select de status (UX melhor que o antigo prompt).
+  function bindCardActions(el) {
+    el.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', handleCardAction);
+    });
+    el.querySelectorAll('select[data-action="status"]').forEach(sel => {
+      sel.addEventListener('change', handleStatusChange);
+    });
   }
 
   async function handleCardAction(e) {
@@ -317,30 +332,45 @@
     if (action === 'delete') {
       if (!confirm('Excluir esta NC permanentemente?')) return;
       try {
-        await api('ncs.php?id=' + id, { method: 'DELETE' });
+        await api('qualidade/ncs?id=' + id, { method: 'DELETE' });
         state.ncs = state.ncs.filter(n => n.id !== id);
         notify('NC excluída', true);
-        renderHistorico();
-      } catch (err) {
-        notify(err.message, false);
-      }
-    } else if (action === 'status') {
-      const opcoes = { '1': 'Aberta', '2': 'Em andamento', '3': 'Encerrada' };
-      const escolha = prompt('Novo status:\n1 - Aberta\n2 - Em andamento\n3 - Encerrada\n\nDigite 1, 2 ou 3:');
-      if (!opcoes[escolha]) return;
-      try {
-        await api('ncs.php?id=' + id, {
-          method: 'PUT',
-          body: { status: opcoes[escolha] },
-        });
-        const nc = state.ncs.find(n => n.id === id);
-        if (nc) nc.status = opcoes[escolha];
-        notify('Status atualizado', true);
-        renderHistorico();
+        rerenderListas();
       } catch (err) {
         notify(err.message, false);
       }
     }
+  }
+
+  async function handleStatusChange(e) {
+    const sel = e.currentTarget;
+    const id = parseInt(sel.dataset.id, 10);
+    const nc = state.ncs.find(n => n.id === id);
+    const novoStatus = sel.value;
+    const statusAnterior = nc ? nc.status : null;
+
+    if (!nc || novoStatus === statusAnterior) return;
+
+    try {
+      await api('qualidade/ncs?id=' + id, {
+        method: 'PUT',
+        body: { status: novoStatus },
+      });
+      nc.status = novoStatus;
+      notify('Status atualizado', true);
+      rerenderListas();
+    } catch (err) {
+      // Reverte a seleção visual em caso de falha
+      sel.value = statusAnterior;
+      notify(err.message, false);
+    }
+  }
+
+  // Re-renderiza as listas afetadas (Histórico e Planos de Ação) após
+  // alterações de estado, respeitando a aba atualmente visível.
+  function rerenderListas() {
+    renderHistorico();
+    if ($('#p-plan').classList.contains('active')) renderPlanos();
   }
 
   // ============================================================================
@@ -355,9 +385,7 @@
       return;
     }
     el.innerHTML = lista.map(renderCard).join('');
-    el.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', handleCardAction);
-    });
+    bindCardActions(el);
   }
 
   // ============================================================================
@@ -367,7 +395,7 @@
   async function renderKpis() {
     let kpis;
     try {
-      kpis = await api('kpis.php');
+      kpis = await api('qualidade/kpis');
     } catch (err) {
       notify(err.message, false);
       return;
@@ -494,6 +522,7 @@
       descricao: form.elements['descricao'].value.trim(),
       causa_raiz: form.elements['causa_raiz'].value.trim() || null,
       acao_imediata: form.elements['acao_imediata'].value.trim() || null,
+      acao_corretiva: form.elements['acao_corretiva'].value.trim() || null,
       responsavel: form.elements['responsavel'].value.trim() || null,
       prazo: form.elements['prazo'].value || null,
       status: form.elements['status'].value,
@@ -512,7 +541,7 @@
     btn.textContent = 'Salvando...';
 
     try {
-      await api('ncs.php', { method: 'POST', body: data });
+      await api('qualidade/ncs', { method: 'POST', body: data });
       notify('NC registrada com sucesso', true);
       resetarFormulario();
       await carregarNCs();
@@ -571,7 +600,7 @@
 
     $('#btn-logout').addEventListener('click', async () => {
       try {
-        await api('auth.php', { method: 'DELETE' });
+        await api('auth/logout', { method: 'DELETE' });
       } catch (e) { /* ignora */ }
       window.location.href = 'login.html';
     });
