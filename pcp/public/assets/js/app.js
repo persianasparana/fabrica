@@ -2441,10 +2441,15 @@ function corteParaEstado(c) {
   return { nome: c.nome||'', formula: c.formula||'', dim: (c.dim==='A'?'A':'L'),
            qtdRaw: c.qtdFormula ? c.qtdFormula : (c.qtd && c.qtd>1 ? String(c.qtd) : ''),
            barraRaw: c.barra != null ? String(c.barra).replace('.', ',') : '',
+           // key/unidade não aparecem no editor mas NÃO podem se perder no salvar:
+           // as fórmulas dos horizontais referenciam cortes pela key (furos, modelo...).
+           key: c.key || null, unidade: c.unidade || null,
            setor_id: c.setor_id!=null ? Number(c.setor_id) : null };
 }
 function estadoParaCorte(e) {
   const c = { nome: e.nome.trim(), formula: e.formula.trim(), dim: e.dim==='A'?'A':'L' };
+  if (e.key) c.key = e.key;
+  if (e.unidade) c.unidade = e.unidade;
   if (e.setor_id) c.setor_id = Number(e.setor_id);
   const q = (e.qtdRaw||'').trim();
   if (q) { if (/^\d+$/.test(q)) { if (Number(q)>1) c.qtd = Number(q); } else c.qtdFormula = q; }
