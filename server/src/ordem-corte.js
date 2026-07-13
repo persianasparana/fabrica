@@ -29,8 +29,12 @@ function inferirSetor(nomeCorte, setores) {
 }
 
 function escopoPeca(peca, item) {
-  const largura = peca.largura != null ? Number(peca.largura) : 0;
-  const altura = peca.altura != null ? Number(peca.altura) : 0;
+  // Medidas são ARMAZENADAS sempre em cm (convenção do preenchimento), mas as
+  // fórmulas usam a unidade do PRODUTO: horizontais (unidade 'm', como as
+  // planilhas PH25/PH50) recebem metros; os demais recebem cm.
+  const fator = item && item.unidade === 'm' ? 0.01 : 1;
+  const largura = peca.largura != null ? Number(peca.largura) * fator : 0;
+  const altura = peca.altura != null ? Number(peca.altura) * fator : 0;
   const escopo = {
     largura, altura, l: largura, a: altura,
     qtde: 1, qtd: 1,
@@ -86,7 +90,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
     }
     const itemPecas = pecasPorItem[item.id] || [];
     for (const peca of itemPecas) {
-      const escopo = escopoPeca(peca, item);
+      const escopo = escopoPeca(peca, item);   // converte cm → unidade do produto
       let resultado;
       try { resultado = calcularCortes(cortes, escopo); }
       catch (e) { avisos.push(`Pedido ${item.pedido}, peça ${peca.numero}: erro de cálculo (${e.message}).`); continue; }
@@ -101,7 +105,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
           pedido: item.pedido, produto: item.produto_nome || item.produto,
           item_id: item.id, peca_id: peca.id,
           peca_numero: peca.numero, cod_barras: peca.cod_barras,
-          largura: peca.largura, altura: peca.altura,
+          largura: escopo.largura || null, altura: escopo.altura || null,  // na unidade do produto
           corte: r.nome, valor: Number.isFinite(r.valor) ? Math.round(r.valor * 1000) / 1000 : null,
           unidade: r.unidade || item.unidade || 'cm', qtd: r.qtd,
           barra: cfg.barra != null && Number.isFinite(Number(cfg.barra)) && Number(cfg.barra) > 0 ? Number(cfg.barra) : null,

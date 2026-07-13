@@ -2800,8 +2800,10 @@ function ocTabelaPlanilha(linhas, modo) {
       return `<td style="text-align:right"><strong>${q}${ocNumBR(v.valor)}</strong></td>`;
     };
     const thNum = 'style="text-align:right"';
+    // sem page-break-inside:avoid — tabela grande (50+ peças) precisa poder
+    // quebrar entre linhas, senão a 1ª página sai em branco na impressão
     return `
-      <div class="quebra" style="margin-bottom:12px">
+      <div style="margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;margin:6px 0 4px">${ocEscPrint(produto)} <span style="font-weight:500;color:${sub}">· ${pecas.size} peça(s) · medidas em ${unidades.join('/') || 'cm'}</span></div>
         <table>
           <thead><tr>
