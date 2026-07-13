@@ -2462,14 +2462,26 @@ function epSet(i, campo, val) { if (epCortes[i]) epCortes[i][campo] = val; }
 function epSetSetor(i, val) { if (epCortes[i]) { epCortes[i].setor_id = val ? Number(val) : null; renderEpRoteiro(); } }
 function epAddCorte() { epCortes.push({ nome:'', formula:'', dim:'L', qtdRaw:'', barraRaw:'', setor_id:null }); renderEpCortes(); }
 function epDelCorte(i) { epCortes.splice(i,1); renderEpCortes(); renderEpRoteiro(); }
+// Reordena um corte (a ordem aqui = ordem das colunas na Ordem de Corte)
+function epMoveCorte(i, dir) {
+  const j = i + dir;
+  if (!epCortes[i] || j < 0 || j >= epCortes.length) return;
+  [epCortes[i], epCortes[j]] = [epCortes[j], epCortes[i]];
+  renderEpCortes();
+}
 
 function renderEpCortes() {
   const el = document.getElementById('ep-cortes-lista'); if (!el) return;
-  const cab = epCortes.length ? `<div style="display:grid;grid-template-columns:1.3fr 1fr 38px 50px 56px 1fr 22px;gap:4px;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">
-      <span>Parte</span><span>Fórmula</span><span>Dim</span><span>Qtd</span><span title="metragem da barra em metros — preencha só para materiais cortados de barra (tubo, perfil). Habilita o plano de corte.">Barra (m)</span><span>Setor</span><span></span>
+  const GRID = '34px 1.3fr 1fr 38px 50px 56px 1fr 22px';
+  const cab = epCortes.length ? `<div style="display:grid;grid-template-columns:${GRID};gap:4px;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">
+      <span title="posição — define a ordem das colunas na Ordem de Corte">Pos.</span><span>Parte</span><span>Fórmula</span><span>Dim</span><span>Qtd</span><span title="metragem da barra em metros — preencha só para materiais cortados de barra (tubo, perfil). Habilita o plano de corte.">Barra (m)</span><span>Setor</span><span></span>
     </div>` : '';
   el.innerHTML = cab + (epCortes.length ? epCortes.map((c,i)=>`
-    <div style="display:grid;grid-template-columns:1.3fr 1fr 38px 50px 56px 1fr 22px;gap:4px;align-items:center;margin-bottom:5px">
+    <div style="display:grid;grid-template-columns:${GRID};gap:4px;align-items:center;margin-bottom:5px">
+      <span style="display:flex;gap:1px">
+        <button class="btn btn-outline" style="padding:1px 4px;font-size:10px;line-height:1.4${i===0?';opacity:.3;cursor:default':''}" onclick="epMoveCorte(${i},-1)" title="mover para cima (coluna mais à esquerda na ficha)" ${i===0?'disabled':''}>↑</button>
+        <button class="btn btn-outline" style="padding:1px 4px;font-size:10px;line-height:1.4${i===epCortes.length-1?';opacity:.3;cursor:default':''}" onclick="epMoveCorte(${i},1)" title="mover para baixo (coluna mais à direita na ficha)" ${i===epCortes.length-1?'disabled':''}>↓</button>
+      </span>
       <input type="text" value="${esc(c.nome)}" placeholder="Parte" oninput="epSet(${i},'nome',this.value)" style="font-size:11px">
       <input type="text" value="${esc(c.formula)}" placeholder="L - 2.2" oninput="epSet(${i},'formula',this.value)" style="font-size:11px;font-family:monospace">
       <select onchange="epSet(${i},'dim',this.value)" style="font-size:11px"><option ${c.dim==='L'?'selected':''}>L</option><option ${c.dim==='A'?'selected':''}>A</option></select>
