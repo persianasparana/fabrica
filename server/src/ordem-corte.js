@@ -10,7 +10,7 @@
  * palavra-chave a partir do nome do corte vs. os nomes dos setores (provisório,
  * até o setor_id ser mapeado no editor da Estrutura).
  */
-import { calcularCortes } from './corte.js';
+import { calcularCortes, avaliarFormula } from './corte.js';
 import { q } from './db.js';
 
 // Heurística de palavra-chave → casa o nome do corte com um setor pelo nome.
@@ -63,7 +63,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
 
   const { rows: itens } = await q(
     `SELECT i.id, i.pedido, i.produto, i.produto_id, i.qnt,
-            p.cortes, p.unidade, p.nome AS produto_nome
+            p.cortes, p.componentes, p.unidade, p.nome AS produto_nome
      FROM pcp_itens i LEFT JOIN pcp_produtos p ON p.id = i.produto_id
      WHERE i.pedido = ANY($1) ORDER BY i.pedido, i.id`, [lista]);
   const { rows: pecas } = await q(
@@ -77,6 +77,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
   const grupos = new Map(); // setorKey -> { setor, linhas: [] }
   const avisos = [];
   const semSetor = { id: null, nome: 'Não classificado', cor: '#606060', ordem: 999, ordem_corte: false };
+  const comps = new Map(); // nome -> { nome, total, obs } — demais materiais (BOM), soma do pedido
 
   for (const item of itens) {
     const cortes = Array.isArray(item.cortes) ? item.cortes : [];
@@ -89,8 +90,31 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
       continue;
     }
     const itemPecas = pecasPorItem[item.id] || [];
+    const componentes = Array.isArray(item.componentes) ? item.componentes : [];
     for (const peca of itemPecas) {
       const escopo = escopoPeca(peca, item);   // converte cm → unidade do produto
+      // Demais materiais (BOM): soma a quantidade de cada componente por peça.
+      // Funções de qtd (garrasPorLargura etc.) usam cm — converte quando o produto é em m.
+      const escopoCm = item.unidade === 'm'
+        ? Object.assign({}, escopo, { largura: escopo.largura * 100, altura: escopo.altura * 100, l: escopo.l * 100, a: escopo.a * 100 })
+        : escopo;
+      for (const c of componentes) {
+        let qtd;
+        try {
+          qtd = c.qtdFormula
+            ? Math.max(0, Math.round(avaliarFormula(c.qtdFormula, escopoCm)))
+            : Number(c.qtd != null ? c.qtd : 1);
+        } catch (e) {
+          avisos.push(`Pedido ${item.pedido}: componente "${c.nome}" com erro de cálculo (${e.message}).`);
+          continue;
+        }
+        if (!(qtd > 0)) continue;
+        const chave = String(c.nome || '').trim();
+        if (!comps.has(chave)) comps.set(chave, { nome: chave, total: 0, obs: c.obs || '' });
+        const g = comps.get(chave);
+        g.total += qtd;
+        if (!g.obs && c.obs) g.obs = c.obs;
+      }
       let resultado;
       try { resultado = calcularCortes(cortes, escopo); }
       catch (e) { avisos.push(`Pedido ${item.pedido}, peça ${peca.numero}: erro de cálculo (${e.message}).`); continue; }
@@ -115,7 +139,10 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
   }
 
   const gruposArr = [...grupos.values()].sort((a, b) => (a.setor.ordem || 0) - (b.setor.ordem || 0));
-  return { setores: gruposArr, pedidos: lista, avisos: [...new Set(avisos)] };
+  const componentesArr = [...comps.values()]
+    .map((c) => ({ nome: c.nome, total: Math.round(c.total * 100) / 100, obs: c.obs }))
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+  return { setores: gruposArr, pedidos: lista, avisos: [...new Set(avisos)], componentes: componentesArr };
 }
 
 /** Registra a impressão e devolve se já havia sido impresso antes. */

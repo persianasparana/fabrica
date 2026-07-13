@@ -328,6 +328,16 @@
         {
           "nome": "Suporte Pino Retrátil Médio",
           "qtd": 1
+        },
+        {
+          "nome": "Tampo de Nylon Perfil de Afastamento",
+          "qtd": 4,
+          "obs": "verificar espessura — só quando houver perfil de afastamento"
+        },
+        {
+          "nome": "Perfil de Afastamento (lat/inferior/superior)",
+          "qtd": 1,
+          "obs": "se solicitado — verificar espessura e quantidade"
         }
       ]
     },
@@ -1007,6 +1017,16 @@
         {
           "nome": "Suporte Uniline Médio c/ Rolamento",
           "qtd": 1
+        },
+        {
+          "nome": "Tampo de Nylon Perfil de Afastamento",
+          "qtd": 4,
+          "obs": "verificar espessura — só quando houver perfil de afastamento"
+        },
+        {
+          "nome": "Perfil de Afastamento (lat/inferior/superior)",
+          "qtd": 1,
+          "obs": "se solicitado — verificar espessura e quantidade"
         }
       ]
     },
@@ -1463,6 +1483,16 @@
           "nome": "Emissor (conforme canais solicitados)",
           "qtd": 1,
           "obs": "Verificar pedido"
+        },
+        {
+          "nome": "Tampo de Nylon Perfil de Afastamento",
+          "qtd": 4,
+          "obs": "verificar espessura — só quando houver perfil de afastamento"
+        },
+        {
+          "nome": "Perfil de Afastamento (lat/inferior/superior)",
+          "qtd": 1,
+          "obs": "se solicitado — verificar espessura e quantidade"
         }
       ]
     },

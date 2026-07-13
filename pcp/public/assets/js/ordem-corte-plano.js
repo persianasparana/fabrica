@@ -188,8 +188,23 @@
     </div>`;
   }
 
-  // ── CSV da SAÍDA DE PERFIS ──
-  function csvSaida(linhas, pedidos, opts) {
+  // ── Demais materiais (componentes/BOM) — separação de estoque ──
+  function componentesHTML(componentes) {
+    if (!componentes || !componentes.length) return '';
+    const qtdFmt = (v) => (Number.isInteger(Number(v)) ? Number(v).toLocaleString('pt-BR') : num(v, 2));
+    return `<div class="ocp-compras">
+      <div class="ocp-plano-tit">DEMAIS MATERIAIS — separação de estoque</div>
+      <table class="ocp-tabela">
+        <thead><tr><th>Componente</th><th class="n">Quantidade total</th><th>Obs</th></tr></thead>
+        <tbody>${componentes.map((c) => `<tr>
+          <td><b>${esc(c.nome)}</b></td><td class="n"><b style="font-size:13px">${qtdFmt(c.total)}</b></td><td>${esc(c.obs || '')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── CSV da SAÍDA (perfis + demais materiais) ──
+  function csvSaida(linhas, pedidos, opts, componentes) {
     const s = saidaDePerfis(linhas, opts);
     const n = (v, casas) => num(v, casas).replace(/\./g, '');
     const li = (arr) => arr.map((v) => {
@@ -197,10 +212,17 @@
       return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
     }).join(';');
     const out = [];
-    out.push(li(['SAÍDA DE PERFIS — Ordem de Corte', 'Pedidos: ' + (pedidos || []).join(' ')]));
+    out.push(li(['SAÍDA DE MATERIAIS — Ordem de Corte', 'Pedidos: ' + (pedidos || []).join(' ')]));
+    out.push(li(['SAÍDA DE PERFIS']));
     out.push(li(['Perfil', 'Nº cortes', 'Metros', 'Barra (m)', 'Barras']));
     for (const l of s.linhas) out.push(li([l.corte, l.cortes, n(l.metros), n(l.barra), l.barras]));
     out.push(li(['Total', '', '', '', s.totalBarras]));
+    if (componentes && componentes.length) {
+      out.push('');
+      out.push(li(['DEMAIS MATERIAIS — separação de estoque']));
+      out.push(li(['Componente', 'Quantidade total', 'Obs']));
+      for (const c of componentes) out.push(li([c.nome, Number.isInteger(Number(c.total)) ? c.total : n(c.total), c.obs || '']));
+    }
     return '﻿' + out.join('\n');
   }
 
@@ -279,7 +301,7 @@
 .ocp-tabela .n{text-align:right;white-space:nowrap}
 `;
 
-  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, csvSaida, CSS };
+  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, componentesHTML, csvSaida, CSS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OCPlano = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

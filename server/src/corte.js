@@ -37,6 +37,38 @@ const FUNCS = {
   ABS: (x) => Math.abs(x),
   INT: (x) => Math.trunc(x),
   MOD: (a, b) => a % b,
+  // Funções nomeadas das planilhas oficiais (qtd de componentes; medidas em cm)
+  GARRASPORLARGURA: (L) => {
+    if (!L || L <= 0) return 0;
+    if (L < 100) return 2;
+    if (L < 150) return 3;
+    if (L < 200) return 4;
+    if (L < 250) return 5;
+    if (L < 300) return 6;
+    return Math.ceil(L / 50);
+  },
+  VARETASROMANA: (A) => {
+    if (!A) return 0;
+    if (A >= 50 && A < 60) return 2;
+    if (A >= 60.1 && A <= 120) return 4;
+    if (A > 120 && A <= 180) return 6;
+    if (A > 180 && A <= 240) return 8;
+    if (A > 240 && A <= 300) return 10;
+    if (A > 300 && A <= 360.5) return 12;
+    if (A > 360.5 && A <= 400) return 14;
+    if (A > 400 && A <= 450) return 16;
+    return 0;
+  },
+  VARETASROMANATETO: (A) => {
+    if (!A) return 0;
+    if (A >= 50 && A <= 86.5) return 1;
+    if (A > 86.5 && A <= 164.5) return 3;
+    if (A > 164.5 && A <= 242.5) return 5;
+    if (A > 242.5 && A <= 320.5) return 7;
+    if (A > 320.5 && A <= 398.5) return 9;
+    if (A > 398.5 && A <= 450) return 11;
+    return 0;
+  },
 };
 
 function tokenize(s) {

@@ -2953,7 +2953,7 @@ function ocSetBarraPadrao(v) {
 }
 function ocExportarCSV() {
   if (!ocPreviewData || !ocPlanoDisponivel()) { toast('Pré-visualize antes de exportar.'); return; }
-  const csv = OCPlano.csvSaida(ocLinhasTodas(), ocPedidosAtuais, { barraOverride: ocBarraPadrao });
+  const csv = OCPlano.csvSaida(ocLinhasTodas(), ocPedidosAtuais, { barraOverride: ocBarraPadrao }, ocPreviewData.componentes || []);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -3006,7 +3006,11 @@ function ocRenderPreview(preview) {
   }).join('');
 
   const saida = ocPlanoDisponivel()
-    ? (() => { const html = OCPlano.saidaPerfisHTML(ocLinhasTodas(), opts); return html ? `<div class="card" style="margin-bottom:14px">${html}</div>` : ''; })()
+    ? (() => {
+      const html = OCPlano.saidaPerfisHTML(ocLinhasTodas(), opts)
+        + OCPlano.componentesHTML((preview && preview.componentes) || []);
+      return html ? `<div class="card" style="margin-bottom:14px">${html}</div>` : '';
+    })()
     : '';
 
   cont.innerHTML = cabecalho + secoes + saida + ocHistoricoHTML();
@@ -3135,16 +3139,20 @@ function ocAbrirImpressao(setorId) {
     </section>`;
   }).join('');
 
-  // Folha final: SAÍDA DE PERFIS (metros + barras, o mesmo cálculo da planilha)
+  // Folha final: SAÍDA DE MATERIAIS = perfis (metros + barras, cálculo da
+  // planilha) + demais materiais (componentes/BOM). Os componentes são do
+  // pedido inteiro — só saem na impressão completa (sem filtro de setor).
   const linhasTudo = setores.reduce((a, s) => a.concat(s.linhas || []), []);
-  const saidaHTML = ocPlanoDisponivel() ? OCPlano.saidaPerfisHTML(linhasTudo, opts) : '';
+  const compsHTML = setorId == null && ocPlanoDisponivel()
+    ? OCPlano.componentesHTML((ocPreviewData && ocPreviewData.componentes) || []) : '';
+  const saidaHTML = (ocPlanoDisponivel() ? OCPlano.saidaPerfisHTML(linhasTudo, opts) : '') + compsHTML;
   const fichaSaida = saidaHTML ? `<section class="ficha">
       <header class="ficha-head">
         <div class="brand">
           <img class="logo" src="${logo}" alt="Persianas Paraná" onerror="this.style.display='none'">
           <div class="brand-txt">
-            <div class="tit">Relatório de saída de perfis</div>
-            <div class="setor" style="color:#1D1D1B;border-color:#C6B784">SAÍDA DE PERFIS</div>
+            <div class="tit">Relatório de saída de materiais</div>
+            <div class="setor" style="color:#1D1D1B;border-color:#C6B784">SAÍDA DE MATERIAIS</div>
           </div>
         </div>
         <div class="meta">
