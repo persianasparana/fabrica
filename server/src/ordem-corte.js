@@ -103,6 +103,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
           largura: peca.largura, altura: peca.altura,
           corte: r.nome, valor: Number.isFinite(r.valor) ? Math.round(r.valor * 1000) / 1000 : null,
           unidade: r.unidade || item.unidade || 'cm', qtd: r.qtd,
+          barra: cfg.barra != null && Number.isFinite(Number(cfg.barra)) && Number(cfg.barra) > 0 ? Number(cfg.barra) : null,
         });
       }
     }
