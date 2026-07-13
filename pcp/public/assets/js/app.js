@@ -2750,6 +2750,69 @@ function ocCorteInvalido(c) {
   return ocValNum(c.valor) && c.valor <= 0;
 }
 
+// ── Tabela no formato da PLANILHA DE PLANEJAMENTO: linhas = peças, colunas =
+// cada corte (TUBO, BASE, TECIDO L, TECIDO A...), como a produção conhece. ──
+function ocNumBR(v) {
+  return Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+function ocTabelaPlanilha(linhas, modo) {
+  if (!linhas || !linhas.length) {
+    return modo === 'print'
+      ? '<p class="vazio">Sem cortes neste setor.</p>'
+      : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>';
+  }
+  const warn = modo === 'print' ? '#C1212D' : 'var(--red)';
+  const sub = modo === 'print' ? '#606060' : 'var(--text3)';
+  const multiPedido = new Set(linhas.map(l => l.pedido)).size > 1;
+
+  // agrupa por produto (cada produto tem seu conjunto de colunas, como as abas da planilha)
+  const porProduto = new Map();
+  for (const l of linhas) {
+    if (!porProduto.has(l.produto)) porProduto.set(l.produto, []);
+    porProduto.get(l.produto).push(l);
+  }
+
+  return [...porProduto.entries()].map(([produto, ls]) => {
+    // colunas = nomes de corte na ordem de aparição
+    const colunas = [];
+    for (const l of ls) { const n = String(l.corte || '').trim(); if (n && !colunas.includes(n)) colunas.push(n); }
+    // linhas = peças
+    const pecas = new Map();
+    for (const l of ls) {
+      const k = l.pedido + '#' + (l.peca_numero != null ? l.peca_numero : '?');
+      if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, unidade: l.unidade, vals: {} });
+      const g = pecas.get(k);
+      if (g.largura == null && l.largura != null) g.largura = l.largura;
+      if (g.altura == null && l.altura != null) g.altura = l.altura;
+      g.vals[String(l.corte || '').trim()] = { valor: l.valor, qtd: l.qtd, unidade: l.unidade };
+    }
+    const unidades = [...new Set(ls.map(l => l.unidade).filter(Boolean))];
+    const cel = (v) => {
+      if (!v || v.valor == null || v.valor === '' || !(Number(v.valor) > 0)) return `<td style="text-align:right;color:${warn}">—</td>`;
+      const q = v.qtd && Number(v.qtd) > 1 ? `<span style="font-weight:400;color:${sub}">${Number(v.qtd)}× </span>` : '';
+      return `<td style="text-align:right"><strong>${q}${ocNumBR(v.valor)}</strong></td>`;
+    };
+    const thNum = 'style="text-align:right"';
+    return `
+      <div class="quebra" style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;margin:6px 0 4px">${ocEscPrint(produto)} <span style="font-weight:500;color:${sub}">· ${pecas.size} peça(s) · medidas em ${unidades.join('/') || 'cm'}</span></div>
+        <table>
+          <thead><tr>
+            ${multiPedido ? '<th>PEDIDO</th>' : ''}<th>ITEM</th><th ${thNum}>LARG.</th><th ${thNum}>ALT.</th>
+            ${colunas.map(c => `<th ${thNum}>${ocEscPrint(c.toUpperCase())}</th>`).join('')}
+          </tr></thead>
+          <tbody>${[...pecas.values()].map(g => `<tr>
+            ${multiPedido ? `<td>${ocEscPrint(g.pedido)}</td>` : ''}
+            <td>${g.peca != null ? '#' + ocEscPrint(String(g.peca)) : '—'}</td>
+            <td style="text-align:right">${g.largura != null ? ocNumBR(g.largura) : '—'}</td>
+            <td style="text-align:right">${g.altura != null ? ocNumBR(g.altura) : '—'}</td>
+            ${colunas.map(c => cel(g.vals[c])).join('')}
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
 // Gera os blocos por peça (didático). modo: 'preview' (tema do app) | 'print'.
 function ocFichaPecasHTML(linhas, modo) {
   const grupos = ocCombinarCortes(linhas);
@@ -2848,6 +2911,37 @@ function ocRenderAvisos(avisos) {
   </div>`;
 }
 
+let ocBarraPadrao = null;   // metragem padrão da barra (m); null = usa a da Estrutura (por corte)
+
+function ocPlanoDisponivel() { return typeof OCPlano !== 'undefined'; }
+function ocInjetarCSSPlano() {
+  if (!ocPlanoDisponivel() || document.getElementById('ocp-css')) return;
+  const st = document.createElement('style');
+  st.id = 'ocp-css';
+  st.textContent = OCPlano.CSS;
+  document.head.appendChild(st);
+}
+function ocLinhasTodas(setorId) {
+  const setores = ocSetoresFiltrados(setorId != null ? setorId : null);
+  return setores.reduce((a, s) => a.concat(s.linhas || []), []);
+}
+function ocSetBarraPadrao(v) {
+  const b = parseFloat(String(v || '').replace(',', '.'));
+  ocBarraPadrao = Number.isFinite(b) && b > 0 ? b : null;
+  if (ocPreviewData) ocRenderPreview(ocPreviewData);
+}
+function ocExportarCSV() {
+  if (!ocPreviewData || !ocPlanoDisponivel()) { toast('Pré-visualize antes de exportar.'); return; }
+  const csv = OCPlano.csvSaida(ocLinhasTodas(), ocPedidosAtuais, { barraOverride: ocBarraPadrao });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `saida-perfis-${ocPedidosAtuais.join('-') || 'pedidos'}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function ocRenderPreview(preview) {
   const cont = document.getElementById('oc-conteudo');
   const setores = (preview && preview.setores) || [];
@@ -2857,10 +2951,18 @@ function ocRenderPreview(preview) {
     cont.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Nenhum corte encontrado para esses pedidos (verifique se há setores marcados como “imprime ordem de corte” e se as peças têm cortes).</div>';
     return;
   }
+  ocInjetarCSSPlano();
+  const opts = { barraOverride: ocBarraPadrao };
 
   const cabecalho = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
     <div style="font-size:13px;font-weight:700">Pré-visualização — ${peds.length} pedido(s): ${esc(peds.join(', '))}</div>
-    <div style="margin-left:auto;display:flex;gap:8px">
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);font-weight:700" title="Metragem padrão da barra em metros. Vazio = usa a metragem cadastrada em cada corte na Estrutura do Produto.">Barra (m)
+        <input type="text" inputmode="decimal" value="${ocBarraPadrao != null ? String(ocBarraPadrao).replace('.', ',') : ''}" placeholder="auto"
+               style="width:56px;text-align:right;font-size:12px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"
+               onchange="ocSetBarraPadrao(this.value)">
+      </label>
+      <button class="btn btn-outline" style="font-size:11px" onclick="ocExportarCSV()">⬇ CSV</button>
       <button class="btn btn-black" onclick="ocImprimir(null)">🖨 Imprimir tudo</button>
     </div>
   </div>`;
@@ -2869,17 +2971,24 @@ function ocRenderPreview(preview) {
     const setor = s.setor || {};
     const linhas = s.linhas || [];
     const cor = setor.cor || '#606060';
+    const desenho = ocPlanoDisponivel() && linhas.length
+      ? OCPlano.desenhoHTML(OCPlano.planoDeLinhas(linhas, opts)) : '';
     return `<div class="card" style="margin-bottom:14px;border-left:4px solid ${cor}">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span class="st-prod" style="background:${cor}22;color:${cor};border:1px solid ${cor}66;font-size:12px">${esc(setor.nome || 'Setor')}</span>
         <span style="font-size:11px;color:var(--text3)">${new Set(linhas.map(l=>l.pedido+'#'+l.peca_numero)).size} peça(s)</span>
         <button class="btn btn-outline" style="margin-left:auto;font-size:10px" onclick="ocImprimir(${setor.id != null ? setor.id : 'null'})">🖨 Imprimir só este setor</button>
       </div>
-      ${linhas.length ? ocFichaPecasHTML(linhas, 'preview') : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}
+      <div class="tbl-wrap">${linhas.length ? ocTabelaPlanilha(linhas, 'preview') : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}</div>
+      ${desenho}
     </div>`;
   }).join('');
 
-  cont.innerHTML = cabecalho + secoes + ocHistoricoHTML();
+  const saida = ocPlanoDisponivel()
+    ? (() => { const html = OCPlano.saidaPerfisHTML(ocLinhasTodas(), opts); return html ? `<div class="card" style="margin-bottom:14px">${html}</div>` : ''; })()
+    : '';
+
+  cont.innerHTML = cabecalho + secoes + saida + ocHistoricoHTML();
   ocCarregarHistorico();
 }
 
@@ -2966,12 +3075,17 @@ function ocAbrirImpressao(setorId) {
   const logo = asset('assets/brand/logos/logo-preto.png');
   const fonte = (w) => asset('assets/fonts/manrope-' + w + '.woff2');
 
-  // Cada setor vira uma FICHA própria (uma página por setor).
+  const opts = { barraOverride: ocBarraPadrao };
+
+  // Cada setor vira uma FICHA própria (uma página por setor): tabela no formato
+  // da planilha de planejamento + desenho do plano das barras (guia de corte).
   const fichas = setores.map(s => {
     const setor = s.setor || {};
     const linhas = s.linhas || [];
     const cor = setor.cor || '#C1212D';
-    const corpo = ocFichaPecasHTML(linhas, 'print');
+    const corpo = ocTabelaPlanilha(linhas, 'print');
+    const desenho = ocPlanoDisponivel() && linhas.length
+      ? OCPlano.desenhoHTML(OCPlano.planoDeLinhas(linhas, opts)) : '';
     const totalPecas = new Set(linhas.map(l => l.pedido + '#' + l.peca_numero)).size;
     return `<section class="ficha">
       <header class="ficha-head">
@@ -2991,6 +3105,7 @@ function ocAbrirImpressao(setorId) {
         </div>
       </header>
       ${corpo}
+      ${desenho}
       <div class="assinatura">
         <div class="campo"><span>Cortado por</span></div>
         <div class="campo"><span>Conferido por</span></div>
@@ -2998,6 +3113,31 @@ function ocAbrirImpressao(setorId) {
       </div>
     </section>`;
   }).join('');
+
+  // Folha final: SAÍDA DE PERFIS (metros + barras, o mesmo cálculo da planilha)
+  const linhasTudo = setores.reduce((a, s) => a.concat(s.linhas || []), []);
+  const saidaHTML = ocPlanoDisponivel() ? OCPlano.saidaPerfisHTML(linhasTudo, opts) : '';
+  const fichaSaida = saidaHTML ? `<section class="ficha">
+      <header class="ficha-head">
+        <div class="brand">
+          <img class="logo" src="${logo}" alt="Persianas Paraná" onerror="this.style.display='none'">
+          <div class="brand-txt">
+            <div class="tit">Relatório de saída de perfis</div>
+            <div class="setor" style="color:#1D1D1B;border-color:#C6B784">SAÍDA DE PERFIS</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div><span>Pedido(s)</span><strong>${ocEscPrint(peds.join(', '))}</strong></div>
+          <div><span>Emitido</span>${ocEscPrint(dataStr)}</div>
+        </div>
+      </header>
+      ${saidaHTML}
+      <div class="assinatura">
+        <div class="campo"><span>Separado por</span></div>
+        <div class="campo"><span>Conferido por</span></div>
+        <div class="campo"><span>Data / Hora</span></div>
+      </div>
+    </section>` : '';
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>Ordem de Corte — ${ocEscPrint(peds.join(', '))}</title>
@@ -3034,11 +3174,14 @@ function ocAbrirImpressao(setorId) {
   .assinatura .campo { flex:1; border-top:1px solid #1D1D1B; padding-top:5px; }
   .assinatura .campo span { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#606060; }
   .rodape { margin-top:14px; font-size:9px; color:#9CA3AF; text-align:center; }
-  @media print { button { display:none; } .ficha { padding:0; } }
+  .quebra { page-break-inside: avoid; }
+  ${ocPlanoDisponivel() ? OCPlano.CSS : ''}
+  @media print { button { display:none; } .ficha { padding:0; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
   @page { size:A4; margin:12mm; }
 </style></head>
 <body>
   ${fichas}
+  ${fichaSaida}
   <div class="rodape">Documento gerado pelo PCP · Persianas Paraná — confira as medidas antes de cortar.</div>
   <script>window.onload = function(){
     var go = function(){ setTimeout(function(){ window.print(); }, 300); };

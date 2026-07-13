@@ -142,6 +142,68 @@
     return `<div class="ocp-plano"><div class="ocp-plano-tit">✂ Plano de corte das barras</div>${blocos}</div>`;
   }
 
+  // ── SAÍDA DE PERFIS — o cálculo da planilha oficial ──
+  // Por perfil (corte com barra): metros = Σ comprimento×qtd;
+  // barras = ARREDONDAR.PARA.CIMA(metros ÷ metragem_da_barra).  (aba "SAÍDA DE
+  // PERFIS" das planilhas de PLANEJAMENTO DE CORTE — divisor 6 m por padrão.)
+  function saidaDePerfis(linhas, opts) {
+    opts = opts || {};
+    const over = opts.barraOverride > 0 ? Number(opts.barraOverride) : null;
+    const m = new Map();
+    for (const l of (linhas || [])) {
+      const barraCfg = l.barra > 0 ? Number(l.barra) : null;
+      const barra = over || barraCfg;
+      if (!barra) continue;
+      const valor = Number(l.valor);
+      if (!(valor > 0)) continue;
+      const comp = metros(valor, l.unidade);
+      const qtd = Math.max(1, Math.round(Number(l.qtd) || 1));
+      if (!m.has(l.corte)) m.set(l.corte, { corte: l.corte, barra, metros: 0, cortes: 0 });
+      const g = m.get(l.corte);
+      g.barra = barra;
+      g.metros += comp * qtd;
+      g.cortes += qtd;
+    }
+    const linhasOut = [...m.values()]
+      .map((g) => Object.assign(g, { barras: Math.ceil(g.metros / g.barra - 1e-9) }))
+      .sort((a, b) => b.metros - a.metros || a.corte.localeCompare(b.corte));
+    return { linhas: linhasOut, totalBarras: linhasOut.reduce((a, r) => a + r.barras, 0) };
+  }
+
+  function saidaPerfisHTML(linhas, opts) {
+    const s = saidaDePerfis(linhas, opts);
+    if (!s.linhas.length) return '';
+    return `<div class="ocp-compras">
+      <div class="ocp-plano-tit">SAÍDA DE PERFIS — metros e barras por perfil</div>
+      <table class="ocp-tabela">
+        <thead><tr><th>Perfil</th><th class="n">Nº cortes</th><th class="n">Metros</th><th class="n">Barra (m)</th><th class="n">Barras</th></tr></thead>
+        <tbody>${s.linhas.map((l) => `<tr>
+          <td><b>${esc(l.corte)}</b></td><td class="n">${l.cortes}</td>
+          <td class="n">${num(l.metros)}</td><td class="n">${num(l.barra)}</td>
+          <td class="n"><b style="font-size:13px">${l.barras}</b></td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td><b>Total</b></td><td colspan="3"></td><td class="n"><b>${s.totalBarras}</b></td></tr></tfoot>
+      </table>
+      <div style="font-size:9px;color:#606060;margin-top:3px">Barras = metros divididos pela metragem da barra, arredondado para cima (mesmo cálculo da planilha de planejamento). O desenho na ficha de cada setor é o guia de como cortar cada barra.</div>
+    </div>`;
+  }
+
+  // ── CSV da SAÍDA DE PERFIS ──
+  function csvSaida(linhas, pedidos, opts) {
+    const s = saidaDePerfis(linhas, opts);
+    const n = (v, casas) => num(v, casas).replace(/\./g, '');
+    const li = (arr) => arr.map((v) => {
+      const t = String(v == null ? '' : v);
+      return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+    }).join(';');
+    const out = [];
+    out.push(li(['SAÍDA DE PERFIS — Ordem de Corte', 'Pedidos: ' + (pedidos || []).join(' ')]));
+    out.push(li(['Perfil', 'Nº cortes', 'Metros', 'Barra (m)', 'Barras']));
+    for (const l of s.linhas) out.push(li([l.corte, l.cortes, n(l.metros), n(l.barra), l.barras]));
+    out.push(li(['Total', '', '', '', s.totalBarras]));
+    return '﻿' + out.join('\n');
+  }
+
   // ── Resumo de compra: barras por material (soma vários setores) ──
   function consolidarCompras(planosFlat) {
     const m = new Map();
@@ -217,7 +279,7 @@
 .ocp-tabela .n{text-align:right;white-space:nowrap}
 `;
 
-  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, CSS };
+  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, csvSaida, CSS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OCPlano = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

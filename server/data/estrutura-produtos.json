@@ -47,12 +47,14 @@
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -106,17 +108,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -170,17 +175,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.8",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 3.0",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -238,43 +246,51 @@
         {
           "nome": "Box 70mm (Perfil L 70)",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Média",
           "formula": "L - 5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Guia Lateral (esq + dir)",
           "formula": "A - 7",
           "dim": "A",
-          "qtd": 2
+          "qtd": 2,
+          "barra": 6
         },
         {
           "nome": "Guia Inferior",
           "formula": "L - 12",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Superior/Inferior",
           "formula": "L - 10.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Lateral",
           "formula": "A - 0.4",
-          "dim": "A"
+          "dim": "A",
+          "barra": 6
         },
         {
           "nome": "Tampa Box 70",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -325,22 +341,26 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 2.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete da Base Duo",
           "formula": "L - 2.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -398,22 +418,26 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.8",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Sheer (Duo)",
           "formula": "L - 2.8",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete da Base Duo",
           "formula": "L - 3.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -475,17 +499,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 3.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 3.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -543,17 +570,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -607,17 +637,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 3.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Vision",
           "formula": "L - 3.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -671,17 +704,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Vision",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -731,22 +767,26 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 3.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 3.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo Rolete Duo",
           "formula": "L - 3.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -808,22 +848,26 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 2.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 2.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo Rolete Duo",
           "formula": "L - 2.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -881,43 +925,51 @@
         {
           "nome": "Box 90mm (Perfil L 90)",
           "formula": "L - 0.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 3.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Média",
           "formula": "L - 5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Guia Lateral (esq + dir)",
           "formula": "A - 7.5",
           "dim": "A",
-          "qtd": 2
+          "qtd": 2,
+          "barra": 6
         },
         {
           "nome": "Guia Inferior",
           "formula": "L - 12",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Superior/Inferior",
           "formula": "L - 10.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Lateral",
           "formula": "A - 0.4",
-          "dim": "A"
+          "dim": "A",
+          "barra": 6
         },
         {
           "nome": "Tampa Box 90",
           "formula": "L - 0.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -968,17 +1020,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 3.1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Média",
           "formula": "L - 3.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1045,17 +1100,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 4.0",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Média",
           "formula": "L - 4.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1126,22 +1184,26 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 3.1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 3.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete Base Duo",
           "formula": "L - 3.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1212,22 +1274,26 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 4.0",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 4.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete Base Duo",
           "formula": "L - 4.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1302,43 +1368,51 @@
         {
           "nome": "Box 90mm (Perfil L 90)",
           "formula": "L - 0.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 4.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Média",
           "formula": "L - 5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Guia Lateral (esq + dir)",
           "formula": "A - 7.5",
           "dim": "A",
-          "qtd": 2
+          "qtd": 2,
+          "barra": 6
         },
         {
           "nome": "Guia Inferior",
           "formula": "L - 12",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Superior/Inferior",
           "formula": "L - 10.2",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Perfil Lateral",
           "formula": "A - 0.4",
-          "dim": "A"
+          "dim": "A",
+          "barra": 6
         },
         {
           "nome": "Tampa Box 90",
           "formula": "L - 0.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1402,17 +1476,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 1.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1462,22 +1539,26 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 1.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 1.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete Duo",
           "formula": "L - 2.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1531,17 +1612,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1595,22 +1679,26 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 32mm Natural",
           "formula": "L - 2.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Duo",
           "formula": "L - 2.3",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Rolete Duo",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1668,17 +1756,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 40mm Natural",
           "formula": "L - 2.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1728,17 +1819,20 @@
         {
           "nome": "Bandô Vision",
           "formula": "L - 0.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 2.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 3.1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1801,17 +1895,20 @@
         {
           "nome": "Trilho Plus",
           "formula": "L - 0.4",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tubo 47mm Natural",
           "formula": "L - 2.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 2.7",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1870,23 +1967,27 @@
         {
           "nome": "Trilho Romana",
           "formula": "L - 1.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Eixo Romana Sextavado 7mm",
           "formula": "L - 4.5",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Vareta Romana",
           "formula": "L - 1.2",
           "dim": "L",
-          "qtdFormula": "varetasRomana(A)"
+          "qtdFormula": "varetasRomana(A)",
+          "barra": 6
         },
         {
           "nome": "Base Quadrada Baixa",
           "formula": "L - 1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1934,23 +2035,27 @@
         {
           "nome": "Trilho — Largura",
           "formula": "L - 1",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Trilho — Altura",
           "formula": "A - 4.7",
-          "dim": "A"
+          "dim": "A",
+          "barra": 6
         },
         {
           "nome": "Largura Base",
           "formula": "L - 4.9",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Vareta — Largura",
           "formula": "L - 4.9",
           "dim": "L",
-          "qtdFormula": "varetasRomanaTeto(A)"
+          "qtdFormula": "varetasRomanaTeto(A)",
+          "barra": 6
         },
         {
           "nome": "Tecido (Largura)",
@@ -1994,19 +2099,22 @@
         {
           "nome": "Trilho Painel",
           "formula": "L - 2.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Vias Painel (cada uma)",
           "formula": "(L + 20) / 3",
           "dim": "L",
-          "qtd": 3
+          "qtd": 3,
+          "barra": 6
         },
         {
           "nome": "Base Chata (cada uma)",
           "formula": "((L + 20) / 3) - 0.3",
           "dim": "L",
-          "qtd": 3
+          "qtd": 3,
+          "barra": 6
         },
         {
           "nome": "Tecido — Largura (cada via)",
@@ -2041,19 +2149,22 @@
         {
           "nome": "Trilho Painel",
           "formula": "L - 2.6",
-          "dim": "L"
+          "dim": "L",
+          "barra": 6
         },
         {
           "nome": "Vias Painel (cada uma)",
           "formula": "(L + 30) / 4",
           "dim": "L",
-          "qtd": 4
+          "qtd": 4,
+          "barra": 6
         },
         {
           "nome": "Base Chata (cada uma)",
           "formula": "((L + 30) / 4) - 0.3",
           "dim": "L",
-          "qtd": 4
+          "qtd": 4,
+          "barra": 6
         },
         {
           "nome": "Tecido — Largura (cada via)",
