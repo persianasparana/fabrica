@@ -39,12 +39,15 @@ function escopoPeca(peca, item) {
     largura, altura, l: largura, a: altura,
     qtde: 1, qtd: 1,
   };
-  // medidas extras (furos, modelo, etc.) por peça
+  // medidas extras (furos, modelo, comando, etc.) por peça
   if (peca.medidas && typeof peca.medidas === 'object') {
     for (const [k, v] of Object.entries(peca.medidas)) {
       if (v != null && v !== '') escopo[String(k).toLowerCase()] = Number(v);
     }
   }
+  // comando (altura do bastão/corrente) é COMPRIMENTO: armazenado em cm, vai
+  // para as fórmulas na unidade do produto, igual a largura/altura
+  if (escopo.comando) escopo.comando = escopo.comando * fator;
   return escopo;
 }
 
@@ -96,7 +99,11 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
       // Demais materiais (BOM): soma a quantidade de cada componente por peça.
       // Funções de qtd (garrasPorLargura etc.) usam cm — converte quando o produto é em m.
       const escopoCm = item.unidade === 'm'
-        ? Object.assign({}, escopo, { largura: escopo.largura * 100, altura: escopo.altura * 100, l: escopo.l * 100, a: escopo.a * 100 })
+        ? Object.assign({}, escopo, {
+          largura: escopo.largura * 100, altura: escopo.altura * 100,
+          l: escopo.l * 100, a: escopo.a * 100,
+          comando: (escopo.comando || 0) * 100,
+        })
         : escopo;
       for (const c of componentes) {
         let qtd;
@@ -130,6 +137,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
           item_id: item.id, peca_id: peca.id,
           peca_numero: peca.numero, cod_barras: peca.cod_barras,
           largura: escopo.largura || null, altura: escopo.altura || null,  // na unidade do produto
+          comando: escopo.comando || null,   // altura do comando/bastão (idem)
           corte: r.nome, valor: Number.isFinite(r.valor) ? Math.round(r.valor * 1000) / 1000 : null,
           unidade: r.unidade || item.unidade || 'cm', qtd: r.qtd,
           barra: cfg.barra != null && Number.isFinite(Number(cfg.barra)) && Number(cfg.barra) > 0 ? Number(cfg.barra) : null,

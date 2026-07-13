@@ -1221,6 +1221,7 @@ function renderPedidoMedidas(itens) {
           <th style="width:34px">#</th>
           <th style="width:90px">Largura (m)</th>
           <th style="width:90px">Altura (m)</th>
+          <th style="width:90px" title="altura do comando/bastão — usada no consumo de bastão/corrente (variável 'comando' nas fórmulas)">Comando (m)</th>
           ${horiz?'<th style="width:70px">Furos</th><th>Modelo</th>':''}
           <th style="width:64px"></th>
         </tr></thead>
@@ -1231,6 +1232,7 @@ function renderPedidoMedidas(itens) {
               <td style="font-weight:700">#${p.numero}</td>
               <td><input type="number" step="0.001" id="pm-larg-${p.id}" value="${p.largura!=null?esc(cmParaM(p.largura)):''}" placeholder="ex: 1,54" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
               <td><input type="number" step="0.001" id="pm-alt-${p.id}" value="${p.altura!=null?esc(cmParaM(p.altura)):''}" placeholder="ex: 1,31" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
+              <td><input type="number" step="0.001" id="pm-cmdo-${p.id}" value="${med.comando!=null?esc(cmParaM(med.comando)):''}" placeholder="ex: 1,20" style="width:80px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
               ${horiz?`
                 <td><input type="number" step="1" id="pm-furos-${p.id}" value="${med.furos!=null?esc(med.furos):''}" placeholder="nº" style="width:60px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>
                 <td><input type="text" id="pm-modelo-${p.id}" value="${med.modelo!=null?esc(med.modelo):''}" placeholder="modelo" style="width:100%;min-width:90px;font-size:11px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;background:var(--surface);color:var(--text)"></td>`:''}
@@ -1252,16 +1254,20 @@ async function salvarMedidaPeca(pecaId, horiz) {
     largura: mParaCm(largM), // armazena em cm (unidade do cálculo)
     altura:  mParaCm(altM),
   };
-  if ((largM != null && largM > 10) || (altM != null && altM > 10))
+  const cmdoEl = document.getElementById('pm-cmdo-'+pecaId);
+  const cmdoM = cmdoEl && cmdoEl.value !== '' ? Number(cmdoEl.value) : null;
+  if ((largM != null && largM > 10) || (altM != null && altM > 10) || (cmdoM != null && cmdoM > 10))
     toast('Atenção: a medida é em metros (ex.: 1,54). O valor parece estar em cm — confira.');
+  // medidas extras — o backend substitui o objeto inteiro, então sempre montamos completo
+  const medidas = {};
+  if (cmdoM != null) medidas.comando = mParaCm(cmdoM);   // altura do comando/bastão, em cm
   if (horiz) {
-    const medidas = {};
     const furosEl = document.getElementById('pm-furos-'+pecaId);
     const modeloEl = document.getElementById('pm-modelo-'+pecaId);
     if (furosEl && furosEl.value !== '') medidas.furos = Number(furosEl.value);
     if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
-    body.medidas = medidas;
   }
+  body.medidas = medidas;
   try {
     const r = await api('pcp/pecas?id=' + pecaId, { method: 'PUT', body });
     if (r.item) aplicarItemAtualizado(r.item);
@@ -1269,7 +1275,7 @@ async function salvarMedidaPeca(pecaId, horiz) {
     if (pedidoCarregado) {
       (pedidoCarregado.itens || []).forEach(it => {
         const pc = (it.pecas || []).find(x => x.id === pecaId);
-        if (pc) { pc.largura = body.largura; pc.altura = body.altura; if (horiz) pc.medidas = body.medidas; }
+        if (pc) { pc.largura = body.largura; pc.altura = body.altura; pc.medidas = body.medidas; }
       });
     }
     toast('Medidas da peça salvas.');
@@ -2568,7 +2574,7 @@ function abrirProdutoModal(id) {
       <div id="ep-roteiro"></div>
     </div>
     <div style="grid-column:1/-1;font-size:10px;color:var(--text3);line-height:1.6">
-      <strong>Variáveis:</strong> <code>largura</code>/<code>L</code> e <code>altura</code>/<code>A</code> (medidas da peça); pode referenciar outro corte pela sua <em>key</em>.<br>
+      <strong>Variáveis:</strong> <code>largura</code>/<code>L</code>, <code>altura</code>/<code>A</code> e <code>comando</code> (altura do comando/bastão, quando preenchida na peça); pode referenciar outro corte pela sua <em>key</em>.<br>
       <strong>Funções:</strong> <code>SE(cond; v_verdadeiro; v_falso)</code>, <code>E(...)</code>, <code>OU(...)</code>, <code>ARREDACIMA(x)</code>, <code>ARRED(x; casas)</code>, <code>MIN(...)</code>, <code>MAX(...)</code>.<br>
       Ex.: <code>L - 4.5</code> · <code>(L+30)/4</code> · <code>SE(furos>1; L-0.303; 0)</code>. Qtd: número ou fórmula. Setor vazio = corte sem setor. O roteiro define a ordem: um setor só inicia quando os setores de que ele depende estão com “fim”.
     </div>
@@ -2799,12 +2805,14 @@ function ocTabelaPlanilha(linhas, modo) {
     for (const l of ls) {
       const k = l.peca_id != null ? 'p' + l.peca_id
         : l.pedido + '#' + (l.item_id != null ? l.item_id : '?') + '#' + (l.peca_numero != null ? l.peca_numero : '?');
-      if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, unidade: l.unidade, vals: {} });
+      if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, comando: l.comando, unidade: l.unidade, vals: {} });
       const g = pecas.get(k);
       if (g.largura == null && l.largura != null) g.largura = l.largura;
       if (g.altura == null && l.altura != null) g.altura = l.altura;
+      if (g.comando == null && l.comando != null) g.comando = l.comando;
       g.vals[String(l.corte || '').trim()] = { valor: l.valor, qtd: l.qtd, unidade: l.unidade };
     }
+    const temComando = [...pecas.values()].some(g => g.comando != null);
     const unidades = [...new Set(ls.map(l => l.unidade).filter(Boolean))];
     const cel = (v) => {
       if (!v || v.valor == null || v.valor === '' || !(Number(v.valor) > 0)) return `<td style="text-align:right;color:${warn}">—</td>`;
@@ -2820,6 +2828,7 @@ function ocTabelaPlanilha(linhas, modo) {
         <table>
           <thead><tr>
             ${multiPedido ? '<th>PEDIDO</th>' : ''}<th>ITEM</th><th ${thNum}>LARG.</th><th ${thNum}>ALT.</th>
+            ${temComando ? `<th ${thNum} title="altura do comando/bastão">CMDO.</th>` : ''}
             ${colunas.map(c => `<th ${thNum}>${ocEscPrint(c.toUpperCase())}</th>`).join('')}
           </tr></thead>
           <tbody>${[...pecas.values()].map((g, ix) => `<tr>
@@ -2827,6 +2836,7 @@ function ocTabelaPlanilha(linhas, modo) {
             <td>${ix + 1}</td>
             <td style="text-align:right">${g.largura != null ? ocNumBR(g.largura) : '—'}</td>
             <td style="text-align:right">${g.altura != null ? ocNumBR(g.altura) : '—'}</td>
+            ${temComando ? `<td style="text-align:right">${g.comando != null ? ocNumBR(g.comando) : '—'}</td>` : ''}
             ${colunas.map(c => cel(g.vals[c])).join('')}
           </tr>`).join('')}</tbody>
         </table>
