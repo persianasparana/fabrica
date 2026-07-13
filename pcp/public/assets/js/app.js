@@ -2781,10 +2781,12 @@ function ocTabelaPlanilha(linhas, modo) {
     // colunas = nomes de corte na ordem de aparição
     const colunas = [];
     for (const l of ls) { const n = String(l.corte || '').trim(); if (n && !colunas.includes(n)) colunas.push(n); }
-    // linhas = peças
+    // linhas = peças — chave pelo ID único da peça (peca_numero repete entre
+    // itens: pedido com 54 itens de 1 peça tem 54 peças "nº 1")
     const pecas = new Map();
     for (const l of ls) {
-      const k = l.pedido + '#' + (l.peca_numero != null ? l.peca_numero : '?');
+      const k = l.peca_id != null ? 'p' + l.peca_id
+        : l.pedido + '#' + (l.item_id != null ? l.item_id : '?') + '#' + (l.peca_numero != null ? l.peca_numero : '?');
       if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, unidade: l.unidade, vals: {} });
       const g = pecas.get(k);
       if (g.largura == null && l.largura != null) g.largura = l.largura;
@@ -2806,9 +2808,9 @@ function ocTabelaPlanilha(linhas, modo) {
             ${multiPedido ? '<th>PEDIDO</th>' : ''}<th>ITEM</th><th ${thNum}>LARG.</th><th ${thNum}>ALT.</th>
             ${colunas.map(c => `<th ${thNum}>${ocEscPrint(c.toUpperCase())}</th>`).join('')}
           </tr></thead>
-          <tbody>${[...pecas.values()].map(g => `<tr>
+          <tbody>${[...pecas.values()].map((g, ix) => `<tr>
             ${multiPedido ? `<td>${ocEscPrint(g.pedido)}</td>` : ''}
-            <td>${g.peca != null ? '#' + ocEscPrint(String(g.peca)) : '—'}</td>
+            <td>${ix + 1}</td>
             <td style="text-align:right">${g.largura != null ? ocNumBR(g.largura) : '—'}</td>
             <td style="text-align:right">${g.altura != null ? ocNumBR(g.altura) : '—'}</td>
             ${colunas.map(c => cel(g.vals[c])).join('')}
@@ -2981,7 +2983,7 @@ function ocRenderPreview(preview) {
     return `<div class="card" style="margin-bottom:14px;border-left:4px solid ${cor}">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span class="st-prod" style="background:${cor}22;color:${cor};border:1px solid ${cor}66;font-size:12px">${esc(setor.nome || 'Setor')}</span>
-        <span style="font-size:11px;color:var(--text3)">${new Set(linhas.map(l=>l.pedido+'#'+l.peca_numero)).size} peça(s)</span>
+        <span style="font-size:11px;color:var(--text3)">${new Set(linhas.map(l=>l.peca_id!=null?l.peca_id:l.pedido+'#'+l.item_id+'#'+l.peca_numero)).size} peça(s)</span>
         <button class="btn btn-outline" style="margin-left:auto;font-size:10px" onclick="ocImprimir(${setor.id != null ? setor.id : 'null'})">🖨 Imprimir só este setor</button>
       </div>
       <div class="tbl-wrap">${linhas.length ? ocTabelaPlanilha(linhas, 'preview') : '<div style="font-size:11px;color:var(--text3)">Sem cortes neste setor.</div>'}</div>
@@ -3091,7 +3093,7 @@ function ocAbrirImpressao(setorId) {
     const corpo = ocTabelaPlanilha(linhas, 'print');
     const desenho = ocPlanoDisponivel() && linhas.length
       ? OCPlano.desenhoHTML(OCPlano.planoDeLinhas(linhas, opts)) : '';
-    const totalPecas = new Set(linhas.map(l => l.pedido + '#' + l.peca_numero)).size;
+    const totalPecas = new Set(linhas.map(l => l.peca_id != null ? l.peca_id : l.pedido + '#' + l.item_id + '#' + l.peca_numero)).size;
     return `<section class="ficha">
       <header class="ficha-head">
         <div class="brand">

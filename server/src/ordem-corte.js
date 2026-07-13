@@ -99,6 +99,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
         if (!grupos.has(key)) grupos.set(key, { setor, linhas: [] });
         grupos.get(key).linhas.push({
           pedido: item.pedido, produto: item.produto_nome || item.produto,
+          item_id: item.id, peca_id: peca.id,
           peca_numero: peca.numero, cod_barras: peca.cod_barras,
           largura: peca.largura, altura: peca.altura,
           corte: r.nome, valor: Number.isFinite(r.valor) ? Math.round(r.valor * 1000) / 1000 : null,
