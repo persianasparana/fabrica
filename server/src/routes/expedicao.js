@@ -20,7 +20,7 @@ import { Router } from 'express';
 import { requireAuth, requireCsrf, requirePerm, audit } from '../auth.js';
 import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
-import { avancarPedidoPorCodigo, ehPedidoComercial } from '../comercial-client.js';
+import { avancarPedidoPorCodigo, ehPedidoComercial, registrarPendenciaCiclo } from '../comercial-client.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -165,7 +165,11 @@ r.post('/guardar', requirePerm('expedicao', 'editar'), requireCsrf, ah(async (re
   let ciclo = null;
   if (ehPedidoComercial(peca.pedido) && progresso.guardadas === progresso.total) {
     try { ciclo = await avancarPedidoPorCodigo(peca.pedido, 'NA_EXPEDICAO', req.session.user.full_name); }
-    catch (e) { ciclo = { ok: false, motivo: e.message }; }
+    catch (e) {
+      ciclo = { ok: false, motivo: e.message, reenvio_agendado: true };
+      // Comercial fora do ar não pode perder o avanço: vira pendência re-tentável
+      await registrarPendenciaCiclo(peca.pedido, 'NA_EXPEDICAO', req.session.user.full_name, e.message).catch(() => {});
+    }
   }
 
   res.json({

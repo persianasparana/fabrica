@@ -307,6 +307,21 @@ export async function migrate() {
   await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_pedido ON pcp_ordem_corte_log (pedido)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_setor ON pcp_ordem_corte_log (setor_id)`);
 
+  // Outbox do ciclo do pedido (norma de revisão, lente 2 — saga/pendência):
+  // avanço automático que falhou com o Comercial fora do ar fica registrado
+  // aqui e é re-tentado pelo agendador (comercial-client.iniciarRetryCiclo).
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_ciclo_pendencias (
+      pedido     VARCHAR(64) PRIMARY KEY,
+      alvo       VARCHAR(32) NOT NULL,
+      quem       VARCHAR(128),
+      tentativas INT NOT NULL DEFAULT 0,
+      ultimo_erro TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
   // Config chave/valor do PCP (ex.: modo padrão da ordem de corte: individual|lote)
   await q(`CREATE TABLE IF NOT EXISTS pcp_config (chave VARCHAR(64) PRIMARY KEY, valor TEXT)`);
   await q(`INSERT INTO pcp_config (chave, valor) VALUES ('ordem_corte_modo_padrao', 'individual') ON CONFLICT (chave) DO NOTHING`);
