@@ -2805,7 +2805,7 @@ function ocTabelaPlanilha(linhas, modo) {
     for (const l of ls) {
       const k = l.peca_id != null ? 'p' + l.peca_id
         : l.pedido + '#' + (l.item_id != null ? l.item_id : '?') + '#' + (l.peca_numero != null ? l.peca_numero : '?');
-      if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, comando: l.comando, unidade: l.unidade, vals: {} });
+      if (!pecas.has(k)) pecas.set(k, { pedido: l.pedido, peca: l.peca_numero, largura: l.largura, altura: l.altura, comando: l.comando, obs: l.obs, unidade: l.unidade, vals: {} });
       const g = pecas.get(k);
       if (g.largura == null && l.largura != null) g.largura = l.largura;
       if (g.altura == null && l.altura != null) g.altura = l.altura;
@@ -2813,6 +2813,9 @@ function ocTabelaPlanilha(linhas, modo) {
       g.vals[String(l.corte || '').trim()] = { valor: l.valor, qtd: l.qtd, unidade: l.unidade };
     }
     const temComando = [...pecas.values()].some(g => g.comando != null);
+    // identificação da peça (cor/ambiente): 2 primeiros campos das observações
+    const identDe = (obs) => String(obs || '').split('|').map(s => s.trim()).filter(Boolean).slice(0, 2).join(' · ');
+    const temIdent = [...pecas.values()].some(g => identDe(g.obs));
     const unidades = [...new Set(ls.map(l => l.unidade).filter(Boolean))];
     const cel = (v) => {
       if (!v || v.valor == null || v.valor === '' || !(Number(v.valor) > 0)) return `<td style="text-align:right;color:${warn}">—</td>`;
@@ -2825,18 +2828,21 @@ function ocTabelaPlanilha(linhas, modo) {
     return `
       <div style="margin-bottom:12px">
         <div style="font-size:11px;font-weight:800;margin:6px 0 4px">${ocEscPrint(produto)} <span style="font-weight:500;color:${sub}">· ${pecas.size} peça(s) · medidas em ${unidades.join('/') || 'cm'}</span></div>
-        <table>
+        <table class="oc-planilha">
           <thead><tr>
-            ${multiPedido ? '<th>PEDIDO</th>' : ''}<th>ITEM</th><th ${thNum}>LARG.</th><th ${thNum}>ALT.</th>
+            ${multiPedido ? '<th>PEDIDO</th>' : ''}<th>ITEM</th>
+            ${temIdent ? '<th>IDENTIFICAÇÃO</th>' : ''}
+            <th ${thNum}>LARG.</th><th ${thNum}>ALT.</th>
             ${temComando ? `<th ${thNum} title="altura do comando/bastão">CMDO.</th>` : ''}
             ${colunas.map(c => `<th ${thNum}>${ocEscPrint(c.toUpperCase())}</th>`).join('')}
           </tr></thead>
           <tbody>${[...pecas.values()].map((g, ix) => `<tr>
             ${multiPedido ? `<td>${ocEscPrint(g.pedido)}</td>` : ''}
-            <td>${ix + 1}</td>
-            <td style="text-align:right">${g.largura != null ? ocNumBR(g.largura) : '—'}</td>
-            <td style="text-align:right">${g.altura != null ? ocNumBR(g.altura) : '—'}</td>
-            ${temComando ? `<td style="text-align:right">${g.comando != null ? ocNumBR(g.comando) : '—'}</td>` : ''}
+            <td class="oc-item">${ix + 1}</td>
+            ${temIdent ? `<td class="oc-ident">${ocEscPrint(identDe(g.obs).slice(0, 42))}</td>` : ''}
+            <td style="text-align:right" class="oc-med">${g.largura != null ? ocNumBR(g.largura) : '—'}</td>
+            <td style="text-align:right" class="oc-med">${g.altura != null ? ocNumBR(g.altura) : '—'}</td>
+            ${temComando ? `<td style="text-align:right" class="oc-med">${g.comando != null ? ocNumBR(g.comando) : '—'}</td>` : ''}
             ${colunas.map(c => cel(g.vals[c])).join('')}
           </tr>`).join('')}</tbody>
         </table>

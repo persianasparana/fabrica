@@ -299,6 +299,14 @@
 .ocp-tabela th{background:#1D1D1B;color:#fff;text-align:left;padding:5px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.03em}
 .ocp-tabela td{border:1px solid #D2D0C9;padding:5px 8px}
 .ocp-tabela .n{text-align:right;white-space:nowrap}
+
+/* Ficha item×corte — separação BEM visível entre as peças (produção manual) */
+.oc-planilha{border-collapse:collapse;width:100%}
+.oc-planilha td{padding:8px;border-bottom:2px solid #A9A69E !important;vertical-align:middle}
+.oc-planilha tbody tr:nth-child(even) td{background:#FAF7EE;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.oc-planilha .oc-item{font-weight:800;font-size:14px;text-align:center;width:40px;background:#1D1D1B !important;color:#C6B784;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.oc-planilha .oc-ident{font-size:10px;color:#444;max-width:150px}
+.oc-planilha .oc-med{font-weight:800;font-size:12px}
 `;
 
   const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, componentesHTML, csvSaida, CSS };

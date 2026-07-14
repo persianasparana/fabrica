@@ -65,7 +65,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
   const setorById = Object.fromEntries(setores.map((s) => [Number(s.id), s]));
 
   const { rows: itens } = await q(
-    `SELECT i.id, i.pedido, i.produto, i.produto_id, i.qnt,
+    `SELECT i.id, i.pedido, i.produto, i.produto_id, i.qnt, i.observacoes,
             p.cortes, p.componentes, p.unidade, p.nome AS produto_nome
      FROM pcp_itens i LEFT JOIN pcp_produtos p ON p.id = i.produto_id
      WHERE i.pedido = ANY($1) ORDER BY i.pedido, i.id`, [lista]);
@@ -136,6 +136,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
           pedido: item.pedido, produto: item.produto_nome || item.produto,
           item_id: item.id, peca_id: peca.id,
           peca_numero: peca.numero, cod_barras: peca.cod_barras,
+          obs: item.observacoes || null,     // identificação (cor/ambiente) na ficha
           largura: escopo.largura || null, altura: escopo.altura || null,  // na unidade do produto
           comando: escopo.comando || null,   // altura do comando/bastão (idem)
           corte: r.nome, valor: Number.isFinite(r.valor) ? Math.round(r.valor * 1000) / 1000 : null,
