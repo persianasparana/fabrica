@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ficha de Produção — PCP Persianas Paraná</title>
+<link rel="icon" type="image/png" href="assets/brand/logos/favicon.png">
+<link rel="stylesheet" href="assets/fonts/manrope.css">
+<style>
+:root { --black:#1D1D1B; --red:#C1212D; --gold:#C6B784; --border:#D9D9D9; --text2:#555; --text3:#888; --bg:#F4F4F2; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Manrope', Arial, sans-serif; font-size: 12px; color: var(--black); background: var(--bg); }
+#pagina { max-width: 900px; margin: 0 auto; padding: 24px; background: #fff; min-height: 100vh; }
+
+#acoes { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
+#acoes .btn { padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; }
+#acoes .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
+#acoes .aviso { font-size: 11px; color: var(--text3); margin-left: auto; }
+
+.doc-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--black); padding-bottom: 12px; margin-bottom: 14px; }
+.doc-header img { height: 34px; width: auto; }
+.doc-header .titulo { text-align: right; }
+.doc-header h1 { font-size: 19px; letter-spacing: .02em; }
+.doc-header .sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.meta { display: flex; gap: 22px; flex-wrap: wrap; font-size: 11px; margin-bottom: 16px; }
+.meta b { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); }
+.meta span { font-size: 13px; font-weight: 700; }
+
+/* Bloco de ITEM — um cartão bem separado por item (produção manual) */
+.item { border: 2px solid var(--black); border-radius: 8px; margin-bottom: 14px; overflow: hidden; page-break-inside: avoid; }
+.item-head { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; background: var(--black); color: #fff;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.item-head .num { background: var(--gold); color: var(--black); border-radius: 999px; padding: 1px 10px; font-weight: 800; font-size: 13px; }
+.item-head .nome { font-weight: 800; font-size: 14px; }
+.item-head .estrutura { margin-left: auto; font-size: 10px; color: var(--gold); }
+.spec { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.spec > div { padding: 7px 12px; border-bottom: 1px solid var(--border); border-right: 1px solid #ECEBE7; }
+.spec b { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); }
+.spec span { font-size: 13px; font-weight: 700; }
+.spec .wide { grid-column: 1 / -1; }
+.obs { padding: 8px 12px; background: #FFF6E5; border-bottom: 1px solid var(--border); font-size: 12px;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.obs b { color: #92600a; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; display: block; }
+
+table.pecas { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.pecas th { background: #EFEDE7; text-align: left; padding: 5px 12px; font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+table.pecas td { border-top: 1px solid #ECEBE7; padding: 6px 12px; }
+table.pecas .med { font-weight: 800; font-size: 13px; }
+table.pecas .num-p { font-weight: 800; }
+
+.alerta { background: #FFF6E5; border: 1px solid #E9B44C; border-radius: 6px; padding: 8px 12px; font-size: 11px; margin: 10px 0; }
+.assinatura { display: flex; gap: 24px; margin-top: 26px; }
+.assinatura .campo { flex: 1; border-top: 1px solid var(--black); padding-top: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); }
+.rodape { margin-top: 22px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); display: flex; justify-content: space-between; }
+
+@media print {
+  body { background: #fff; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #pagina { max-width: none; padding: 0; }
+  #acoes { display: none !important; }
+  .item { page-break-inside: avoid; }
+  @page { size: A4; margin: 12mm; }
+}
+</style>
+</head>
+<body>
+<div id="pagina">
+  <div id="acoes">
+    <button class="btn btn-red" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn" onclick="window.close()">Fechar</button>
+    <span class="aviso">Só o documento sai na impressão.</span>
+  </div>
+  <div id="conteudo">
+    <div style="padding:40px;text-align:center;color:#888;font-size:13px">Carregando a ficha de produção…</div>
+  </div>
+</div>
+<script src="assets/js/ficha-producao.js" defer></script>
+</body>
+</html>

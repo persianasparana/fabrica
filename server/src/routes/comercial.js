@@ -68,6 +68,64 @@ r.post(
   })
 );
 
+// ─── Estrutura do Produto na chegada do pedido ───────────────────────────────
+// Cadeia de seleção: 1) regras condicionais (F3); 2) fallback conservador por
+// NOME EXATO normalizado (tipo do item == nome/chave da estrutura); 3) pendente
+// (o avaliador escolhe manualmente na tela antes de liberar).
+const normNome = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function produtosAtivos() {
+  const { rows } = await q(`SELECT id, chave, nome, familia FROM pcp_produtos WHERE ativo = TRUE ORDER BY nome`);
+  return rows;
+}
+
+function fallbackPorNome(tipo, produtos) {
+  const alvo = normNome(tipo);
+  if (!alvo) return null;
+  const hit = produtos.find((p) => normNome(p.nome) === alvo || normNome(p.chave) === alvo);
+  return hit ? Number(hit.id) : null;
+}
+
+// ===== GET /pedidos/:id/estrutura-previa — o que a Ordem de Corte vai usar ====
+// Devolve, POR ITEM, a estrutura que a importação escolheria (regra/nome) —
+// o avaliador confere e corrige ANTES de liberar (a OC depende disso).
+r.get(
+  '/pedidos/:id/estrutura-previa',
+  requirePerm('comercial', 'ver'),
+  ah(async (req, res) => {
+    const detalhe = await chamar('GET', `/pedidos/${encodeURIComponent(req.params.id)}`);
+    const regras = await regrasAtivas();
+    const produtos = await produtosAtivos();
+    const porId = new Map(produtos.map((p) => [Number(p.id), p]));
+    const itens = (detalhe.itens || []).filter((it) => Number(it.quantidade) > 0).map((it) => {
+      const a = (it.atributos && typeof it.atributos === 'object' && !Array.isArray(it.atributos)) ? { ...it.atributos } : {};
+      if (it.acabamento) a.acabamento = it.acabamento;
+      if (it.janela) a.janela = it.janela;
+      if (it.corComponentes) a.cor_componentes = it.corComponentes;
+      const regra = selecionarEstrutura(contextoDeSpec({
+        produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
+        cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+        atributos: a, largura: it.larguraCm, altura: it.alturaCm, qnt: it.quantidade,
+      }), regras);
+      let produtoId = regra ? Number(regra.produto_id) : null;
+      let origem = regra ? 'regra' : null;
+      if (!produtoId) {
+        produtoId = fallbackPorNome(it.tipo, produtos);
+        if (produtoId) origem = 'nome';
+      }
+      return {
+        item_id: it.id != null ? String(it.id) : null,
+        tipo: it.tipo || null, colecao: it.colecao || null,
+        produto_id: produtoId,
+        produto_nome: produtoId && porId.get(produtoId) ? porId.get(produtoId).nome : null,
+        origem, // 'regra' | 'nome' | null (pendente)
+        regra_nome: regra ? regra.nome || null : null,
+      };
+    });
+    res.json({ itens, estruturas: produtos.map((p) => ({ id: Number(p.id), nome: p.nome, familia: p.familia })) });
+  })
+);
+
 // ===== POST /pedidos/:id/liberar — libera produção + importa itens pra fila =====
 r.post(
   '/pedidos/:id/liberar',
@@ -110,17 +168,24 @@ r.post(
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
-      // F3 — seleção automática da Estrutura do Produto pelas regras
-      // condicionais (primeira que casa vence; sem match → estrutura pendente)
+      // F3 — seleção da Estrutura do Produto: override MANUAL do avaliador
+      // (body.estruturas, vindo da tela) > regras condicionais > nome exato.
+      const overrides = (req.body && req.body.estruturas && typeof req.body.estruturas === 'object')
+        ? req.body.estruturas : {};
       const regras = await regrasAtivas();
+      const produtos = await produtosAtivos();
+      const idsValidos = new Set(produtos.map((p) => Number(p.id)));
       const estruturaDe = (it) => {
+        const manual = it.id != null ? Number(overrides[String(it.id)]) : NaN;
+        if (Number.isFinite(manual) && manual > 0 && idsValidos.has(manual)) return manual;
         const regra = selecionarEstrutura(contextoDeSpec({
           produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
           cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
           atributos: atributosDe(it), largura: it.larguraCm, altura: it.alturaCm,
           qnt: it.quantidade,
         }), regras);
-        return regra ? Number(regra.produto_id) : null;
+        if (regra) return Number(regra.produto_id);
+        return fallbackPorNome(it.tipo, produtos);
       };
       await emTransacao(async (exec, client) => {
         for (const it of itens) {
