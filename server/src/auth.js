@@ -38,11 +38,19 @@ async function clearFailedAttempts(username) {
 }
 
 export async function audit(userId, app, action, { entityType = null, entityId = null, ip = null } = {}) {
-  await q(
-    `INSERT INTO audit_log (user_id, app, action, entity_type, entity_id, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [userId, app, action, entityType, entityId, ip]
-  );
+  try {
+    await q(
+      `INSERT INTO audit_log (user_id, app, action, entity_type, entity_id, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      // entity_id é VARCHAR (ids mistos: numéricos do PCP + UUID do Comercial)
+      [userId, app, action, entityType, entityId != null ? String(entityId).slice(0, 64) : null, ip]
+    );
+  } catch (e) {
+    // Auditoria NUNCA derruba a operação principal (que já foi concluída
+    // quando chegamos aqui) — bug real 15/07/2026: "Liberar produção"
+    // devolvia 500 por causa do INSERT do log, com o pedido já liberado.
+    console.error(`[audit] Falha ao gravar auditoria (${app}/${action}): ${e.message}`);
+  }
 }
 
 /** Regenera a sessão (anti session fixation) — Promise wrapper. */

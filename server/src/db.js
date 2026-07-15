@@ -59,11 +59,22 @@ export async function migrate() {
       app         VARCHAR(16),
       action      VARCHAR(64) NOT NULL,
       entity_type VARCHAR(32),
-      entity_id   BIGINT,
+      entity_id   VARCHAR(64),
       details     TEXT,
       ip_address  VARCHAR(45),
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `);
+  // entity_id era BIGINT e quebrava com o UUID do Comercial ("Liberar produção"
+  // devolvia 500 com o pedido já liberado). Ids do sistema são mistos → VARCHAR.
+  await q(`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'audit_log' AND column_name = 'entity_id'
+                    AND data_type = 'bigint') THEN
+        ALTER TABLE audit_log ALTER COLUMN entity_id TYPE VARCHAR(64) USING entity_id::varchar;
+      END IF;
+    END $$
   `);
 
   // PCP: limpeza do modelo antigo (kv-store substituído por tabelas reais)
