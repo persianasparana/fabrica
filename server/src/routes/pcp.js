@@ -508,6 +508,10 @@ r.delete(
     if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
     const result = await q('DELETE FROM pcp_itens WHERE pedido = $1', [pedido]);
     if (result.rowCount === 0) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
+    // limpa o que não cai em cascata: infos do Comercial e pendências do ciclo
+    // (senão o agendador re-tentaria avançar no Comercial um pedido excluído)
+    await q('DELETE FROM pcp_pedido_info WHERE pedido = $1', [pedido]);
+    await q('DELETE FROM pcp_ciclo_pendencias WHERE pedido = $1', [pedido]);
     await audit(req.session.user.id, 'pcp', 'pedido.delete', { entityType: 'pcp_pedido' });
     res.json({ ok: true, count: result.rowCount });
   })
