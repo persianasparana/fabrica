@@ -28,6 +28,63 @@ async function renderRegrasEstrutura() {
   }
   if (rgEditor) { rgRenderEditor(box); return; }
   rgRenderTabela(box);
+  rgRenderCategorias();
+}
+
+// ─── Categorias de tecido por coleção (Lisa/Sheer/Vision...) ─────────────────
+// O sistema classifica pela coleção — vira a variável `categoria` nas regras.
+async function rgRenderCategorias() {
+  let host = document.getElementById('rg-categorias');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'rg-categorias';
+    document.getElementById('regras-box').appendChild(host);
+  }
+  let cats = [];
+  try { cats = (await api('pcp/estrutura-regras/categorias-colecao')).data || []; }
+  catch (e) { host.innerHTML = ''; return; }
+  const podeEd = ehAdmin() || podeEditar('estrutura');
+  const linhas = cats.map((c) => `<tr>
+    <td>${esc(c.colecao)}</td>
+    <td><b>${esc(c.categoria)}</b></td>
+    ${podeEd ? `<td style="width:70px"><button class="btn btn-outline" style="font-size:10px;color:var(--red);border-color:var(--red)" onclick="rgCatExcluir('${esc(c.colecao).replace(/'/g, "\\'")}')">✕</button></td>` : ''}
+  </tr>`).join('');
+  host.innerHTML = `<div class="card" style="margin-top:14px;border-left:4px solid var(--pp-dourado,#C6B784)">
+    <div class="card-title">Categoria de tecido por coleção</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">
+      O sistema classifica o tecido (Lisa/Sheer/Vision…) pela coleção do item — use a variável
+      <code>categoria</code> nas regras acima. Coleções sem cadastro ficam sem categoria.
+    </div>
+    ${podeEd ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <input type="text" id="rg-cat-colecao" placeholder="Coleção (ex: COLISEU BK 1,83)" style="flex:1;min-width:200px;font-size:12px">
+      <input type="text" id="rg-cat-categoria" list="rg-cat-opcoes" placeholder="Categoria" style="width:130px;font-size:12px">
+      <datalist id="rg-cat-opcoes"><option>Lisa</option><option>Sheer</option><option>Vision</option><option>Blackout</option></datalist>
+      <button class="btn btn-black" style="font-size:11px" onclick="rgCatSalvar()">+ Adicionar</button>
+    </div>` : ''}
+    ${cats.length ? `<div class="tbl-wrap"><table style="font-size:12px">
+      <thead><tr><th>Coleção</th><th>Categoria</th>${podeEd ? '<th></th>' : ''}</tr></thead>
+      <tbody>${linhas}</tbody></table></div>`
+      : '<div style="font-size:11px;color:var(--text3)">Nenhuma coleção categorizada ainda.</div>'}
+  </div>`;
+}
+
+async function rgCatSalvar() {
+  const colecao = document.getElementById('rg-cat-colecao').value.trim();
+  const categoria = document.getElementById('rg-cat-categoria').value.trim();
+  if (!colecao || !categoria) { toast('Informe a coleção e a categoria.'); return; }
+  try {
+    await api('pcp/estrutura-regras/categorias-colecao', { method: 'POST', body: { colecao, categoria } });
+    toast('Categoria salva.');
+    rgRenderCategorias();
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function rgCatExcluir(colecao) {
+  if (!confirm(`Remover a categoria da coleção "${colecao}"?`)) return;
+  try {
+    await api('pcp/estrutura-regras/categorias-colecao?colecao=' + encodeURIComponent(colecao), { method: 'DELETE' });
+    rgRenderCategorias();
+  } catch (e) { toast('Erro: ' + e.message); }
 }
 
 function rgOpRotulo(op) {

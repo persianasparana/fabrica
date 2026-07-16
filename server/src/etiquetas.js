@@ -29,6 +29,11 @@ export const CAMPOS_ETIQUETA = [
   { chave: 'tipo',         rotulo: 'Tipo de produção' },
   { chave: 'observacoes',  rotulo: 'Observações' },
   { chave: 'setor',        rotulo: 'Setor' },
+  { chave: 'acabamento',   rotulo: 'Acabamento (Trilho Plus/Bandô...)' },
+  { chave: 'lado',         rotulo: 'Lado do acionamento' },
+  { chave: 'cor_componentes', rotulo: 'Cor dos componentes' },
+  { chave: 'janela',       rotulo: 'Janela/vão' },
+  { chave: 'atributos',    rotulo: 'Demais atributos do formulário' },
   { chave: 'marca',        rotulo: 'Marca (Persianas Paraná)' },
 ];
 

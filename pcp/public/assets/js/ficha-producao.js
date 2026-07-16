@@ -40,7 +40,26 @@
     return String(chave || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  function blocoItem(item, ix, estruturaPorId) {
+  // Cortes calculados (da Ordem de Corte) por peça deste item, filtrados pelo
+  // setor escolhido — specs + medidas de corte na MESMA ficha da bancada.
+  function blocoCortes(item, cortesPorPeca, setorFiltro) {
+    const linhas = [];
+    for (const p of (item.pecas || [])) {
+      const doPeca = (cortesPorPeca.get(String(p.id)) || [])
+        .filter((c) => !setorFiltro || String(c.setor_id) === String(setorFiltro));
+      if (!doPeca.length) continue;
+      linhas.push(`<tr><td class="num-p">#${p.numero}</td><td>${doPeca.map((c) =>
+        `<span style="white-space:nowrap"><b>${esc(c.corte)}:</b> ${Number(c.valor).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}${c.qtd > 1 ? ` (×${c.qtd})` : ''} ${esc(c.unidade || '')}</span>`
+      ).join(' &nbsp;·&nbsp; ')}</td></tr>`);
+    }
+    if (!linhas.length) return '';
+    return `<table class="pecas" style="border-top:2px solid var(--gold)">
+      <thead><tr><th style="width:44px">Peça</th><th>✂ Cortes calculados${setorFiltro ? ' (setor filtrado)' : ''}</th></tr></thead>
+      <tbody>${linhas.join('')}</tbody>
+    </table>`;
+  }
+
+  function blocoItem(item, ix, estruturaPorId, cortesPorPeca, setorFiltro) {
     const prod = item.produto_id != null ? estruturaPorId.get(Number(item.produto_id)) : null;
     const atributos = (item.atributos && typeof item.atributos === 'object') ? item.atributos : {};
     const camposSpec = [
@@ -90,13 +109,17 @@
         <thead><tr><th style="width:44px">Peça</th><th style="width:150px">Medida (L × A)</th><th>Medidas extras</th><th style="width:130px">Etiqueta</th><th style="width:110px">Concluída</th></tr></thead>
         <tbody>${pecas || '<tr><td colspan="5" style="color:var(--text3)">Sem peças cadastradas.</td></tr>'}</tbody>
       </table>
+      ${blocoCortes(item, cortesPorPeca, setorFiltro)}
     </div>`;
   }
 
+  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map() };
+
   function render(pedido, dados, estruturaPorId) {
     const itens = dados.itens || [];
+    const info = dados.info || null;
     const emitida = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-    const cliente = itens.map((i) => i.cliente).find(Boolean) || '—';
+    const cliente = (info && info.cliente) || itens.map((i) => i.cliente).find(Boolean) || '—';
     const dataCliente = itens.map((i) => i.data_cliente).find(Boolean) || null;
     const totalPecas = itens.reduce((a, i) => a + ((i.pecas || []).length || Number(i.qnt) || 1), 0);
     const semEstrutura = itens.filter((i) => i.produto_id == null).length;
@@ -117,12 +140,23 @@
       <div class="meta">
         <div><b>Pedido</b><span>${esc(pedido)}</span></div>
         <div><b>Cliente</b><span>${esc(cliente)}</span></div>
-        <div><b>Data prometida</b><span>${fmtData(dataCliente)}</span></div>
+        ${info && info.vendedor ? `<div><b>Vendedor</b><span>${esc(info.vendedor)}</span></div>` : ''}
+        ${info && info.modalidade ? `<div><b>Modalidade</b><span>${esc(String(info.modalidade).replace(/_/g, ' '))}</span></div>` : ''}
+        <div><b>Data prometida</b><span>${fmtData(dataCliente)}${info && info.prazo_dias ? ` <small style="font-weight:400;color:var(--text3)">(${info.prazo_dias} dias)</small>` : ''}</span></div>
         <div><b>Itens</b><span>${itens.length}</span></div>
         <div><b>Peças</b><span>${totalPecas}</span></div>
       </div>
+      ${info && info.observacoes ? `<div class="obs" style="border:1px solid #E9B44C;border-radius:6px;margin-bottom:10px"><b>Observações do pedido (vendedor)</b>${esc(info.observacoes)}</div>` : ''}
+      ${estado.setores.length ? `<div id="filtro-setor" style="display:flex;gap:6px;align-items:center;margin-bottom:10px;font-size:12px" class="so-tela">
+        <b>Imprimir ficha do setor:</b>
+        <select onchange="window.__setorFiltro(this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">Todos os setores</option>
+          ${estado.setores.map((s2) => `<option value="${s2.id}" ${String(estado.setorFiltro) === String(s2.id) ? 'selected' : ''}>${esc(s2.nome)}</option>`).join('')}
+        </select>
+        <span style="color:var(--text3)">— filtra os cortes calculados; as specs saem sempre</span>
+      </div>` : ''}
       ${avisos.map((a) => `<div class="alerta">${a}</div>`).join('')}
-      ${itens.map((it, ix) => blocoItem(it, ix, estruturaPorId)).join('') || '<div class="alerta">Pedido sem itens.</div>'}
+      ${itens.map((it, ix) => blocoItem(it, ix, estruturaPorId, estado.cortesPorPeca, estado.setorFiltro)).join('') || '<div class="alerta">Pedido sem itens.</div>'}
       <div class="assinatura">
         <div class="campo">Produzido por</div>
         <div class="campo">Conferido por</div>
@@ -143,11 +177,25 @@
     }
     try {
       await api('auth/session');
-      const [dados, estrutura] = await Promise.all([
+      const [dados, estrutura, oc] = await Promise.all([
         api('pcp/pedido?pedido=' + encodeURIComponent(pedido)),
         api('pcp/estrutura'),
+        api('pcp/ordem-corte/preview?pedidos=' + encodeURIComponent(pedido)).catch(() => null),
       ]);
       const porId = new Map((estrutura.data || []).map((p) => [Number(p.id), p]));
+      // indexa os cortes calculados por peça (e a lista de setores presentes)
+      for (const g of ((oc && oc.setores) || [])) {
+        const st = g.setor || {};
+        if (st.id != null && !estado.setores.some((x) => String(x.id) === String(st.id)))
+          estado.setores.push({ id: st.id, nome: st.nome });
+        for (const l of (g.linhas || [])) {
+          if (l.peca_id == null || !(Number(l.valor) > 0)) continue;
+          const k = String(l.peca_id);
+          if (!estado.cortesPorPeca.has(k)) estado.cortesPorPeca.set(k, []);
+          estado.cortesPorPeca.get(k).push({ setor_id: st.id, corte: l.corte, valor: l.valor, qtd: l.qtd, unidade: l.unidade });
+        }
+      }
+      window.__setorFiltro = (v) => { estado.setorFiltro = v; render(pedido, dados, porId); };
       render(pedido, dados, porId);
     } catch (e) {
       if (e.message !== 'Não autenticado')

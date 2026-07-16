@@ -106,6 +106,17 @@ function etqValor(chave, e) {
     case 'tipo': return e.tipo || '';
     case 'observacoes': return e.observacoes || '';
     case 'setor': return e.setor || '';
+    case 'acabamento': return (e.atributos || {}).acabamento || '';
+    case 'lado': return (e.atributos || {}).acionamento_lado || (e.atributos || {}).lado || '';
+    case 'cor_componentes': return (e.atributos || {}).cor_componentes || '';
+    case 'janela': return (e.atributos || {}).janela || '';
+    case 'atributos': {
+      const CONHECIDOS = new Set(['acabamento', 'acionamento_lado', 'lado', 'cor_componentes', 'janela']);
+      return Object.entries(e.atributos || {})
+        .filter(([k, v]) => !CONHECIDOS.has(k) && v != null && v !== '')
+        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+        .join(' · ');
+    }
     case 'marca': return 'Persianas Paraná · Produzido no Brasil';
     default: return '';
   }

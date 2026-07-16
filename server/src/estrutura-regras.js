@@ -16,6 +16,7 @@ import { q } from './db.js';
 export const CAMPOS_REGRA = [
   { chave: 'produto',     rotulo: 'Tipo da peça (produto)', tipo: 'texto' },
   { chave: 'colecao',     rotulo: 'Coleção',                tipo: 'texto' },
+  { chave: 'categoria',   rotulo: 'Categoria do tecido (por coleção — aba Estrutura)', tipo: 'texto' },
   { chave: 'cor_tecido',  rotulo: 'Cor do tecido',          tipo: 'texto' },
   { chave: 'cor_perfil',  rotulo: 'Cor do perfil',          tipo: 'texto' },
   { chave: 'acionamento', rotulo: 'Acionamento',            tipo: 'texto' },
@@ -102,13 +103,23 @@ export function selecionarEstrutura(ctx, regras) {
   return null;
 }
 
-/** Contexto de avaliação a partir da spec estruturada (F1). */
-export function contextoDeSpec(s) {
+/** Categorias de tecido parametrizadas por coleção (Lisa/Sheer/Vision...). */
+const normColecao = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+export async function categoriasPorColecao() {
+  const { rows } = await q('SELECT colecao_norm, categoria FROM pcp_colecao_categorias');
+  return new Map(rows.map((r) => [r.colecao_norm, r.categoria]));
+}
+export { normColecao };
+
+/** Contexto de avaliação a partir da spec estruturada (F1).
+ *  `categorias` (Map opcional, de categoriasPorColecao) resolve ctx.categoria. */
+export function contextoDeSpec(s, categorias) {
   const largura = s.largura != null && s.largura !== '' ? Number(s.largura) : null;
   const altura = s.altura != null && s.altura !== '' ? Number(s.altura) : null;
   return {
     produto: s.produto || '',
     colecao: s.colecao || '',
+    categoria: (categorias && categorias.get(normColecao(s.colecao))) || s.categoria || '',
     cor_tecido: s.cor_tecido || '',
     cor_perfil: s.cor_perfil || '',
     acionamento: s.acionamento || '',
@@ -144,6 +155,7 @@ export async function regrasAtivas() {
  */
 export async function aplicarRegrasFila({ pedidos = null, sobrescrever = false } = {}) {
   const regras = await regrasAtivas();
+  const categorias = await categoriasPorColecao();
   const params = [];
   let where = 'i.conclusao IS NULL';
   if (pedidos && pedidos.length) { params.push(pedidos); where += ` AND i.pedido = ANY($${params.length})`; }
@@ -161,7 +173,7 @@ export async function aplicarRegrasFila({ pedidos = null, sobrescrever = false }
   const detalhes = [];
   let aplicados = 0;
   for (const it of itens) {
-    const ctx = contextoDeSpec(it);
+    const ctx = contextoDeSpec(it, categorias);
     const regra = selecionarEstrutura(ctx, regras);
     if (regra && Number(regra.produto_id) !== (it.produto_id != null ? Number(it.produto_id) : null)) {
       await q('UPDATE pcp_itens SET produto_id = $2, updated_at = now() WHERE id = $1', [it.id, regra.produto_id]);

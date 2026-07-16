@@ -416,7 +416,13 @@ r.get(
     if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
     const { rows } = await q(`${SELECT_ITEM} WHERE i.pedido = $1 ORDER BY i.id`, [pedido]);
     if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
-    res.json({ pedido, itens: rows });
+    // Infos de nível de pedido do Comercial (vendedor, obs, modalidade) —
+    // gravadas na liberação; alimentam a Ficha de Produção. null p/ manuais.
+    const { rows: info } = await q(
+      `SELECT cliente, vendedor, modalidade, observacoes, prazo_dias,
+              to_char(aprovado_fin, 'YYYY-MM-DD') AS aprovado_fin
+       FROM pcp_pedido_info WHERE pedido = $1`, [pedido]);
+    res.json({ pedido, itens: rows, info: info[0] || null });
   })
 );
 

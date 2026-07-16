@@ -333,6 +333,35 @@ export async function migrate() {
     )
   `);
 
+  // Informações de NÍVEL DE PEDIDO vindas do Comercial na liberação (vendedor,
+  // observações do pedido, modalidade) — alimentam a Ficha de Produção sem
+  // depender do Comercial estar no ar na hora de imprimir.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_pedido_info (
+      pedido       VARCHAR(64) PRIMARY KEY,
+      comercial_id VARCHAR(64),
+      cliente      VARCHAR(160),
+      vendedor     VARCHAR(160),
+      modalidade   VARCHAR(40),
+      observacoes  TEXT,
+      prazo_dias   INT,
+      aprovado_fin DATE,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  // Categoria de tecido POR COLEÇÃO (Lisa/Sheer/Vision...) — parametrizada pelo
+  // PCP (não é o vendedor que escolhe); vira a variável `categoria` nas regras
+  // de seleção automática da Estrutura do Produto.
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_colecao_categorias (
+      colecao_norm VARCHAR(160) PRIMARY KEY,
+      colecao      VARCHAR(160) NOT NULL,
+      categoria    VARCHAR(40)  NOT NULL,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
   // Config chave/valor do PCP (ex.: modo padrão da ordem de corte: individual|lote)
   await q(`CREATE TABLE IF NOT EXISTS pcp_config (chave VARCHAR(64) PRIMARY KEY, valor TEXT)`);
   await q(`INSERT INTO pcp_config (chave, valor) VALUES ('ordem_corte_modo_padrao', 'individual') ON CONFLICT (chave) DO NOTHING`);

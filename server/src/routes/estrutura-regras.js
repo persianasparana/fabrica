@@ -14,7 +14,7 @@ import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
 import {
   CAMPOS_REGRA, OPERADORES, tipoDoCampo, contextoDeSpec,
-  selecionarEstrutura, regrasAtivas, aplicarRegrasFila,
+  selecionarEstrutura, regrasAtivas, aplicarRegrasFila, categoriasPorColecao,
 } from '../estrutura-regras.js';
 
 const r = Router();
@@ -147,7 +147,7 @@ r.post('/testar', requirePerm('estrutura', 'ver'), ah(async (req, res) => {
     produto: spec.produto, colecao: spec.colecao, cor_tecido: spec.cor_tecido,
     cor_perfil: spec.cor_perfil, acionamento: spec.acionamento, ambiente: spec.ambiente,
     atributos: spec.atributos, largura: spec.largura, altura: spec.altura, qnt: spec.qnt,
-  });
+  }, await categoriasPorColecao());
   const regras = await regrasAtivas();
   const vencedora = selecionarEstrutura(ctx, regras);
   res.json({
@@ -172,3 +172,36 @@ r.post('/aplicar', requirePerm('fila', 'editar'), requireCsrf, ah(async (req, re
 }));
 
 export default r;
+
+// ─── Categorias de tecido POR COLEÇÃO (Lisa/Sheer/Vision...) ─────────────────
+// Parametrização do PCP (não é o vendedor que escolhe): a coleção do item
+// resolve a variável `categoria` nas regras acima.
+const normCol = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+r.get('/categorias-colecao', requirePerm('estrutura', 'ver'), ah(async (req, res) => {
+  const { rows } = await q('SELECT colecao, categoria FROM pcp_colecao_categorias ORDER BY categoria, colecao');
+  res.json({ data: rows });
+}));
+
+r.post('/categorias-colecao', requirePerm('estrutura', 'editar'), requireCsrf, ah(async (req, res) => {
+  const colecao = String(req.body?.colecao || '').trim().slice(0, 160);
+  const categoria = String(req.body?.categoria || '').trim().slice(0, 40);
+  if (!colecao || !categoria) throw new HttpError(422, 'Informe a coleção e a categoria');
+  await q(
+    `INSERT INTO pcp_colecao_categorias (colecao_norm, colecao, categoria)
+     VALUES ($1,$2,$3)
+     ON CONFLICT (colecao_norm) DO UPDATE SET colecao = EXCLUDED.colecao, categoria = EXCLUDED.categoria, updated_at = now()`,
+    [normCol(colecao), colecao, categoria]
+  );
+  await audit(req.session.user.id, 'pcp', 'estrutura.categoria.set', { entityType: 'pcp_colecao_categoria', entityId: normCol(colecao) });
+  res.status(201).json({ ok: true });
+}));
+
+r.delete('/categorias-colecao', requirePerm('estrutura', 'editar'), requireCsrf, ah(async (req, res) => {
+  const colecao = String(req.query.colecao || '').trim();
+  if (!colecao) throw new HttpError(400, 'Informe a coleção');
+  const result = await q('DELETE FROM pcp_colecao_categorias WHERE colecao_norm = $1', [normCol(colecao)]);
+  if (result.rowCount === 0) throw new HttpError(404, 'Coleção não encontrada');
+  await audit(req.session.user.id, 'pcp', 'estrutura.categoria.delete', { entityType: 'pcp_colecao_categoria', entityId: normCol(colecao) });
+  res.json({ ok: true });
+}));

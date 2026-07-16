@@ -20,7 +20,7 @@ import { requireAuth, requireCsrf, requirePerm, audit } from '../auth.js';
 import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
 import { inserirItem, emTransacao } from './pcp.js';
-import { regrasAtivas, selecionarEstrutura, contextoDeSpec } from '../estrutura-regras.js';
+import { regrasAtivas, selecionarEstrutura, contextoDeSpec, categoriasPorColecao } from '../estrutura-regras.js';
 // Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
 import { chamar } from '../comercial-client.js';
 
@@ -95,6 +95,7 @@ r.get(
   ah(async (req, res) => {
     const detalhe = await chamar('GET', `/pedidos/${encodeURIComponent(req.params.id)}`);
     const regras = await regrasAtivas();
+    const categorias = await categoriasPorColecao();
     const produtos = await produtosAtivos();
     const porId = new Map(produtos.map((p) => [Number(p.id), p]));
     const itens = (detalhe.itens || []).filter((it) => Number(it.quantidade) > 0).map((it) => {
@@ -106,7 +107,7 @@ r.get(
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
         cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
         atributos: a, largura: it.larguraCm, altura: it.alturaCm, qnt: it.quantidade,
-      }), regras);
+      }, categorias), regras);
       let produtoId = regra ? Number(regra.produto_id) : null;
       let origem = regra ? 'regra' : null;
       if (!produtoId) {
@@ -173,6 +174,7 @@ r.post(
       const overrides = (req.body && req.body.estruturas && typeof req.body.estruturas === 'object')
         ? req.body.estruturas : {};
       const regras = await regrasAtivas();
+      const categorias = await categoriasPorColecao();
       const produtos = await produtosAtivos();
       const idsValidos = new Set(produtos.map((p) => Number(p.id)));
       const estruturaDe = (it) => {
@@ -183,7 +185,7 @@ r.post(
           cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
           atributos: atributosDe(it), largura: it.larguraCm, altura: it.alturaCm,
           qnt: it.quantidade,
-        }), regras);
+        }, categorias), regras);
         if (regra) return Number(regra.produto_id);
         return fallbackPorNome(it.tipo, produtos);
       };
@@ -215,6 +217,23 @@ r.post(
         }
       });
     }
+
+    // Infos de NÍVEL DE PEDIDO pra Ficha de Produção (vendedor, obs, modalidade)
+    await q(
+      `INSERT INTO pcp_pedido_info (pedido, comercial_id, cliente, vendedor, modalidade, observacoes, prazo_dias, aprovado_fin, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+       ON CONFLICT (pedido) DO UPDATE SET
+         comercial_id=EXCLUDED.comercial_id, cliente=EXCLUDED.cliente, vendedor=EXCLUDED.vendedor,
+         modalidade=EXCLUDED.modalidade, observacoes=EXCLUDED.observacoes,
+         prazo_dias=EXCLUDED.prazo_dias, aprovado_fin=EXCLUDED.aprovado_fin, updated_at=now()`,
+      [codigo, String(id).slice(0, 64),
+       (detalhe.client && (detalhe.client.nome || detalhe.client.name)) || null,
+       (detalhe.consultor && detalhe.consultor.nome) || null,
+       detalhe.modalidade || null,
+       detalhe.observacoes || null,
+       detalhe.prazoEntregaDias != null ? Number(detalhe.prazoEntregaDias) : null,
+       detalhe.aprovadoFinanceiroEm ? String(detalhe.aprovadoFinanceiroEm).slice(0, 10) : null]
+    );
 
     await audit(req.session.user.id, 'comercial', 'pedido.liberar', {
       entityType: 'pedido',
