@@ -40,6 +40,8 @@
 | **RH** | 3030 | `0.0.0.0` ⚠️ | `rh-api` | `rh_db` | `rh_user` / `rh_user` | `/rh/` | `/var/www/rh` | `/api/health` |
 | **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
 | **Compras** ✅ | 3050 | `127.0.0.1` ✅ | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
+| **Fiscal** ✅ | 3060 | `127.0.0.1` ✅ | `fiscal-api` | `fiscal_db` | `fiscal_user` / `fiscal_user` | `/fiscal/` | `/var/www/fiscal` | `/api/health` |
+| **Produtos** 🔨 reservado | 3070 | `127.0.0.1` | `produtos-api` | `produtos_db` | `produtos_user` / `produtos_user` | `/produtos/` | `/var/www/produtos` | `/api/health` |
 
 ✅ **Compras: deployado (2026-06-30).** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
 stack dos outros). PM2 `compras-api` on-line, bind `127.0.0.1`, banco `compras_db`/`compras_user`,
