@@ -69,9 +69,12 @@ pagar no Financeiro; ver §7 e `docs/INTEGRACAO-FINANCEIRO-FASE4.md`).
 | 3030 | `rh-api` | |
 | 3040 | `financeiro-api` | |
 | **3050** | `compras-api` (Compras) | ✅ ativo (deployado 2026-06-30) |
+| **3060** | `fiscal-api` (Núcleo Fiscal) | ✅ ativo (jul/2026) |
+| **3070** | `produtos-api` (Núcleo de Produtos & Precificação) | 🔨 reservada 17/07/2026 — motor de cálculo/catálogo (ver `compras/docs/MOTOR-PRECIFICACAO-ANALISE.md`) |
+| **3080** | `pagamentos-api` | 📄 reservada p/ proposta de integração bancária do Financeiro (a proposta original citava 3070; remanejada) |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
-| 3060+ | livre | próxima porta sugerida p/ novo app |
+| 3090+ | livre | próxima porta sugerida p/ novo app |
 
 ---
 
