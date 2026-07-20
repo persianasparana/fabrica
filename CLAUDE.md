@@ -21,7 +21,7 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 ## ⚠️ Servidor compartilhado
 Mesmo servidor dos outros 6 apps. **Isolado**: porta **3020**, banco **`fabrica_db`**
 (role **`fabrica_user`**), PM2 **`fabrica-server`**, dir **`/var/www/fabrica`**.
-NUNCA usar portas/bancos/processos dos outros (3000/3010/3011/3030/3040/3050/3060).
+NUNCA usar portas/bancos/processos dos outros (3000/3010/3011/3030/3040/3050/3060/**3070 = Produtos**).
 
 ## Stack e estrutura (diferente dos irmãos Express!)
 Node + Express em **ESM** (`import`, não `require`) · PostgreSQL via `pg` (sem ORM) ·

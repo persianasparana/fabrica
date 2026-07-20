@@ -41,7 +41,7 @@
 | **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
 | **Compras** ✅ | 3050 | `127.0.0.1` ✅ | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
 | **Fiscal** ✅ | 3060 | `127.0.0.1` ✅ | `fiscal-api` | `fiscal_db` | `fiscal_user` / `fiscal_user` | `/fiscal/` | `/var/www/fiscal` | `/api/health` |
-| **Produtos** 🔨 reservado | 3070 | `127.0.0.1` | `produtos-api` | `produtos_db` | `produtos_user` / `produtos_user` | `/produtos/` | `/var/www/produtos` | `/api/health` |
+| **Produtos** ✅ | 3070 | `127.0.0.1` ✅ | `produtos-api` | `produtos_db` | `produtos_user` / `produtos_user` | `/produtos/` | `/var/www/produtos` | `/api/health` |
 
 ✅ **Compras: deployado (2026-06-30).** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
 stack dos outros). PM2 `compras-api` on-line, bind `127.0.0.1`, banco `compras_db`/`compras_user`,
@@ -72,7 +72,7 @@ pagar no Financeiro; ver §7 e `docs/INTEGRACAO-FINANCEIRO-FASE4.md`).
 | 3040 | `financeiro-api` | |
 | **3050** | `compras-api` (Compras) | ✅ ativo (deployado 2026-06-30) |
 | **3060** | `fiscal-api` (Núcleo Fiscal) | ✅ ativo (jul/2026) |
-| **3070** | `produtos-api` (Núcleo de Produtos & Precificação) | 🔨 reservada 17/07/2026 — motor de cálculo/catálogo (ver `compras/docs/MOTOR-PRECIFICACAO-ANALISE.md`) |
+| **3070** | `produtos-api` (Núcleo de Produtos & Precificação) | ✅ ativo (deployado 20/07/2026) — repo próprio `persianasparana/produtos`@`main` (staging `compras/nucleo-produtos/` migrado 20/07); integrações F2/F3/F4 (flags OFF): ver `produtos/docs/INTEGRACOES-F2-F3-F4.md` |
 | **3080** | `pagamentos-api` | 📄 reservada p/ proposta de integração bancária do Financeiro (a proposta original citava 3070; remanejada) |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
