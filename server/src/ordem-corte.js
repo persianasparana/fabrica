@@ -12,6 +12,7 @@
  */
 import { calcularCortes, avaliarFormula } from './corte.js';
 import { q } from './db.js';
+import * as produtosClient from './produtos-client.js';
 
 // Heurística de palavra-chave → casa o nome do corte com um setor pelo nome.
 function inferirSetor(nomeCorte, setores) {
@@ -66,7 +67,7 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
 
   const { rows: itens } = await q(
     `SELECT i.id, i.pedido, i.produto, i.produto_id, i.qnt, i.observacoes,
-            p.cortes, p.componentes, p.unidade, p.nome AS produto_nome
+            p.cortes, p.componentes, p.unidade, p.nome AS produto_nome, p.produto_sku
      FROM pcp_itens i LEFT JOIN pcp_produtos p ON p.id = i.produto_id
      WHERE i.pedido = ANY($1) ORDER BY i.pedido, i.id`, [lista]);
   const { rows: pecas } = await q(
@@ -151,7 +152,49 @@ export async function calcularOrdem(pedidos, { setorId = null } = {}) {
   const componentesArr = [...comps.values()]
     .map((c) => ({ nome: c.nome, total: Math.round(c.total * 100) / 100, obs: c.obs }))
     .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-  return { setores: gruposArr, pedidos: lista, avisos: [...new Set(avisos)], componentes: componentesArr };
+
+  // F3 — enriquecimento OPCIONAL: materiais com CUSTO vindos do Núcleo de
+  // Produtos (:3070), por SKU+medida. Best-effort: se estiver desabilitado,
+  // fora do ar, ou sem produto_sku, `bomNucleo` fica null e a OP acima é a de
+  // sempre. Os CORTES por setor e o plano de barras continuam 100% do PCP.
+  let bomNucleo = null;
+  try {
+    if (produtosClient.habilitado()) {
+      const agg = new Map(); // sku componente -> { sku, descricao, unidade, quantidade, custo_total }
+      let custoTotal = 0;
+      let algum = false;
+      for (const item of itens) {
+        if (!item.produto_sku) continue;
+        for (const peca of (pecasPorItem[item.id] || [])) {
+          const Lm = Number(peca.largura) > 0 ? Number(peca.largura) / 100 : 0; // pcp_pecas é cm; Núcleo é metros
+          const Hm = Number(peca.altura) > 0 ? Number(peca.altura) / 100 : 0;
+          const bom = await produtosClient.buscarBom(item.produto_sku, Lm, Hm);
+          if (!bom || !Array.isArray(bom.itens)) continue;
+          algum = true;
+          for (const it of bom.itens) {
+            const key = String(it.sku || it.descricao);
+            if (!agg.has(key)) agg.set(key, { sku: it.sku, descricao: it.descricao, unidade: it.unidade, quantidade: 0, custo_total: 0 });
+            const g = agg.get(key);
+            g.quantidade += Number(it.quantidade) || 0;
+            g.custo_total += Number(it.custo_total) || 0;
+            custoTotal += Number(it.custo_total) || 0;
+          }
+        }
+      }
+      if (algum) {
+        bomNucleo = {
+          custo_total: Math.round(custoTotal * 100) / 100,
+          itens: [...agg.values()]
+            .map((g) => ({ ...g, quantidade: Math.round(g.quantidade * 1000) / 1000, custo_total: Math.round(g.custo_total * 100) / 100 }))
+            .sort((a, b) => b.custo_total - a.custo_total),
+        };
+      }
+    }
+  } catch (e) {
+    avisos.push(`Enriquecimento de materiais do Núcleo indisponível (${e.message}) — Ordem de Corte gerada sem custos.`);
+  }
+
+  return { setores: gruposArr, pedidos: lista, avisos: [...new Set(avisos)], componentes: componentesArr, bomNucleo };
 }
 
 /** Registra a impressão e devolve se já havia sido impresso antes. */

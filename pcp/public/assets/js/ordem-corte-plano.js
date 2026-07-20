@@ -203,6 +203,30 @@
     </div>`;
   }
 
+  // ── Custo estimado de materiais (Núcleo de Produtos, F3) — opcional ──
+  // Só aparece quando a Estrutura tem produto_sku e o Núcleo respondeu.
+  // NÃO substitui os "Demais materiais" acima (nomes livres do PCP): é a
+  // visão COM CUSTO/SKU, para planejamento de compra/custeio.
+  function bomNucleoHTML(bom) {
+    if (!bom || !bom.itens || !bom.itens.length) return '';
+    const brl = (v) => 'R$ ' + num(v, 2);
+    return `<div class="ocp-compras">
+      <div class="ocp-plano-tit">CUSTO ESTIMADO DE MATERIAIS — Núcleo de Produtos</div>
+      <table class="ocp-tabela">
+        <thead><tr><th>SKU</th><th>Material</th><th class="n">Qtd</th><th class="n">Custo</th></tr></thead>
+        <tbody>${bom.itens.map((c) => `<tr>
+          <td style="font-family:monospace;font-size:11px">${esc(c.sku || '')}</td>
+          <td>${esc(c.descricao || c.sku || '')}</td>
+          <td class="n">${num(c.quantidade, 2)} ${esc(c.unidade || '')}</td>
+          <td class="n">${brl(c.custo_total)}</td>
+        </tr>`).join('')}
+        <tr><td colspan="3" style="text-align:right"><b>Total estimado</b></td><td class="n"><b>${brl(bom.custo_total)}</b></td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:10px;color:#888;margin-top:4px">Custos do Núcleo de Produtos (:3070). Referência de planejamento — não substitui a separação de estoque acima.</div>
+    </div>`;
+  }
+
   // ── CSV da SAÍDA (perfis + demais materiais) ──
   function csvSaida(linhas, pedidos, opts, componentes) {
     const s = saidaDePerfis(linhas, opts);
@@ -309,7 +333,7 @@
 .oc-planilha .oc-med{font-weight:800;font-size:12px}
 `;
 
-  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, componentesHTML, csvSaida, CSS };
+  const api = { agruparCortes, planejarBarras, planoDeLinhas, desenhoHTML, resumoComprasHTML, consolidarCompras, csvCompras, saidaDePerfis, saidaPerfisHTML, componentesHTML, bomNucleoHTML, csvSaida, CSS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OCPlano = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

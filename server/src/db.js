@@ -249,6 +249,10 @@ export async function migrate() {
   // Roteiro de produção por produto: setores + dependências entre eles.
   // JSONB: [ { setor_id, depende_de: [setor_id, ...] }, ... ]
   await q(`ALTER TABLE pcp_produtos ADD COLUMN IF NOT EXISTS roteiro JSONB NOT NULL DEFAULT '[]'`);
+  // F3 — de-para para o Núcleo de Produtos (:3070): a estrutura do PCP aponta
+  // o SKU do produto lá para PUXAR o BOM com custo (enriquecimento OPCIONAL da
+  // Saída de Materiais). NULL = sem enriquecimento. N:1 (várias estruturas → 1 SKU).
+  await q(`ALTER TABLE pcp_produtos ADD COLUMN IF NOT EXISTS produto_sku VARCHAR(64)`);
 
   // Etapas de produção por peça (bipagem por setor: início/fim)
   await q(`

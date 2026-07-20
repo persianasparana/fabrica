@@ -3031,7 +3031,8 @@ function ocRenderPreview(preview) {
   const saida = ocPlanoDisponivel()
     ? (() => {
       const html = OCPlano.saidaPerfisHTML(ocLinhasTodas(), opts)
-        + OCPlano.componentesHTML((preview && preview.componentes) || []);
+        + OCPlano.componentesHTML((preview && preview.componentes) || [])
+        + OCPlano.bomNucleoHTML(preview && preview.bomNucleo);
       return html ? `<div class="card" style="margin-bottom:14px">${html}</div>` : '';
     })()
     : '';
@@ -3167,7 +3168,8 @@ function ocAbrirImpressao(setorId) {
   // pedido inteiro — só saem na impressão completa (sem filtro de setor).
   const linhasTudo = setores.reduce((a, s) => a.concat(s.linhas || []), []);
   const compsHTML = setorId == null && ocPlanoDisponivel()
-    ? OCPlano.componentesHTML((ocPreviewData && ocPreviewData.componentes) || []) : '';
+    ? OCPlano.componentesHTML((ocPreviewData && ocPreviewData.componentes) || [])
+      + OCPlano.bomNucleoHTML(setorId == null ? (ocPreviewData && ocPreviewData.bomNucleo) : null) : '';
   const saidaHTML = (ocPlanoDisponivel() ? OCPlano.saidaPerfisHTML(linhasTudo, opts) : '') + compsHTML;
   const fichaSaida = saidaHTML ? `<section class="ficha">
       <header class="ficha-head">
