@@ -81,6 +81,12 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
+## Estado (20/07/2026) — na branch (deploy pendente): F3 BOM+custo na OC; **seleção de
+## estrutura por SKU canônico** (item do pedido chega com `produtoSku` do Núcleo v2.29:
+## regra > sku (quando 1 única estrutura tem o SKU) > nome > pendente; badge "sku" na
+## prévia) e campo "SKU do Núcleo" no editor de Estrutura (CRUD expõe `produto_sku`).
+## Validado local ponta a ponta (mock Comercial + banco real). Antes disso:
+
 ## Estado (17/07/2026) — tudo EM PRODUÇÃO até `5b1c80e`
 - OC alinhada às planilhas de planejamento de corte (medidas de barra por corte,
   `bin/preencher-barras.js`); comando (bastão) por peça em `medidas.comando`.

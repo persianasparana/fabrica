@@ -131,6 +131,8 @@ async function comDetalhe(id) {
       if (!pv) return '<td>—</td>';
       const badge = pv.origem === 'regra'
         ? `<span class="st st-ok" style="font-size:9px" title="regra: ${esc(pv.regra_nome || '')}">regra</span>`
+        : pv.origem === 'sku'
+          ? '<span class="st st-ok" style="font-size:9px" title="SKU canônico do Núcleo de Produtos vindo do pedido (única estrutura com este SKU)">sku</span>'
         : pv.origem === 'nome'
           ? '<span class="st st-ok" style="font-size:9px" title="nome idêntico ao da Estrutura">nome</span>'
           : '<span class="st st-atencao" style="font-size:9px" title="nenhuma regra casou — escolha manualmente (sem estrutura a Ordem de Corte não sai para este item)">pendente</span>';

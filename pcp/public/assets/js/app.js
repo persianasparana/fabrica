@@ -2562,6 +2562,9 @@ function abrirProdutoModal(id) {
       <select id="ep-familia">${familias.map(f => `<option value="${f}" ${p && p.familia === f ? 'selected' : ''}>${esc(familiaMeta(f).rotulo)}</option>`).join('')}</select>
     </div>
     <div class="form-group"><label>Tubo</label><input type="text" id="ep-tubo" value="${p && p.tubo ? esc(p.tubo) : ''}" placeholder="Ex: 32mm"></div>
+    <div class="form-group"><label>SKU do Núcleo de Produtos <span style="color:var(--text3);font-weight:400">(opcional — liga custo do BOM e a seleção automática pelo pedido)</span></label>
+      <input type="text" id="ep-produto-sku" value="${p && p.produto_sku ? esc(p.produto_sku) : ''}" placeholder="Ex: soft, premium47, romana" maxlength="64" style="font-family:monospace">
+    </div>
     <div class="form-group"><label>Unidade das medidas</label>
       <select id="ep-unidade">
         <option value="cm" ${!p || p.unidade !== 'm' ? 'selected' : ''}>Centímetros (cm)</option>
@@ -2609,6 +2612,8 @@ async function salvarProduto() {
     nome,
     familia: document.getElementById('ep-familia').value,
     tubo: document.getElementById('ep-tubo').value.trim() || null,
+    // F3 — SKU canônico do Núcleo (vazio = limpar no PUT)
+    produto_sku: document.getElementById('ep-produto-sku').value.trim() || null,
     unidade: document.getElementById('ep-unidade').value,
     cortes: epCortes.map(estadoParaCorte),
     componentes,

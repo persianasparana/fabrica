@@ -796,7 +796,7 @@ r.get(
   ah(async (req, res) => {
     const { rows } = await q(
       `SELECT id, chave, nome, familia, tubo, unidade, cortes, componentes,
-              calculo_extra_fonte, roteiro, ativo
+              calculo_extra_fonte, roteiro, produto_sku, ativo
        FROM pcp_produtos WHERE ativo = TRUE ORDER BY familia, nome`
     );
     res.json({ data: rows });
@@ -828,8 +828,8 @@ r.post(
     validarProduto(d);
     const chave = d.chave ? slug(d.chave) : slug(d.nome);
     const { rows } = await q(
-      `INSERT INTO pcp_produtos (chave, nome, familia, tubo, unidade, cortes, componentes, roteiro)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb)
+      `INSERT INTO pcp_produtos (chave, nome, familia, tubo, unidade, cortes, componentes, roteiro, produto_sku)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9)
        ON CONFLICT (chave) DO NOTHING
        RETURNING id`,
       [
@@ -837,6 +837,9 @@ r.post(
         orNull(d.tubo), d.unidade || 'cm',
         JSON.stringify(d.cortes || []), JSON.stringify(d.componentes || []),
         JSON.stringify(d.roteiro || []),
+        // F3/v2.29 — SKU canônico do Núcleo de Produtos (BOM/custo + seleção
+        // de estrutura pelo SKU do pedido). Opcional; N estruturas → 1 SKU.
+        d.produto_sku ? String(d.produto_sku).trim().slice(0, 64) : null,
       ]
     );
     if (!rows[0]) throw new HttpError(409, 'Já existe um produto com essa chave/nome');
@@ -864,6 +867,7 @@ r.put(
          cortes      = COALESCE($6::jsonb, cortes),
          componentes = COALESCE($7::jsonb, componentes),
          roteiro     = COALESCE($9::jsonb, roteiro),
+         produto_sku = CASE WHEN $11 THEN NULL ELSE COALESCE($10, produto_sku) END,
          updated_at  = now()
        WHERE id = $1 AND ativo = TRUE`,
       [
@@ -873,6 +877,9 @@ r.put(
         d.componentes !== undefined ? JSON.stringify(d.componentes) : null,
         d.tubo === null,
         d.roteiro !== undefined ? JSON.stringify(d.roteiro) : null,
+        // F3/v2.29 — SKU canônico do Núcleo ($10 valor, $11 = limpar)
+        d.produto_sku ? String(d.produto_sku).trim().slice(0, 64) : null,
+        d.produto_sku === null,
       ]
     );
     if (result.rowCount === 0) throw new HttpError(404, 'Produto não encontrado');

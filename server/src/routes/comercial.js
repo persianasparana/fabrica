@@ -75,7 +75,7 @@ r.post(
 const normNome = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
 async function produtosAtivos() {
-  const { rows } = await q(`SELECT id, chave, nome, familia FROM pcp_produtos WHERE ativo = TRUE ORDER BY nome`);
+  const { rows } = await q(`SELECT id, chave, nome, familia, produto_sku FROM pcp_produtos WHERE ativo = TRUE ORDER BY nome`);
   return rows;
 }
 
@@ -84,6 +84,18 @@ function fallbackPorNome(tipo, produtos) {
   if (!alvo) return null;
   const hit = produtos.find((p) => normNome(p.nome) === alvo || normNome(p.chave) === alvo);
   return hit ? Number(hit.id) : null;
+}
+
+// F2/v2.29 — o item do pedido pode chegar com o SKU CANÔNICO do Núcleo de
+// Produtos (it.produtoSku, gravado pelo Comercial na cotação). Se exatamente
+// UMA estrutura ativa aponta pra esse SKU (pcp_produtos.produto_sku), ela é a
+// escolha certa. Com N estruturas no mesmo SKU (variantes com/sem plus, box…)
+// o SKU sozinho não decide — as regras condicionais/nome continuam decidindo.
+function porSkuCanonico(it, produtos) {
+  const sku = String(it.produtoSku || '').trim();
+  if (!sku) return null;
+  const candidatas = produtos.filter((p) => String(p.produto_sku || '').trim() === sku);
+  return candidatas.length === 1 ? Number(candidatas[0].id) : null;
 }
 
 // ===== GET /pedidos/:id/estrutura-previa — o que a Ordem de Corte vai usar ====
@@ -111,6 +123,10 @@ r.get(
       let produtoId = regra ? Number(regra.produto_id) : null;
       let origem = regra ? 'regra' : null;
       if (!produtoId) {
+        produtoId = porSkuCanonico(it, produtos);
+        if (produtoId) origem = 'sku';
+      }
+      if (!produtoId) {
         produtoId = fallbackPorNome(it.tipo, produtos);
         if (produtoId) origem = 'nome';
       }
@@ -119,7 +135,7 @@ r.get(
         tipo: it.tipo || null, colecao: it.colecao || null,
         produto_id: produtoId,
         produto_nome: produtoId && porId.get(produtoId) ? porId.get(produtoId).nome : null,
-        origem, // 'regra' | 'nome' | null (pendente)
+        origem, // 'regra' | 'sku' | 'nome' | null (pendente)
         regra_nome: regra ? regra.nome || null : null,
       };
     });
@@ -187,7 +203,7 @@ r.post(
           qnt: it.quantidade,
         }, categorias), regras);
         if (regra) return Number(regra.produto_id);
-        return fallbackPorNome(it.tipo, produtos);
+        return porSkuCanonico(it, produtos) || fallbackPorNome(it.tipo, produtos);
       };
       await emTransacao(async (exec, client) => {
         for (const it of itens) {
