@@ -106,3 +106,7 @@ Toda revisão de código, PR ou análise de impacto — neste e nos demais repos
 1) contrato entre módulos (consumidores/compatibilidade), 2) resiliência e idempotência
 (retry, saga, sem duplicar NF/lançamento), 3) bounded contexts (sem cross-database, sem
 vazamento de domínio), 4) concorrência e N+1, 5) segurança service-to-service (X-Service-Key).
+
+## 🎨 Identidade visual
+
+Marca, cores, tipografia e logos: ver **`docs/IDENTIDADE-VISUAL.md`** (guia replicado em todos os repos da federação; §8 = onde os assets vivem NESTE repo). Fonte de verdade: `logistica/docs/identidade-visual/` (BRAND-GUIDE.pdf).
