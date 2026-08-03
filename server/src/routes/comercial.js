@@ -223,6 +223,8 @@ r.post(
             ambiente: s120(it.ambiente),
             atributos: atributosDe(it),
             comercial_item_id: it.id != null ? String(it.id).slice(0, 64) : null,
+            // SKU canônico do MOTOR (Núcleo :3070) — alimenta o Plano de Corte
+            produto_sku: it.produtoSku ? String(it.produtoSku).slice(0, 64) : null,
             // medidas por peça (cm) — alimentam a Ordem de Corte e a etiqueta
             largura: Number(it.larguraCm) > 0 ? Number(it.larguraCm) : null,
             altura: Number(it.alturaCm) > 0 ? Number(it.alturaCm) : null,

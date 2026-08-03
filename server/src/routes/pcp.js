@@ -43,7 +43,7 @@ const SELECT_ITEM = `
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
-         i.ambiente, i.atributos, i.comercial_item_id,
+         i.ambiente, i.atributos, i.comercial_item_id, i.produto_sku,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pc.pecas, '[]'::json) AS pecas
   FROM pcp_itens i
@@ -145,11 +145,12 @@ export async function inserirItem(client, d, userId) {
     `INSERT INTO pcp_itens
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
         conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by,
-        cliente, colecao, cor_tecido, cor_perfil, acionamento, ambiente, atributos, comercial_item_id)
+        cliente, colecao, cor_tecido, cor_perfil, acionamento, ambiente, atributos, comercial_item_id,
+        produto_sku)
      VALUES ($1,$2,$3,$4,
              COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
              $6,$7,$8,$9,$10,$11,$12,$13,$14,
-             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23)
+             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23,$24)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
@@ -162,6 +163,7 @@ export async function inserirItem(client, d, userId) {
       d.atributos && typeof d.atributos === 'object' && !Array.isArray(d.atributos)
         ? JSON.stringify(d.atributos) : null,
       orNull(d.comercial_item_id),
+      orNull(d.produto_sku),
     ]
   );
   const id = Number(rows[0].id);

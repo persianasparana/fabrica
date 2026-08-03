@@ -98,7 +98,8 @@ function comLinhaProducao(p) {
     ? `<button class="btn btn-outline" onclick="comStatus('${p.id}','${prox}')">→ ${esc(COM_STATUS_LABEL[prox])}</button>`
     : '';
   const fichas = p.pedidoCodigo
-    ? `<button class="btn btn-outline" style="font-size:10px" title="Ficha de produção (specs completas pra bancada)" onclick="abrirFichaProducao('${esc(p.pedidoCodigo)}')">🗒 Ficha</button>`
+    ? `<button class="btn btn-outline" style="font-size:10px" title="Ficha de produção (specs completas pra bancada)" onclick="abrirFichaProducao('${esc(p.pedidoCodigo)}')">🗒 Ficha</button>
+       <button class="btn btn-outline" style="font-size:10px" title="Plano de corte calculado pelo Núcleo de Produtos" onclick="abrirPlanoCorteNucleo('${esc(p.pedidoCodigo)}')">📐 Plano de corte</button>`
     : '';
   return `<tr>
     <td><b>${esc(p.pedidoCodigo || '—')}</b></td>

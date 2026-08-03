@@ -1173,6 +1173,7 @@ function renderPedidoEditor() {
         <button class="btn btn-red" onclick="salvarPedido()">Salvar dados do pedido</button>
         <button class="btn btn-outline" onclick="carregarPedido()">Recarregar</button>
         <button class="btn btn-black" onclick="abrirFichaProducao()" title="Documento completo pra bancada: specs, cores, medidas, observações e etiquetas por item">🗒 Ficha de produção</button>
+        <button class="btn btn-outline" onclick="abrirPlanoCorteNucleo()" title="Planejamento de corte do pedido calculado pelo Núcleo de Produtos (variante + medidas de corte por componente)">📐 Plano de corte</button>
         <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
       </div>
     </div>`;
@@ -1182,6 +1183,12 @@ function abrirFichaProducao(pedido) {
   const alvo = pedido || (pedidoCarregado && pedidoCarregado.pedido);
   if (!alvo) return;
   window.open('ficha-producao.html?pedido=' + encodeURIComponent(alvo), '_blank');
+}
+
+function abrirPlanoCorteNucleo(pedido) {
+  const alvo = pedido || (pedidoCarregado && pedidoCarregado.pedido);
+  if (!alvo) return;
+  window.open('plano-corte-nucleo.html?pedido=' + encodeURIComponent(alvo), '_blank');
 }
 
 // ── Medidas por peça (largura/altura + furos/modelo p/ horizontais) ──────────

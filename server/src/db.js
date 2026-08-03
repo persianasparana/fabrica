@@ -381,6 +381,10 @@ export async function migrate() {
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS ambiente    VARCHAR(120)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS atributos   JSONB NOT NULL DEFAULT '{}'`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS comercial_item_id VARCHAR(64)`);
+  // SKU canônico do produto do MOTOR (Núcleo de Produtos :3070) vindo do item
+  // do pedido do Comercial (v2.29+); NULL = item antigo/manual. Alimenta o
+  // Planejamento de Corte via Núcleo (plano-corte-nucleo.html).
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS produto_sku VARCHAR(64)`);
 
   // ─── Etiquetas próprias (F2) ──────────────────────────────────────────────
   // Modelos parametrizáveis pelo admin: formato físico (mm), setores que usam,

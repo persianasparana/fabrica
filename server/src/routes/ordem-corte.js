@@ -1,15 +1,19 @@
 /**
  * Rotas da ordem de produção de corte.
- *   GET  /preview    ?pedidos=a,b&setor_id=N    calcula (sem registrar)
- *   GET  /status     ?pedidos=a,b               se já foi impresso + histórico
- *   POST /imprimir   { pedidos:[], setor_id?, modo }  calcula e registra log
- *   GET  /log        ?pedido=x                  histórico recente
+ *   GET  /preview       ?pedidos=a,b&setor_id=N    calcula (sem registrar)
+ *   GET  /status        ?pedidos=a,b               se já foi impresso + histórico
+ *   POST /imprimir      { pedidos:[], setor_id?, modo }  calcula e registra log
+ *   GET  /log           ?pedido=x                  histórico recente
+ *   GET  /plano-nucleo  ?pedido=x                  PLANO DE CORTE via Núcleo (:3070)
+ *   POST /plano-nucleo  { pedido, overrides }      idem, com variante por peça
  */
 import { Router } from 'express';
 import { requireAuth, requireCsrf } from '../auth.js';
 import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
 import { calcularOrdem, registrarImpressao, statusImpressao } from '../ordem-corte.js';
+import { calcularPlanoNucleo } from '../ordem-corte-nucleo.js';
+import { planoCorteHabilitado } from '../produtos-client.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -39,6 +43,30 @@ r.post('/imprimir', requireCsrf, ah(async (req, res) => {
     setorId, modo, userId: req.session.user.id, userNome: req.session.user.full_name,
   });
   res.json({ ...ordem, reimpressao, modo });
+}));
+
+// ── Planejamento de Corte via Núcleo de Produtos (:3070) ────────────────────
+// Documento do MOTOR (plano-corte-nucleo.html) — não toca a OC local.
+const exigirNucleo = () => {
+  if (!planoCorteHabilitado())
+    throw new HttpError(503, 'Integração com o Núcleo de Produtos não configurada (PRODUTOS_SERVICE_KEY)');
+};
+
+r.get('/plano-nucleo', ah(async (req, res) => {
+  const pedido = String(req.query.pedido || '').trim();
+  if (!pedido) throw new HttpError(422, 'Informe ?pedido=');
+  exigirNucleo();
+  res.json(await calcularPlanoNucleo(pedido));
+}));
+
+// POST = o operador troca a VARIANTE de peça(s) antes de imprimir
+r.post('/plano-nucleo', requireCsrf, ah(async (req, res) => {
+  const pedido = String(req.body?.pedido || '').trim();
+  if (!pedido) throw new HttpError(422, 'Envie { pedido }');
+  exigirNucleo();
+  const overrides = (req.body?.overrides && typeof req.body.overrides === 'object'
+    && !Array.isArray(req.body.overrides)) ? req.body.overrides : {};
+  res.json(await calcularPlanoNucleo(pedido, overrides));
 }));
 
 r.get('/log', ah(async (req, res) => {
