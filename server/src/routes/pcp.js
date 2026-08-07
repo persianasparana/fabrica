@@ -45,9 +45,11 @@ const SELECT_ITEM = `
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
          i.ambiente, i.atributos, i.comercial_item_id, i.produto_sku,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
+         COALESCE(pi.desenho_fabricacao, FALSE) AS desenho_fabricacao,
          COALESCE(pc.pecas, '[]'::json) AS pecas
   FROM pcp_itens i
   LEFT JOIN pcp_status st ON st.id = i.status_id
+  LEFT JOIN pcp_pedido_info pi ON pi.pedido = i.pedido
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
              'id', pp.id, 'numero', pp.numero, 'cod_barras', pp.cod_barras,
@@ -422,7 +424,8 @@ r.get(
     // gravadas na liberação; alimentam a Ficha de Produção. null p/ manuais.
     const { rows: info } = await q(
       `SELECT cliente, vendedor, modalidade, observacoes, prazo_dias,
-              to_char(aprovado_fin, 'YYYY-MM-DD') AS aprovado_fin
+              to_char(aprovado_fin, 'YYYY-MM-DD') AS aprovado_fin,
+              desenho_fabricacao, desenho_instalacao, comercial_id
        FROM pcp_pedido_info WHERE pedido = $1`, [pedido]);
     res.json({ pedido, itens: rows, info: info[0] || null });
   })

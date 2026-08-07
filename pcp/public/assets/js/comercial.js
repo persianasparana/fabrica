@@ -71,6 +71,17 @@ function comPrazo(p) {
   return d.toLocaleDateString('pt-BR');
 }
 
+// Badges de desenho anexado no pedido (fabricação = importa pra produção;
+// instalação = só informativo, discreto).
+function comBadgesDesenho(p) {
+  let b = '';
+  if (p.temDesenhoFabricacao)
+    b += ' <span class="st st-gray" style="font-size:9px" title="Pedido possui desenho de fabricação (ver em Ver peças / Ficha de Produção)">📐 desenho de fabricação</span>';
+  if (p.temDesenhoInstalacao)
+    b += ' <span class="st st-gray" style="font-size:9px" title="Pedido possui desenho de instalação">📐 instalação</span>';
+  return b;
+}
+
 function comCardAvaliar(p) {
   const acoes = podeEditar('comercial')
     ? `<div style="display:flex;gap:8px;margin-top:8px">
@@ -85,7 +96,7 @@ function comCardAvaliar(p) {
       <span>${esc(p.client?.nome || '—')}</span>
       <span style="color:var(--text3)">vendedor: ${esc(p.consultor?.nome || '—')}</span>
       <span>${comBrl(p.valorTotal)}</span>
-      <span style="color:var(--text3)">prazo: ${comPrazo(p)}</span>
+      <span style="color:var(--text3)">prazo: ${comPrazo(p)}</span>${comBadgesDesenho(p)}
     </div>
     <div id="com-det-${p.id}"></div>
     ${acoes}
@@ -102,7 +113,7 @@ function comLinhaProducao(p) {
        <button class="btn btn-outline" style="font-size:10px" title="Plano de corte calculado pelo Núcleo de Produtos" onclick="abrirPlanoCorteNucleo('${esc(p.pedidoCodigo)}')">📐 Plano de corte</button>`
     : '';
   return `<tr>
-    <td><b>${esc(p.pedidoCodigo || '—')}</b></td>
+    <td><b>${esc(p.pedidoCodigo || '—')}</b>${comBadgesDesenho(p)}</td>
     <td>${esc(p.client?.nome || '—')}</td>
     <td>${comBrl(p.valorTotal)}</td>
     <td>${esc(COM_STATUS_LABEL[p.pedidoStatus] || p.pedidoStatus || '—')}</td>
@@ -160,8 +171,13 @@ async function comDetalhe(id) {
       </tr>`;
     }).join('');
     const pendentes = [...previaPorItem.values()].filter((x) => !x.produto_id).length;
+    // Desenhos anexados no Comercial — abrem via proxy do PCP (mesma sessão)
+    const desenhos = (p.desenhos || []).map((d) =>
+      `<a href="../api/comercial/pedidos/${encodeURIComponent(id)}/desenhos/${encodeURIComponent(d.id)}/arquivo" target="_blank" rel="noopener" style="margin-right:10px">📐 ${esc(d.tipo === 'INSTALACAO' ? 'Instalação' : 'Fabricação')} — ${esc(d.nomeOriginal || 'arquivo')}</a>`
+    ).join('');
     alvo.innerHTML = `<table style="margin-top:8px"><thead><tr><th>Peça</th><th>Coleção · Cor</th><th>Med.</th><th>Ambiente</th><th title="Estrutura do Produto usada na Ordem de Corte">Estrutura p/ produção</th><th>Obs. técnicas</th></tr></thead><tbody>${linhas}</tbody></table>
       ${pendentes ? `<div style="font-size:11px;color:var(--amber,#b45309);margin-top:6px">⚠ ${pendentes} item(ns) sem estrutura — escolha acima (ou cadastre uma regra na aba Estrutura do Produto) para a Ordem de Corte sair completa.</div>` : ''}
+      ${desenhos ? `<div style="font-size:12px;margin-top:6px"><b>Desenhos:</b> ${desenhos}</div>` : ''}
       ${p.observacoes ? `<div style="font-size:12px;color:var(--text3);margin-top:6px">Obs. do pedido: ${esc(p.observacoes)}</div>` : ''}`;
   } catch (e) {
     alvo.innerHTML = `<div style="color:var(--danger,#c33);font-size:12px">${esc(e.message)}</div>`;

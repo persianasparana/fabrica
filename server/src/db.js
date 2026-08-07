@@ -353,6 +353,10 @@ export async function migrate() {
       updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  // O pedido chegou do Comercial com desenho anexado (fabricação/instalação)?
+  // Gravado na liberação; o arquivo em si fica no Comercial (proxy sob demanda).
+  await q(`ALTER TABLE pcp_pedido_info ADD COLUMN IF NOT EXISTS desenho_fabricacao BOOLEAN NOT NULL DEFAULT FALSE`);
+  await q(`ALTER TABLE pcp_pedido_info ADD COLUMN IF NOT EXISTS desenho_instalacao BOOLEAN NOT NULL DEFAULT FALSE`);
 
   // Categoria de tecido POR COLEÇÃO (Lisa/Sheer/Vision...) — parametrizada pelo
   // PCP (não é o vendedor que escolhe); vira a variável `categoria` nas regras

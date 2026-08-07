@@ -6,6 +6,7 @@
  * Auth serviço-a-serviço por X-Service-Key (ADR-0008): COMERCIAL_SERVICE_KEY
  * deve ser IDÊNTICA ao SERVICE_API_KEY do .env do Comercial.
  */
+import { Readable } from 'node:stream';
 import { HttpError } from './util.js';
 import { q } from './db.js';
 
@@ -45,6 +46,34 @@ export async function chamar(metodo, caminho, body) {
     throw new HttpError(resp.status, payload.message || `Comercial respondeu HTTP ${resp.status}`);
   }
   return payload;
+}
+
+/**
+ * Requisição BINÁRIA (GET) ao Comercial — usada pelo proxy dos desenhos de
+ * fabricação/instalação (a CSP do frontend só permite imgSrc 'self', então a
+ * imagem/PDF passa por aqui em vez de o navegador falar direto com a Agenda).
+ * Devolve { status, headers, stream } SEM consumir o corpo (streaming);
+ * timeout maior que o do chamar() por serem arquivos, não JSON.
+ */
+export async function baixarBinario(caminho) {
+  if (!configurado()) {
+    throw new HttpError(503, 'Integração com o Comercial não configurada (COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY)');
+  }
+  let resp;
+  try {
+    resp = await fetch(`${base()}${caminho}`, {
+      method: 'GET',
+      headers: { 'X-Service-Key': chave() },
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch (err) {
+    throw new HttpError(502, `Comercial inacessível: ${err.message}`);
+  }
+  return {
+    status: resp.status,
+    headers: resp.headers,
+    stream: resp.body ? Readable.fromWeb(resp.body) : null,
+  };
 }
 
 /** É um pedido do ciclo federado (importado do Comercial)? */

@@ -81,6 +81,12 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
+## Estado (07/08/2026) — na branch (deploy pendente): **desenhos de fabricação/instalação
+## do Comercial no PCP** — a liberação grava flags em `pcp_pedido_info` (`desenho_fabricacao`/
+## `desenho_instalacao`), o arquivo é servido por PROXY (`/api/comercial/pedidos/:id/desenhos[...]`,
+## CSP imgSrc 'self'); badge 📐 na fila/aba Comercial e seção "DESENHO DE FABRICAÇÃO" na
+## Ficha de Produção (imagem inline imprimível; PDF vira link). Validado local com mock. Antes:
+
 ## Estado (20/07/2026) — na branch (deploy pendente): F3 BOM+custo na OC; **seleção de
 ## estrutura por SKU canônico** (item do pedido chega com `produtoSku` do Núcleo v2.29:
 ## regra > sku (quando 1 única estrutura tem o SKU) > nome > pendente; badge "sku" na

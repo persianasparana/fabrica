@@ -524,8 +524,11 @@ function renderFila() {
     const estrPend = !item.produto_id && item.comercial_item_id
       ? ' <span class="st st-atencao" style="font-size:9px" title="Nenhuma regra de estrutura casou com a spec — escolha a estrutura no item ou ajuste as regras (aba Estrutura do Produto)">estrutura pendente</span>'
       : '';
+    const desenho = item.desenho_fabricacao
+      ? ' <span class="st st-gray" style="font-size:9px" title="Pedido possui desenho de fabricação">📐 desenho</span>'
+      : '';
     return `<tr>
-      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}${estrPend}</td>
+      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}${estrPend}${desenho}</td>
       <td>${esc(item.pedido)}</td>
       <td style="text-align:center">${done > 0 && done < tot ? `<b style="color:var(--blue)">${done}/${tot}</b>` : tot}</td>
       <td>${fmtDate(item.data_cliente)}</td>
@@ -1457,7 +1460,7 @@ function openDetail(id) {
       </select>
     </div>
     <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="ed-obs" rows="2">${esc(item.observacoes||'')}</textarea></div>
-    <div class="form-group"><label>Status atual</label><div style="margin-top:4px"><span class="st ${sc}">${statusLabel(s)}</span></div></div>
+    <div class="form-group"><label>Status atual</label><div style="margin-top:4px"><span class="st ${sc}">${statusLabel(s)}</span>${item.desenho_fabricacao ? ' <span class="st st-gray" title="Pedido possui desenho de fabricação — abra a Ficha de Produção para visualizar">📐 desenho de fabricação</span>' : ''}</div></div>
     <div class="form-group" style="grid-column:1/-1">
       <label>Peças e etiquetas (${pecasConcluidas(item)}/${pecasTotal(item)} com baixa)</label>
       <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden">

@@ -55,11 +55,15 @@ table.pecas .num-p { font-weight: 800; }
 .assinatura .campo { flex: 1; border-top: 1px solid var(--black); padding-top: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); }
 .rodape { margin-top: 22px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); display: flex; justify-content: space-between; }
 
+/* Desenho de fabricação anexado no Comercial (imagem via proxy do PCP) */
+.desenho-fab img { max-width: 100%; height: auto; page-break-inside: avoid; }
+
 @media print {
   body { background: #fff; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #pagina { max-width: none; padding: 0; }
   #acoes, .so-tela { display: none !important; }
   .item { page-break-inside: avoid; }
+  .desenho-fab img { max-height: 230mm; object-fit: contain; }
   @page { size: A4; margin: 12mm; }
 }
 </style>

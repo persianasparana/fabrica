@@ -22,7 +22,7 @@ import { ah, HttpError } from '../util.js';
 import { inserirItem, emTransacao } from './pcp.js';
 import { regrasAtivas, selecionarEstrutura, contextoDeSpec, categoriasPorColecao } from '../estrutura-regras.js';
 // Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
-import { chamar } from '../comercial-client.js';
+import { chamar, baixarBinario } from '../comercial-client.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -44,6 +44,46 @@ r.get(
   requirePerm('comercial', 'ver'),
   ah(async (req, res) => {
     res.json(await chamar('GET', `/pedidos/${encodeURIComponent(req.params.id)}`));
+  })
+);
+
+// ─── Desenhos de fabricação/instalação anexados ao pedido (Comercial) ────────
+// O arquivo mora na Agenda; o PCP faz PROXY porque a CSP do frontend só
+// permite imgSrc 'self' (o navegador nunca fala direto com o :3010).
+
+// ===== GET /pedidos/:id/desenhos — lista { data: [{ id, tipo, ... }] } =====
+r.get(
+  '/pedidos/:id/desenhos',
+  requirePerm('comercial', 'ver'),
+  ah(async (req, res) => {
+    const data = await chamar('GET', `/pedidos/${encodeURIComponent(req.params.id)}/desenhos`);
+    res.json({ data: Array.isArray(data) ? data : (data.data ?? []) });
+  })
+);
+
+// ===== GET /pedidos/:id/desenhos/:desenhoId/arquivo — binário (streaming) =====
+r.get(
+  '/pedidos/:id/desenhos/:desenhoId/arquivo',
+  requirePerm('comercial', 'ver'),
+  ah(async (req, res) => {
+    const { status, headers, stream } = await baixarBinario(
+      `/pedidos/${encodeURIComponent(req.params.id)}/desenhos/${encodeURIComponent(req.params.desenhoId)}/arquivo`
+    );
+    if (status === 401 || status === 403) {
+      throw new HttpError(502,
+        'O Comercial recusou a chave de serviço (X-Service-Key). Confira se COMERCIAL_SERVICE_KEY no .env da fábrica é IDÊNTICA ao SERVICE_API_KEY do .env do Comercial e reinicie o fabrica-server.');
+    }
+    if (status === 404) throw new HttpError(404, 'Desenho não encontrado no Comercial');
+    if (status >= 400) throw new HttpError(502, `Comercial respondeu HTTP ${status} ao buscar o desenho`);
+    res.status(200);
+    res.set('Content-Type', headers.get('content-type') || 'application/octet-stream');
+    res.set('Content-Disposition', headers.get('content-disposition') || 'inline');
+    const len = headers.get('content-length');
+    if (len) res.set('Content-Length', len);
+    res.set('Cache-Control', 'private, max-age=300');
+    if (!stream) return res.end();
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
   })
 );
 
@@ -237,20 +277,27 @@ r.post(
     }
 
     // Infos de NÍVEL DE PEDIDO pra Ficha de Produção (vendedor, obs, modalidade)
+    // + flags de desenho anexado (fabricação/instalação) — o arquivo fica no
+    // Comercial e é servido sob demanda pelo proxy /pedidos/:id/desenhos/....
+    const desenhos = Array.isArray(detalhe.desenhos) ? detalhe.desenhos : [];
+    const temFab = desenhos.some((d) => d && d.tipo === 'FABRICACAO');
+    const temInst = desenhos.some((d) => d && d.tipo === 'INSTALACAO');
     await q(
-      `INSERT INTO pcp_pedido_info (pedido, comercial_id, cliente, vendedor, modalidade, observacoes, prazo_dias, aprovado_fin, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+      `INSERT INTO pcp_pedido_info (pedido, comercial_id, cliente, vendedor, modalidade, observacoes, prazo_dias, aprovado_fin, desenho_fabricacao, desenho_instalacao, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
        ON CONFLICT (pedido) DO UPDATE SET
          comercial_id=EXCLUDED.comercial_id, cliente=EXCLUDED.cliente, vendedor=EXCLUDED.vendedor,
          modalidade=EXCLUDED.modalidade, observacoes=EXCLUDED.observacoes,
-         prazo_dias=EXCLUDED.prazo_dias, aprovado_fin=EXCLUDED.aprovado_fin, updated_at=now()`,
+         prazo_dias=EXCLUDED.prazo_dias, aprovado_fin=EXCLUDED.aprovado_fin,
+         desenho_fabricacao=EXCLUDED.desenho_fabricacao, desenho_instalacao=EXCLUDED.desenho_instalacao, updated_at=now()`,
       [codigo, String(id).slice(0, 64),
        (detalhe.client && (detalhe.client.nome || detalhe.client.name)) || null,
        (detalhe.consultor && detalhe.consultor.nome) || null,
        detalhe.modalidade || null,
        detalhe.observacoes || null,
        detalhe.prazoEntregaDias != null ? Number(detalhe.prazoEntregaDias) : null,
-       detalhe.aprovadoFinanceiroEm ? String(detalhe.aprovadoFinanceiroEm).slice(0, 10) : null]
+       detalhe.aprovadoFinanceiroEm ? String(detalhe.aprovadoFinanceiroEm).slice(0, 10) : null,
+       temFab, temInst]
     );
 
     await audit(req.session.user.id, 'comercial', 'pedido.liberar', {

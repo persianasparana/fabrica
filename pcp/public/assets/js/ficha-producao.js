@@ -113,7 +113,24 @@
     </div>`;
   }
 
-  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map() };
+  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map(), desenhosFab: [], comercialId: null };
+
+  // Desenho de fabricação anexado no Comercial — servido pelo proxy do PCP
+  // (mesma sessão). Imagens saem inline na impressão; PDF vira link (não sai).
+  function blocoDesenhos() {
+    if (!estado.desenhosFab.length || !estado.comercialId) return '';
+    const partes = estado.desenhosFab.map((d) => {
+      const url = `../api/comercial/pedidos/${encodeURIComponent(estado.comercialId)}/desenhos/${encodeURIComponent(d.id)}/arquivo`;
+      if (String(d.mime || '').startsWith('image/')) {
+        return `<img src="${url}" alt="Desenho de fabricação — ${esc(d.nomeOriginal || '')}" style="max-width:100%;border:1px solid var(--border);border-radius:6px;margin-top:8px">`;
+      }
+      return `<div class="alerta" style="margin:8px 0 0">📄 <a href="${url}" target="_blank" rel="noopener">Abrir PDF: ${esc(d.nomeOriginal || 'desenho')}</a> — <b>PDF não sai na impressão da ficha</b>; imprima-o separadamente pelo navegador.</div>`;
+    }).join('');
+    return `<div class="desenho-fab" style="margin-bottom:14px">
+      <h2 style="font-size:13px;letter-spacing:.04em;border-bottom:2px solid var(--gold);padding-bottom:4px">📐 DESENHO DE FABRICAÇÃO</h2>
+      ${partes}
+    </div>`;
+  }
 
   function render(pedido, dados, estruturaPorId) {
     const itens = dados.itens || [];
@@ -157,6 +174,7 @@
       </div>` : ''}
       ${avisos.map((a) => `<div class="alerta">${a}</div>`).join('')}
       ${itens.map((it, ix) => blocoItem(it, ix, estruturaPorId, estado.cortesPorPeca, estado.setorFiltro)).join('') || '<div class="alerta">Pedido sem itens.</div>'}
+      ${blocoDesenhos()}
       <div class="assinatura">
         <div class="campo">Produzido por</div>
         <div class="campo">Conferido por</div>
@@ -183,6 +201,15 @@
         api('pcp/ordem-corte/preview?pedidos=' + encodeURIComponent(pedido)).catch(() => null),
       ]);
       const porId = new Map((estrutura.data || []).map((p) => [Number(p.id), p]));
+      // Desenho de fabricação anexado no Comercial (flag gravada na liberação)
+      const info = dados.info || null;
+      if (info && info.desenho_fabricacao && info.comercial_id) {
+        estado.comercialId = info.comercial_id;
+        try {
+          const r = await api('comercial/pedidos/' + encodeURIComponent(info.comercial_id) + '/desenhos');
+          estado.desenhosFab = (r.data || []).filter((d) => d && d.tipo === 'FABRICACAO');
+        } catch (e2) { /* Comercial fora do ar — a ficha sai sem o desenho */ }
+      }
       // indexa os cortes calculados por peça (e a lista de setores presentes)
       for (const g of ((oc && oc.setores) || [])) {
         const st = g.setor || {};
