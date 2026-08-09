@@ -40,7 +40,9 @@ export async function buscarPlanoCorte(pecas) {
     });
     if (!resp.ok) return null;
     const j = await resp.json();
-    return Array.isArray(j && j.data) ? j.data : null;
+    if (!Array.isArray(j && j.data)) return null;
+    // v09/08 — o Núcleo passou a mandar também o resumo de tecido/bobinas
+    return { pecas: j.data, resumoTecido: Array.isArray(j.resumo_tecido) ? j.resumo_tecido : [] };
   } catch {
     return null;
   }

@@ -110,6 +110,58 @@
       </table>`;
   }
 
+  // v09/08 — SAÍDA DE PERFIS (FFD do OCPlano, o mesmo da OC antiga): junta
+  // as linhas de PERFIL de todas as peças (tecido fora) e planeja as barras.
+  // Barra padrão do documento: 6 m (padrão do alumínio).
+  const BARRA_PADRAO_M = 6;
+  function linhasPerfis(d) {
+    const out = [];
+    for (const amb of d.ambientes || []) {
+      for (const p of amb.pecas || []) {
+        if (!p.plano) continue;
+        for (const l of p.plano.linhas || []) {
+          if (l.medida == null || !(Number(l.medida) > 0) || /tecido/i.test(String(l.comp || ''))) continue;
+          out.push({ corte: l.comp, valor: Number(l.medida), unidade: 'CM', qtd: 1, barra: BARRA_PADRAO_M, pedido: d.pedido, peca_numero: p.numero });
+        }
+      }
+    }
+    return out;
+  }
+
+  function secaoPerfis(d) {
+    if (typeof OCPlano === 'undefined') return '';
+    const linhas = linhasPerfis(d);
+    if (!linhas.length) return '';
+    if (!document.getElementById('ocp-css')) {
+      const st = document.createElement('style');
+      st.id = 'ocp-css';
+      st.textContent = OCPlano.CSS;
+      document.head.appendChild(st);
+    }
+    return `${OCPlano.saidaPerfisHTML(linhas, {})}
+      ${OCPlano.desenhoHTML(OCPlano.planoDeLinhas(linhas, {}))}
+      <div style="font-size:9px;color:#888;margin-top:2px">Barra padrão de ${BARRA_PADRAO_M} m. O desenho mostra como distribuir os cortes em cada barra (aproveitamento First-Fit).</div>`;
+  }
+
+  // v09/08 — TECIDO DO PEDIDO (consumo por coleção + bobinas, do Núcleo)
+  function secaoTecido(d) {
+    const rs = d.resumo_tecido || [];
+    if (!rs.length) return '';
+    const num = (v, c) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: c == null ? 2 : c, maximumFractionDigits: c == null ? 2 : c });
+    return `<h2>Tecido do pedido</h2>
+      <table>
+        <thead><tr><th>Coleção</th><th class="n" style="width:90px">Rolo (m)</th><th class="n" style="width:70px">Peças</th><th class="n" style="width:100px">Metros</th><th class="n" style="width:110px">Bobinas (${num(rs[0].metros_bobina, 0)} m)</th></tr></thead>
+        <tbody>${rs.map((r) => `<tr>
+          <td><b>${esc(r.colecao)}</b></td>
+          <td class="n">${r.largura_rolo != null ? num(r.largura_rolo) : '—'}</td>
+          <td class="n">${r.pecas}</td>
+          <td class="n">${num(r.metros)}</td>
+          <td class="n"><b style="font-size:13px">${r.bobinas}</b></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div style="font-size:9px;color:#888;margin-top:2px">Consumo linear por peça na largura do rolo — a MESMA conta da precificação (folga de enrolo, dobra do sheer, franzido da cortina). Estimativa sem aproveitamento entre peças e sem o extra de solda.</div>`;
+  }
+
   function render() {
     const d = estado.dados;
     const data = new Date().toLocaleDateString('pt-BR');
@@ -126,6 +178,8 @@
         <h2>${esc(amb.ambiente)}</h2>
         ${(amb.pecas || []).map(blocoPeca).join('')}
       `).join('') || '<div class="alerta">Pedido sem peças.</div>'}
+      ${secaoTecido(d)}
+      ${secaoPerfis(d)}
       <div style="margin-top:22px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:#888;display:flex;justify-content:space-between">
         <span>PCP — Persianas Paraná · Plano de corte gerado pelo Núcleo de Produtos</span>
         <span>${esc(d.pedido)}</span>

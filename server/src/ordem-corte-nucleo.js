@@ -59,8 +59,9 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
   if (!payload.length) throw new HttpError(422, 'Pedido sem peças cadastradas');
 
   // UMA chamada batch ao Núcleo (máx. 500 peças — limite do próprio PCP por item)
-  const data = await buscarPlanoCorte(payload);
-  if (!data) throw new HttpError(502, 'Núcleo de Produtos indisponível — plano de corte não gerado');
+  const resp = await buscarPlanoCorte(payload);
+  if (!resp) throw new HttpError(502, 'Núcleo de Produtos indisponível — plano de corte não gerado');
+  const data = resp.pecas;
   const porRef = new Map(data.map((d) => [String(d.ref), d]));
 
   // Agrupa por ambiente do ITEM (ordem de chegada)
@@ -100,5 +101,8 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
     avisos,
     variantes: await buscarVariantesCorte(),
     ambientes: [...grupos.values()],
+    // v09/08 — TECIDO do pedido (consumo por coleção + bobinas, calculado
+    // pelo Núcleo com a mesma conta da precificação)
+    resumo_tecido: resp.resumoTecido || [],
   };
 }
