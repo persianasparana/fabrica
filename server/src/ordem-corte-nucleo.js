@@ -49,7 +49,9 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
       largura: peca.largura != null ? Number(peca.largura) / 100 : 0,
       altura: peca.altura != null ? Number(peca.altura) / 100 : 0,
       modo: /motor/i.test(item.acionamento || '') ? 'motor' : 'manual',
-      bando: acab.includes('band') && !acab.includes('sem band'),
+      // v09/08 — "box" é o BANDÔ BOX e é exclusivo (não combina com outro
+      // bandô): acabamento com "box" corta a variante box, sem bandô junto.
+      bando: !acab.includes('box') && acab.includes('band') && !acab.includes('sem band'),
       box: acab.includes('box'),
     };
     if (overrides && overrides[peca.id] != null && String(overrides[peca.id]).trim())
