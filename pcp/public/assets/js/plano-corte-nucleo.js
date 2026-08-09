@@ -6,7 +6,11 @@
  * ambiente e por peça, a tabela Componente × Corte (cm) × Base, com a
  * variante resolvida pelo Núcleo (:3070). O operador pode trocar a variante
  * de uma peça (seletor de tela, some na impressão) — o override re-consulta
- * o Núcleo e re-renderiza. Complementa (não substitui) a Ordem de Corte.
+ * o Núcleo e re-renderiza.
+ *
+ * 09/08/2026 — este é O documento de corte (OC local aposentada): o botão
+ * "Imprimir e registrar" grava no log de impressão (pcp_ordem_corte_log,
+ * modo 'nucleo') e a página avisa quando o pedido já foi impresso.
  */
 (function () {
   'use strict';
@@ -37,7 +41,22 @@
     return data;
   }
 
-  const estado = { pedido: '', overrides: {}, dados: null };
+  const estado = { pedido: '', overrides: {}, dados: null, status: null };
+
+  // v09/08 — documento ÚNICO de corte (OC local aposentada): imprimir passa a
+  // registrar no mesmo log de impressão de antes (controle de reimpressão).
+  async function imprimirERegistrar() {
+    try {
+      const r = await api('pcp/ordem-corte/registrar', { method: 'POST', body: { pedidos: [estado.pedido] } });
+      estado.status = { impresso: true, reimpressao: r.reimpressao };
+    } catch (e) {
+      // registro falhou → imprime mesmo assim, mas avisa (fail-soft)
+      alert('Não consegui registrar a impressão (' + e.message + ') — o plano será impresso sem registro.');
+    }
+    window.print();
+    render();
+  }
+  window.__imprimirPlano = imprimirERegistrar;
 
   function fmtCm(v) {
     if (v == null || !(Number(v) > 0)) return '—';
@@ -94,9 +113,14 @@
   function render() {
     const d = estado.dados;
     const data = new Date().toLocaleDateString('pt-BR');
+    const st = estado.status;
+    const bannerImpresso = st && st.impresso
+      ? `<div class="alerta no-print" style="border-color:#FFA000">⚠ Este pedido JÁ TEVE plano de corte impresso${st.vezes ? ` (${st.vezes}×)` : ''}${st.ultima ? ` · última: ${esc(st.ultima)}` : ''} — imprimir de novo será registrado como REIMPRESSÃO.</div>`
+      : '';
     $('#conteudo').innerHTML = `
+      ${bannerImpresso}
       <h1>Plano de corte (PCP) — ${esc(d.pedido)} — ${data}</h1>
-      <div style="font-size:12px;color:#555">Medidas de corte em CENTÍMETROS. Corte = medida da peça + desconto/acréscimo do plano da variante.</div>
+      <div style="font-size:12px;color:#555">Medidas de corte em CENTÍMETROS. Corte = medida da peça + desconto/acréscimo do plano da variante. Padrão dos cortes: módulo Produtos &amp; Precificação → aba Corte (PCP).</div>
       ${(d.avisos || []).map((a) => `<div class="alerta">⚠ ${esc(a)}</div>`).join('')}
       ${(d.ambientes || []).map((amb) => `
         <h2>${esc(amb.ambiente)}</h2>
@@ -132,7 +156,13 @@
     try {
       const sess = await api('auth/session');
       csrfToken = sess.csrf_token;
-      estado.dados = await api('pcp/ordem-corte/plano-nucleo?pedido=' + encodeURIComponent(pedido));
+      // status de impressão em paralelo (fail-soft: sem status, sem banner)
+      const [dados, status] = await Promise.all([
+        api('pcp/ordem-corte/plano-nucleo?pedido=' + encodeURIComponent(pedido)),
+        api('pcp/ordem-corte/status?pedidos=' + encodeURIComponent(pedido)).catch(() => null),
+      ]);
+      estado.dados = dados;
+      estado.status = status && status.data ? status.data[pedido] || null : null;
       render();
     } catch (e) {
       if (e.message !== 'Não autenticado')

@@ -44,9 +44,9 @@ select.variante { font-size: 11px; padding: 3px 6px; border: 1px solid var(--bor
 <body>
 <div id="pagina">
   <div class="no-print" id="acoes">
-    <button class="btn btn-red" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn btn-red" onclick="window.__imprimirPlano ? window.__imprimirPlano() : window.print()">🖨 Imprimir e registrar</button>
     <button class="btn" onclick="window.close()">Fechar</button>
-    <span class="aviso">Só o documento sai na impressão — os seletores de variante são só de tela.</span>
+    <span class="aviso">Imprimir registra o “já impresso” do pedido. Só o documento sai no papel — os seletores de variante são de tela.</span>
   </div>
   <div id="conteudo">
     <div style="padding:40px;text-align:center;color:#888;font-size:13px">Carregando o plano de corte…</div>

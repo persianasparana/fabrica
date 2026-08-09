@@ -217,7 +217,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Ordem de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -2906,32 +2906,44 @@ function ocFichaPecasHTML(linhas, modo) {
   }).join('');
 }
 
+// ⚠ 09/08/2026 — OC LOCAL APOSENTADA (decisão do cliente): esta aba passou a
+// abrir o PLANO DE CORTE DO MOTOR (plano-corte-nucleo.html, calculado pelo
+// Núcleo de Produtos). O padrão dos cortes é editado no módulo Produtos (aba
+// Corte PCP). As funções ocRenderPreview/ocImprimir/plano de barras abaixo
+// ficaram SEM ponto de entrada (mantidas só para rollback) — a ficha de
+// produção continua usando /ordem-corte/preview pros cortes por setor.
 async function ocPreview() {
-  if (!ehAdmin() && !podeVer('ordemcorte')) { toast('Sem permissão para a Ordem de Corte.'); return; }
+  if (!ehAdmin() && !podeVer('ordemcorte')) { toast('Sem permissão para o Plano de Corte.'); return; }
   const pedidos = ocLerPedidos();
   const cont = document.getElementById('oc-conteudo');
   const avisosEl = document.getElementById('oc-avisos');
   const statusBox = document.getElementById('oc-status-box');
   if (!pedidos.length) { toast('Informe ao menos um pedido.'); return; }
-  cont.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Carregando pré-visualização...</div>';
+  cont.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">Consultando status...</div>';
   avisosEl.innerHTML = '';
   statusBox.innerHTML = '';
   ocPedidosAtuais = pedidos;
 
   try {
     const qs = 'pedidos=' + encodeURIComponent(pedidos.join(','));
-    const [preview, status] = await Promise.all([
-      api('pcp/ordem-corte/preview?' + qs),
-      api('pcp/ordem-corte/status?' + qs).catch(() => ({ data: {} })),
-    ]);
-    ocPreviewData = preview;
+    const status = await api('pcp/ordem-corte/status?' + qs).catch(() => ({ data: {} }));
     ocStatusData = (status && status.data) || {};
     ocRenderStatus();
-    ocRenderAvisos(preview.avisos || []);
-    ocRenderPreview(preview);
+    cont.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">${pedidos.map(p => `
+      <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+        <div style="flex:1;font-size:13px;font-weight:700">Pedido ${esc(p)}</div>
+        <button class="btn btn-red" onclick="ocAbrirPlanoNucleo('${esc(p).replace(/'/g, "\\'")}')">📐 Abrir plano de corte</button>
+      </div>`).join('')}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:10px">O plano abre em outra aba, por pedido — confira as variantes (dá pra trocar por peça na tela) e use o botão <b>Imprimir e registrar</b> do documento: é ele que grava o “já impresso”.</div>`;
+    // um pedido só → já abre direto (clique = gesto do usuário, sem bloqueio)
+    if (pedidos.length === 1) ocAbrirPlanoNucleo(pedidos[0]);
   } catch (e) {
     cont.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px 0">${esc(e.message)}</div>`;
   }
+}
+
+function ocAbrirPlanoNucleo(pedido) {
+  window.open('plano-corte-nucleo.html?pedido=' + encodeURIComponent(pedido), '_blank');
 }
 
 function ocRenderStatus() {

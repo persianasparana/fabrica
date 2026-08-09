@@ -1,8 +1,17 @@
 /**
  * Rotas da ordem de produção de corte.
- *   GET  /preview       ?pedidos=a,b&setor_id=N    calcula (sem registrar)
+ *
+ * ⚠ 09/08/2026 — OC LOCAL APOSENTADA (decisão do cliente): o documento de
+ * corte é SÓ o plano do Núcleo de Produtos (padrão de cortes editado no
+ * módulo Produtos, aba Corte PCP). A aba do PCP abre plano-corte-nucleo.html
+ * e o registro de impressão passa por POST /registrar (mesmo log/reimpressão
+ * de antes). /preview segue vivo porque a FICHA DE PRODUÇÃO usa os cortes
+ * por setor; /imprimir fica só para rollback (sem ponto de entrada na UI).
+ *
+ *   GET  /preview       ?pedidos=a,b&setor_id=N    calcula (ficha de produção)
  *   GET  /status        ?pedidos=a,b               se já foi impresso + histórico
- *   POST /imprimir      { pedidos:[], setor_id?, modo }  calcula e registra log
+ *   POST /imprimir      { pedidos:[], setor_id?, modo }  [LEGADO — sem UI]
+ *   POST /registrar     { pedidos:[] }             registra impressão do plano do Núcleo
  *   GET  /log           ?pedido=x                  histórico recente
  *   GET  /plano-nucleo  ?pedido=x                  PLANO DE CORTE via Núcleo (:3070)
  *   POST /plano-nucleo  { pedido, overrides }      idem, com variante por peça
@@ -45,8 +54,21 @@ r.post('/imprimir', requireCsrf, ah(async (req, res) => {
   res.json({ ...ordem, reimpressao, modo });
 }));
 
+// v09/08 — registro de impressão do PLANO DO NÚCLEO (documento único de
+// corte). Mesmo log/controle de reimpressão da OC de antes (modo 'nucleo').
+r.post('/registrar', requireCsrf, ah(async (req, res) => {
+  const pedidos = Array.isArray(req.body?.pedidos) ? req.body.pedidos
+    : String(req.body?.pedidos || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!pedidos.length) throw new HttpError(422, 'Envie { pedidos: [...] }');
+  const { reimpressao } = await registrarImpressao(pedidos, {
+    modo: 'nucleo', userId: req.session.user.id, userNome: req.session.user.full_name,
+  });
+  res.json({ ok: true, reimpressao });
+}));
+
 // ── Planejamento de Corte via Núcleo de Produtos (:3070) ────────────────────
-// Documento do MOTOR (plano-corte-nucleo.html) — não toca a OC local.
+// Documento do MOTOR (plano-corte-nucleo.html) — desde 09/08 é O documento
+// de corte (OC local aposentada).
 const exigirNucleo = () => {
   if (!planoCorteHabilitado())
     throw new HttpError(503, 'Integração com o Núcleo de Produtos não configurada (PRODUTOS_SERVICE_KEY)');

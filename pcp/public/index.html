@@ -70,7 +70,7 @@
     </a>
     <a onclick="goTo('ordemcorte')" data-page="ordemcorte">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-      <span>Ordem de Corte</span>
+      <span>Plano de Corte</span>
     </a>
     <a onclick="goTo('expedicao')" data-page="expedicao">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
@@ -396,29 +396,22 @@
       <div id="tipos-conteudo"></div>
     </div>
 
-    <!-- ORDEM DE CORTE -->
+    <!-- PLANO DE CORTE (documento do MOTOR — OC local aposentada 09/08/2026) -->
     <div class="section" id="sec-ordemcorte">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div style="flex:1;min-width:220px">
             <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Pedidos (separe por vírgula)</label>
-            <input type="text" id="oc-pedidos" placeholder="Ex: 18500, 18501, 18502" style="width:100%;font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')ocPreview()">
+            <input type="text" id="oc-pedidos" placeholder="Ex: PED-2026/0002, 18501" style="width:100%;font-size:13px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')ocPreview()">
           </div>
-          <div>
-            <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Modo</label>
-            <div style="display:flex;gap:6px">
-              <button id="oc-modo-individual" class="btn btn-red" onclick="ocSetModo('individual')">Individual</button>
-              <button id="oc-modo-lote" class="btn btn-outline" onclick="ocSetModo('lote')">Lote</button>
-            </div>
-          </div>
-          <button class="btn btn-black" onclick="ocPreview()">🔍 Pré-visualizar</button>
+          <button class="btn btn-black" onclick="ocPreview()">📐 Buscar planos</button>
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:8px">Individual = uma ordem por pedido. Lote = uma ordem agrupando todos os pedidos. Os cortes saem agrupados por setor (apenas setores marcados como “imprime ordem de corte”).</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px">O plano de corte é o documento do <strong>motor de cálculo</strong> (Núcleo de Produtos): variante + medidas por componente, por peça. O padrão dos cortes (deltas das planilhas) é editado no módulo <strong>Produtos &amp; Precificação → aba Corte (PCP)</strong>. O registro de “já impresso” continua aqui.</div>
       </div>
       <div id="oc-status-box"></div>
       <div id="oc-avisos"></div>
       <div id="oc-conteudo">
-        <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Pré-visualizar”.</div>
+        <div style="color:var(--text3);font-size:12px;padding:8px 0">Informe um ou mais pedidos e clique em “Buscar planos”.</div>
       </div>
     </div>
 
