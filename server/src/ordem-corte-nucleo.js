@@ -54,6 +54,9 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
       bando: !acab.includes('box') && acab.includes('band') && !acab.includes('sem band'),
       box: acab.includes('box'),
     };
+    // v10/08 — dois kits do box: "somente box"/"sem guias"/"só box" no
+    // acabamento = SOMENTE BOX → o Núcleo tira as linhas de guia do plano.
+    if (p.box && /somente\s*box|sem\s*guia|s[oó]\s*box/.test(acab)) p.box_guias = false;
     if (overrides && overrides[peca.id] != null && String(overrides[peca.id]).trim())
       p.variante = String(overrides[peca.id]).trim();
     return p;
