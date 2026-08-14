@@ -211,7 +211,15 @@ r.post(
         d.setDate(d.getDate() + Number(detalhe.prazoEntregaDias));
         dataCliente = d.toISOString().slice(0, 10);
       }
-      const itens = (detalhe.itens || []).filter((it) => Number(it.quantidade) > 0);
+      // 14/08/2026 — ACESSÓRIO não é peça de produção. Até aqui todo item do
+      // orçamento entrava na fila (o filtro só olhava quantidade), então
+      // acessório virava linha de `pcp_itens` com ESTRUTURA PENDENTE e etiqueta
+      // bipável — e agora que o Comercial cobra o controle/emissor como
+      // acessório DO AMBIENTE (1 emissor para várias peças motorizadas), isso
+      // encheria a fila de "peças" que a fábrica não fabrica.
+      const itens = (detalhe.itens || [])
+        .filter((it) => Number(it.quantidade) > 0)
+        .filter((it) => it.isAcessorio !== true && it.is_acessorio !== true);
       const cliente = (detalhe.client && (detalhe.client.nome || detalhe.client.name)) || null;
       // F1 — spec ESTRUTURADA: colunas próprias + atributos custom do formulário
       // dinâmico do Comercial (alimentam etiquetas e as futuras regras de
