@@ -34,7 +34,15 @@ const app = express();
 const PORT = Number(process.env.PORT || 3020);
 const HOST = process.env.HOST || '127.0.0.1';
 
-if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+} else if (process.env.NODE_ENV === 'production') {
+  // Sem TRUST_PROXY atrás do Nginx, req.ip é 127.0.0.1 para TODO MUNDO: o
+  // contador de tentativas de login por IP passa a ser global e as falhas de
+  // um usuário bloqueiam os outros. Ver .env.example.
+  console.warn('[cfg] TRUST_PROXY não definido: o IP de todos os acessos vira 127.0.0.1 '
+    + '(bloqueio de login por IP fica compartilhado). Defina TRUST_PROXY=1 no server/.env.');
+}
 
 // Segurança — CSP compatível com os frontends (estilos inline; scripts externos).
 app.use(

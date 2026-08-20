@@ -50,6 +50,12 @@ export async function migrate() {
     )
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_attempts ON login_attempts (username, attempted_at)`);
+  // a checagem de bloqueio também conta por IP — sem este índice a metade IP
+  // do OR varre a tabela inteira
+  await q(`CREATE INDEX IF NOT EXISTS idx_attempts_ip ON login_attempts (ip_address, attempted_at)`);
+  // a tabela só serve pra janela de bloqueio (15 min): o resto é lixo que
+  // crescia pra sempre. Limpeza no boot (idempotente, barata).
+  await q(`DELETE FROM login_attempts WHERE attempted_at < now() - interval '2 days'`);
 
   // Auditoria comum aos dois apps
   await q(`

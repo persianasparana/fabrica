@@ -13,28 +13,71 @@ import { randomBytes } from 'node:crypto';
 import { q } from './db.js';
 
 const MAX_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS || 5);
+// O contador por IP é PROPOSITALMENTE mais folgado que o por usuário: errar o
+// NOME do usuário algumas vezes (typo, e-mail em vez do usuário) não pode
+// trancar quem sabe a senha — era o que acontecia com um limiar só, porque o
+// bloqueio é conferido ANTES da senha (relato de 20/08/2026).
+const MAX_ATTEMPTS_IP = Number(process.env.MAX_LOGIN_ATTEMPTS_IP || MAX_ATTEMPTS * 3);
 const LOCKOUT_SECONDS = Number(process.env.LOCKOUT_SECONDS || 900);
 
 export function clientIp(req) {
   return req.ip || req.socket?.remoteAddress || '';
 }
 
+/** Chave do contador: sempre minúscula, senão trocar a caixa burla o limite. */
+function chaveTentativa(username) {
+  return String(username || '').trim().toLowerCase();
+}
+
+/** { bloqueado, motivo } — limiares separados por usuário e por IP. */
 async function isLockedOut(username, ip) {
   const { rows } = await q(
-    `SELECT COUNT(*)::int AS c FROM login_attempts
+    `SELECT COUNT(*) FILTER (WHERE username = $2)::int   AS por_usuario,
+            COUNT(*) FILTER (WHERE ip_address = $3)::int AS por_ip
+       FROM login_attempts
       WHERE attempted_at >= now() - ($1 || ' seconds')::interval
         AND (username = $2 OR ip_address = $3)`,
-    [String(LOCKOUT_SECONDS), username, ip]
+    [String(LOCKOUT_SECONDS), chaveTentativa(username), ip]
   );
-  return (rows[0]?.c ?? 0) >= MAX_ATTEMPTS;
+  const r = rows[0] || { por_usuario: 0, por_ip: 0 };
+  if (r.por_usuario >= MAX_ATTEMPTS) return { bloqueado: true, motivo: `usuário (${r.por_usuario} falhas)` };
+  if (r.por_ip >= MAX_ATTEMPTS_IP) return { bloqueado: true, motivo: `IP ${ip} (${r.por_ip} falhas)` };
+  return { bloqueado: false, motivo: null };
 }
 
 async function recordFailedAttempt(username, ip) {
-  await q('INSERT INTO login_attempts (username, ip_address) VALUES ($1, $2)', [username, ip]);
+  await q('INSERT INTO login_attempts (username, ip_address) VALUES ($1, $2)', [
+    chaveTentativa(username), ip,
+  ]);
 }
 
-async function clearFailedAttempts(username) {
-  await q('DELETE FROM login_attempts WHERE username = $1', [username]);
+/**
+ * Login OK zera o contador do usuário E do IP: quem acertou a senha provou não
+ * ser ataque naquela janela. Antes só o usuário era limpo, então as falhas
+ * gravadas com o nome errado seguiam somando pelo IP os 15 minutos inteiros.
+ */
+async function clearFailedAttempts(username, ip) {
+  await q('DELETE FROM login_attempts WHERE username = $1 OR ip_address = $2', [
+    chaveTentativa(username), ip,
+  ]);
+}
+
+/**
+ * Acha o usuário sem depender da CAIXA digitada: o UNIQUE do Postgres é
+ * case-sensitive, então "Wellington" e "wellington" são nomes diferentes e o
+ * login recusava a senha certa por causa da primeira letra. Preferência pro
+ * casamento exato; sem ele, aceita a variação de caixa quando é única.
+ */
+async function buscarUsuario(username) {
+  const { rows } = await q(
+    `SELECT * FROM users
+      WHERE username = $1 OR lower(username) = lower($1)
+      ORDER BY (username = $1) DESC`,
+    [username]
+  );
+  if (!rows.length) return null;
+  if (rows[0].username === username) return rows[0];
+  return rows.length === 1 ? rows[0] : null; // ambíguo (2 caixas diferentes) = não adivinha
 }
 
 export async function audit(userId, app, action, { entityType = null, entityId = null, ip = null } = {}) {
@@ -68,24 +111,30 @@ export async function attemptLogin(req, username, password, ip) {
   username = (username || '').trim();
   if (!username || !password) return null;
 
-  if (await isLockedOut(username, ip)) {
+  const trava = await isLockedOut(username, ip);
+  if (trava.bloqueado) {
+    console.warn(`[login] BLOQUEADO por ${trava.motivo} — usuario="${username}" ip=${ip}`);
     const e = new Error('Muitas tentativas falhas. Tente novamente em alguns minutos.');
     e.code = 'LOCKED';
     throw e;
   }
 
-  const { rows } = await q(
-    'SELECT * FROM users WHERE username = $1 AND active = TRUE',
-    [username]
-  );
-  const user = rows[0];
+  const user = await buscarUsuario(username);
+  // compara sempre que o usuário existe (mesmo inativo) pra não vazar, pelo
+  // tempo de resposta, quais nomes estão cadastrados
+  const senhaOk = user ? await bcrypt.compare(password, user.password_hash) : false;
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+  if (!user || !senhaOk || !user.active) {
     await recordFailedAttempt(username, ip);
+    // a resposta HTTP segue genérica ("Credenciais inválidas"); o motivo fica
+    // no log do servidor, senão uma conta inativa ou um nome errado viram
+    // horas de caça à senha (pm2 logs fabrica-server | grep "\[login\]")
+    const motivo = !user ? 'usuário não cadastrado' : !senhaOk ? 'senha incorreta' : 'usuário INATIVO';
+    console.warn(`[login] falhou: ${motivo} — usuario="${username}" ip=${ip}`);
     return null;
   }
 
-  await clearFailedAttempts(username);
+  await clearFailedAttempts(username, ip);
   await regenerate(req);
 
   req.session.user = {
