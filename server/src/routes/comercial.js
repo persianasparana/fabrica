@@ -127,6 +127,21 @@ function fallbackPorNome(tipo, produtos) {
 }
 
 // F2/v2.29 — o item do pedido pode chegar com o SKU CANÔNICO do Núcleo de
+// Perfil de AFASTAMENTO do box com guias (Comercial v2.96/Núcleo v14.55):
+// o item chega com nucleoAfastamento {sku, lados, nome}. Vira atributo legível
+// pra Ficha de Produção/etiqueta — a fábrica precisa do perfil E do lado.
+const LADOS_AFASTAMENTO = {
+  esq: 'lateral esquerda', dir: 'lateral direita', inf: 'inferior',
+  lats: 'somente laterais', lats_inf: 'laterais e inferior',
+};
+function afastamentoLegivel(it) {
+  const af = it && it.nucleoAfastamento;
+  if (!af || typeof af !== 'object' || !af.sku) return null;
+  const nome = String(af.nome || af.sku).slice(0, 120);
+  const lado = LADOS_AFASTAMENTO[af.lados] || String(af.lados || '').slice(0, 40);
+  return lado ? `${nome} — ${lado}` : nome;
+}
+
 // Produtos (it.produtoSku, gravado pelo Comercial na cotação). Se exatamente
 // UMA estrutura ativa aponta pra esse SKU (pcp_produtos.produto_sku), ela é a
 // escolha certa. Com N estruturas no mesmo SKU (variantes com/sem plus, box…)
@@ -155,6 +170,8 @@ r.get(
       if (it.acabamento) a.acabamento = it.acabamento;
       if (it.janela) a.janela = it.janela;
       if (it.corComponentes) a.cor_componentes = it.corComponentes;
+      const afPrev = afastamentoLegivel(it);
+      if (afPrev) a.afastamento = afPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
         cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
@@ -230,6 +247,8 @@ r.post(
         if (it.acabamento) a.acabamento = it.acabamento;
         if (it.janela) a.janela = it.janela;
         if (it.corComponentes) a.cor_componentes = it.corComponentes;
+        const af = afastamentoLegivel(it);
+        if (af) a.afastamento = af;
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
