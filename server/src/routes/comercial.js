@@ -138,7 +138,21 @@ function afastamentoLegivel(it) {
   const af = it && it.nucleoAfastamento;
   if (!af || typeof af !== 'object' || !af.sku) return null;
   const nome = String(af.nome || af.sku).slice(0, 120);
-  const lado = LADOS_AFASTAMENTO[af.lados] || String(af.lados || '').slice(0, 40);
+  // v2.98: lados é ARRAY de posições (esq/dir/inf/sup); strings antigas
+  // (esq|dir|inf|lats|lats_inf) seguem aceitas.
+  const ROTULO = { esq: 'lateral esquerda', dir: 'lateral direita', inf: 'inferior', sup: 'superior' };
+  let lado = '';
+  if (Array.isArray(af.lados)) {
+    const p = af.lados.filter((l) => ROTULO[l]);
+    const rot = [];
+    if (p.includes('esq') && p.includes('dir')) rot.push('laterais');
+    else if (p.includes('esq') || p.includes('dir')) rot.push(ROTULO[p.includes('esq') ? 'esq' : 'dir']);
+    if (p.includes('inf')) rot.push('inferior');
+    if (p.includes('sup')) rot.push('superior');
+    lado = rot.join(' + ');
+  } else {
+    lado = LADOS_AFASTAMENTO[af.lados] || String(af.lados || '').slice(0, 40);
+  }
   return lado ? `${nome} — ${lado}` : nome;
 }
 
