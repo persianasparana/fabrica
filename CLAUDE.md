@@ -1,5 +1,14 @@
 # CLAUDE.md — Fábrica / PCP (Persianas Paraná)
 
+> ## ⚠️ Antes de mexer em INTEGRAÇÃO — leia `docs/PROTOCOLO-FEDERACAO.md` (24/09/2026)
+> Este módulo é um dos 8 da federação (Logística · Comercial/Agenda · Fábrica · RH · Financeiro ·
+> Compras · Fiscal · Núcleo de Produtos). O protocolo traz o mapa de portas/branches/deploy, a
+> **matriz de quem chama quem** (rotas, envs dos dois lados, comportamento sem o vizinho), as regras
+> e o **checklist obrigatório** para mudar rota, campo, status, chave, env, porta, Nginx/hub ou ordem
+> de deploy — e deve ser **atualizado nos 8 repositórios** no mesmo conjunto de commits.
+> **Branch de produção deste repo:** `claude/unified-server-status-7633oz`; `main` está em 09/06/2026 — NÃO é referência.
+
+
 > **LEIA PRIMEIRO.** Contexto para trabalhar neste repositório sem quebrar nada nem
 > divergir das outras conversas da federação ERP.
 
