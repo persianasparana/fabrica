@@ -156,6 +156,26 @@ function afastamentoLegivel(it) {
   return lado ? `${nome} — ${lado}` : nome;
 }
 
+// v2.121.0 (Comercial) / Núcleo v14.75 — REVESTIMENTO do bandô reto: o item
+// chega com nucleoBandoReto.revestimento {colecao, cor, sem} (a escolha da
+// venda) e/ou nucleoBandoRetoEco.revestimento (o que o motor usou). Vira o
+// atributo legível `revestimento_bando` pra Ficha de Produção/etiqueta — a
+// fábrica precisa saber DE QUAL coleção cortar a tira (ou que não há tira).
+function revestimentoBandoLegivel(it) {
+  const sel = it && it.nucleoBandoReto && typeof it.nucleoBandoReto === 'object' ? it.nucleoBandoReto.revestimento : null;
+  const eco = it && it.nucleoBandoRetoEco && typeof it.nucleoBandoRetoEco === 'object' ? it.nucleoBandoRetoEco.revestimento : null;
+  const acab = String((it && it.acabamento) || '').toLowerCase();
+  const ehReto = /band/.test(acab) && !/sem\s*band/.test(acab) && !/branco|preto|madeira|box/.test(acab) && /reto/.test(acab);
+  if (!ehReto) return null;
+  if (sel && sel.sem === true) return 'SEM revestimento (só o perfil)';
+  const colecao = sel && sel.colecao ? String(sel.colecao).trim() : (eco && eco.colecao ? String(eco.colecao).trim() : '');
+  const cor = sel && sel.cor ? String(sel.cor).trim() : (eco && eco.cor ? String(eco.cor).trim() : '');
+  if (colecao) return `tira de ${colecao}${cor ? ` cor ${cor}` : ''}`.slice(0, 120);
+  if (eco && eco.origem === 'nenhum') return 'SEM revestimento (só o perfil)';
+  if (eco && eco.origem === 'pendente') return 'PENDENTE — coleção do revestimento não escolhida no Comercial';
+  return 'tira do tecido da própria peça';
+}
+
 // Produtos (it.produtoSku, gravado pelo Comercial na cotação). Se exatamente
 // UMA estrutura ativa aponta pra esse SKU (pcp_produtos.produto_sku), ela é a
 // escolha certa. Com N estruturas no mesmo SKU (variantes com/sem plus, box…)
@@ -186,6 +206,8 @@ r.get(
       if (it.corComponentes) a.cor_componentes = it.corComponentes;
       const afPrev = afastamentoLegivel(it);
       if (afPrev) a.afastamento = afPrev;
+      const rbPrev = revestimentoBandoLegivel(it);
+      if (rbPrev) a.revestimento_bando = rbPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
         cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
@@ -263,6 +285,8 @@ r.post(
         if (it.corComponentes) a.cor_componentes = it.corComponentes;
         const af = afastamentoLegivel(it);
         if (af) a.afastamento = af;
+        const rb = revestimentoBandoLegivel(it);
+        if (rb) a.revestimento_bando = rb;
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
