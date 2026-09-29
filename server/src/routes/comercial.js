@@ -176,6 +176,24 @@ function revestimentoBandoLegivel(it) {
   return 'tira do tecido da própria peça';
 }
 
+// v2.122.0 / Núcleo v14.76 — ALTURA DO COMANDO do acionamento por cordão da
+// cortina de tecido (mecanismo "com acionamento"): vai para a Ficha/etiqueta
+// como atributo legível. Lê a seleção da peça (nucleoCortina.alturaComando)
+// e, sem ela, o eco (nucleoCortinaEco) — que diz também quando o Comercial
+// não informou (o Núcleo cobrou pela altura da peça).
+function alturaComandoLegivel(it) {
+  const sel = it && it.nucleoCortina && typeof it.nucleoCortina === 'object' ? it.nucleoCortina : null;
+  const eco = it && it.nucleoCortinaEco && typeof it.nucleoCortinaEco === 'object' ? it.nucleoCortinaEco : null;
+  const fmt = (v) => Number(v).toFixed(2).replace('.', ',') + ' m';
+  if (sel && Number(sel.alturaComando) > 0) return fmt(sel.alturaComando);
+  if (eco && eco.comando === true && Number(eco.alturaComando) > 0) {
+    return eco.alturaComandoOrigem === 'altura_peca'
+      ? `${fmt(eco.alturaComando)} (NÃO informada no Comercial — altura da peça)`
+      : fmt(eco.alturaComando);
+  }
+  return null;
+}
+
 // Produtos (it.produtoSku, gravado pelo Comercial na cotação). Se exatamente
 // UMA estrutura ativa aponta pra esse SKU (pcp_produtos.produto_sku), ela é a
 // escolha certa. Com N estruturas no mesmo SKU (variantes com/sem plus, box…)
@@ -208,6 +226,8 @@ r.get(
       if (afPrev) a.afastamento = afPrev;
       const rbPrev = revestimentoBandoLegivel(it);
       if (rbPrev) a.revestimento_bando = rbPrev;
+      const acPrev = alturaComandoLegivel(it);
+      if (acPrev) a.altura_comando = acPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
         cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
@@ -287,6 +307,8 @@ r.post(
         if (af) a.afastamento = af;
         const rb = revestimentoBandoLegivel(it);
         if (rb) a.revestimento_bando = rb;
+        const ac = alturaComandoLegivel(it);
+        if (ac) a.altura_comando = ac;
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
