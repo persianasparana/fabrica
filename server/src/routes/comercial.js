@@ -194,6 +194,27 @@ function alturaComandoLegivel(it) {
   return null;
 }
 
+// Comercial v2.130.0 / Núcleo v14.86 — CURVAS do trilho suíço CAIXA ALTA (por
+// unidade) e COR do trilho da cortina de tecido: vão para a Ficha/etiqueta como
+// atributos legíveis. Lê a seleção da peça (nucleoCortina.curvas / .cor) e, sem
+// ela, o eco (nucleoCortinaEco) — que só traz as chaves quando a venda mandou.
+function curvasTrilhoLegivel(it) {
+  const sel = it && it.nucleoCortina && typeof it.nucleoCortina === 'object' ? it.nucleoCortina : null;
+  const eco = it && it.nucleoCortinaEco && typeof it.nucleoCortinaEco === 'object' ? it.nucleoCortinaEco : null;
+  const n = sel && Number.isInteger(Number(sel.curvas)) && Number(sel.curvas) > 0 ? Number(sel.curvas)
+    : eco && Number.isInteger(Number(eco.curvas)) && Number(eco.curvas) > 0 ? Number(eco.curvas) : 0;
+  if (!n) return null;
+  return `${n} curva${n > 1 ? 's' : ''} no trilho (só o trilho suíço caixa alta)`;
+}
+function corTrilhoLegivel(it) {
+  const sel = it && it.nucleoCortina && typeof it.nucleoCortina === 'object' ? it.nucleoCortina : null;
+  const eco = it && it.nucleoCortinaEco && typeof it.nucleoCortinaEco === 'object' ? it.nucleoCortinaEco : null;
+  const cor = (sel && typeof sel.cor === 'string' && sel.cor.trim()) ? sel.cor.trim()
+    : (eco && typeof eco.cor === 'string' && eco.cor.trim()) ? eco.cor.trim() : null;
+  if (!cor) return null;
+  return cor === 'preto' ? 'trilho PRETO' : `trilho ${cor}`;
+}
+
 // Produtos (it.produtoSku, gravado pelo Comercial na cotação). Se exatamente
 // UMA estrutura ativa aponta pra esse SKU (pcp_produtos.produto_sku), ela é a
 // escolha certa. Com N estruturas no mesmo SKU (variantes com/sem plus, box…)
@@ -228,6 +249,10 @@ r.get(
       if (rbPrev) a.revestimento_bando = rbPrev;
       const acPrev = alturaComandoLegivel(it);
       if (acPrev) a.altura_comando = acPrev;
+      const cvPrev = curvasTrilhoLegivel(it);
+      if (cvPrev) a.curvas_trilho = cvPrev;
+      const ctPrev = corTrilhoLegivel(it);
+      if (ctPrev) a.cor_trilho = ctPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
         cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
@@ -309,6 +334,10 @@ r.post(
         if (rb) a.revestimento_bando = rb;
         const ac = alturaComandoLegivel(it);
         if (ac) a.altura_comando = ac;
+        const cv = curvasTrilhoLegivel(it);
+        if (cv) a.curvas_trilho = cv;
+        const ct = corTrilhoLegivel(it);
+        if (ct) a.cor_trilho = ct;
         return a;
       };
       const s120 = (v) => (v == null || v === '' ? null : String(v).slice(0, 120));
