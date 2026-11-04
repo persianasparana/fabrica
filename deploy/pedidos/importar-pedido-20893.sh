@@ -60,6 +60,19 @@ PAYLOAD=$(node -e '
 R=$(echo "$PAYLOAD" | curl -s -b "$JAR" -X POST -H "X-CSRF-Token: $CSRF" \
   -H 'Content-Type: application/json' --data-binary @- $B/api/pcp/itens/lote)
 echo "Resposta: $R"
-echo "$R" | grep -q '"count":56' && echo "✔ Pedido $PEDIDO importado com 56 peças. Veja em Fila / Editar Pedido / Ordem de Corte." \
-  || echo "✗ Algo deu errado — veja a resposta acima."
+if ! echo "$R" | grep -q '"count":56'; then
+  echo "✗ Algo deu errado — veja a resposta acima."
+  rm -f "$JAR"; exit 1
+fi
+echo "✔ Pedido $PEDIDO importado com 56 peças."
+
+# Confere se as medidas (largura×altura) foram gravadas — a Ordem de Corte depende delas.
+MED=$(curl -s -b "$JAR" "$B/api/pcp/pedido?pedido=$PEDIDO" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const it=(JSON.parse(s).itens||[]);const n=it.filter(i=>i.largura!=null&&i.altura!=null).length;console.log(n+"/"+it.length)}catch{console.log("?")}})')
+echo "Medidas gravadas (largura×altura): $MED"
+if [ "$MED" = "56/56" ]; then
+  echo "✔ Tudo certo — a Ordem de Corte do pedido $PEDIDO já mostra 36 barras de 4,90 m (18 cabeçalho + 18 base), além de lâmina e cadarço. Veja em Fila / Editar Pedido / Ordem de Corte."
+else
+  echo "⚠ ATENÇÃO: esta versão do servidor não gravou as medidas nesse formato. Os 56 itens foram criados, mas a Ordem de Corte pode não calcular o material."
+  echo "  → Exclua o pedido $PEDIDO na aba Editar Pedido e avise o suporte para ajustar o importador a esta versão do sistema."
+fi
 rm -f "$JAR"
