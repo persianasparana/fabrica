@@ -1,0 +1,83 @@
+{
+  "$schema": "https://persianasparana.com.br/brand/palette.schema.json",
+  "name": "Persianas Paraná — Design Tokens (oficiais)",
+  "version": "2.0.0",
+  "note": "Cores oficiais da marca (brand-guide): preto #1D1D1B, branco, vermelho #C1212D, dourado #C6B784. Fonte Manrope (substituta open-source da Galano Grotesque). Espelha logistica/css/pp-brand.css do pacote de identidade. Consumido por tokens.css e tailwind.config.js.",
+  "color": {
+    "brand": {
+      "50":  "#FCEAEB",
+      "100": "#F7CDCF",
+      "200": "#EE9DA2",
+      "300": "#E36B73",
+      "400": "#D6444E",
+      "500": "#C1212D",
+      "600": "#A11823",
+      "700": "#82131C",
+      "800": "#5E0E15",
+      "900": "#3D090E",
+      "light": "#E73B3E"
+    },
+    "gold": {
+      "50":  "#FAF7EE",
+      "100": "#F1E9CF",
+      "200": "#E6D9AE",
+      "300": "#D9C896",
+      "400": "#CFBC8C",
+      "500": "#C6B784",
+      "600": "#A89760",
+      "700": "#87794C",
+      "800": "#5F5536",
+      "900": "#3D3722"
+    },
+    "ink": {
+      "50":  "#F5F4F1",
+      "100": "#ECEBE7",
+      "200": "#D2D0C9",
+      "300": "#B6B4AD",
+      "400": "#8C8A82",
+      "500": "#56554F",
+      "600": "#383834",
+      "700": "#2F2F2C",
+      "800": "#262624",
+      "900": "#1D1D1B",
+      "950": "#141413"
+    },
+    "sand": {
+      "50":  "#FFFFFF",
+      "100": "#F7F7F8",
+      "200": "#F0F1F3",
+      "300": "#E5E7EB",
+      "400": "#CCCCCC",
+      "500": "#9CA3AF",
+      "600": "#6B7280",
+      "700": "#606060",
+      "800": "#2D2D2D",
+      "900": "#1D1D1B"
+    },
+    "semantic": {
+      "success":    "#15803D",
+      "successBg":  "#DCFCE7",
+      "successDark":"#4ADE80",
+      "warning":    "#B45309",
+      "warningBg":  "#FEF3C7",
+      "warningDark":"#FBBF24",
+      "danger":     "#B91C1C",
+      "dangerBg":   "#FEE2E2",
+      "dangerDark": "#FCA5A5",
+      "info":       "#1E40AF",
+      "infoBg":     "#DBEAFE",
+      "infoDark":   "#60A5FA"
+    }
+  },
+  "font": {
+    "sans": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
+    "body": "'Manrope', 'Helvetica Neue', Arial, sans-serif",
+    "mono": "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+  },
+  "radius": { "xs": "4px", "sm": "6px", "md": "8px", "lg": "12px", "xl": "16px", "pill": "999px" },
+  "shadow": {
+    "sm": "0 1px 2px rgba(0,0,0,0.04)",
+    "md": "0 2px 6px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+    "lg": "0 6px 18px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04)"
+  }
+}

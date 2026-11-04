@@ -1,43 +1,48 @@
 # Identidade Visual — Persianas Paraná
 
-Fonte **única** da identidade visual para todos os sistemas do monorepo `fabrica`.
+Fonte **única** da identidade visual para os sistemas do monorepo `fabrica`,
+baseada no brand-guide oficial da Persianas Paraná.
 
-> ⚠️ **Provisório.** A paleta atual deriva do terracota `#C0392B` já em uso no Sistema
-> de Qualidade. Ao receber as cores e o logotipo **oficiais**, atualize apenas os
-> arquivos desta pasta — os dois sistemas passam a refletir a mudança.
+## Cores oficiais
+
+| Token | Hex | Uso |
+|---|---|---|
+| Preto | `#1D1D1B` | Texto principal / fundo escuro |
+| Branco | `#FFFFFF` | Fundo claro / texto sobre escuro |
+| Vermelho | `#C1212D` | Primária operacional (acento do **Qualidade**) |
+| Vermelho claro | `#E73B3E` | Hover / acento em fundo escuro |
+| Dourado | `#C6B784` | Acento do **PCP** (sobre preto) / secundária |
+| Dourado dark | `#A89760` | Hover do dourado |
+
+Cinzas `#F7F7F8 #E5E7EB #CCCCCC #606060 #2D2D2D` · Semânticas (sucesso/aviso/erro/info)
+em `palette.json`. **Banidos:** roxo, laranja, gradientes, verde-limão, ciano, rosa.
+
+**Tipografia:** Manrope (400–800) — substituta open-source da Galano Grotesque.
+Auto-hospedada (sem CDN): `@fontsource/manrope` no PCP; woff2 vendorizado no Qualidade.
 
 ## Arquivos
 
 | Arquivo | Papel |
 |---|---|
-| `palette.json` | **Canônico.** Tokens de cor, tipografia, raio e sombra em formato legível por máquina. |
-| `tokens.css` | Variáveis CSS (`--pp-*`) com temas claro/escuro. Consumido diretamente pelo Qualidade e pelo PCP. |
-| `logo.svg` | Lockup completo (marca + texto "Persianas Paraná"). |
-| `logo-mark.svg` | Apenas a marca (ícone), para favicons e espaços reduzidos. |
+| `palette.json` | **Canônico.** Escalas `brand` (vermelho), `gold`, `ink` (preto), `sand` (cinzas), semânticas, fontes. |
+| `tokens.css` | Variáveis `--pp-*` com tema claro (acento vermelho) e escuro (acento dourado). |
+| `logos/logo-{preto,branco,vermelho}.png` | Logotipo horizontal (use a versão preta em fundo claro, branca em fundo escuro). |
+| `logos/favicon.png`, `apple-touch-icon.png`, `icon-{192,512}.png` | Ícones / favicons. |
 
-## Como substituir pela marca oficial
+> Logos são PNG com transparência — usar como `<img>` (não recolorir nem distorcer;
+> manter proporção). O selo "P" é o favicon.
 
-1. **Logotipo:** sobrescreva `logo.svg` e `logo-mark.svg` pelos arquivos oficiais
-   (preferir SVG; manter `viewBox` e `role="img"`).
-2. **Cores:** edite os valores em `palette.json` **e** as variáveis correspondentes
-   em `tokens.css`. Mantenha os mesmos nomes de token.
-3. **Tailwind (PCP):** as cores também estão espelhadas em
-   `pcp/frontend/tailwind.config.js` (lê `palette.json` em build) — nenhuma ação
-   manual necessária se você editar o `palette.json`.
-4. Rebuild do PCP (`npm run build`) e recarregue o Qualidade.
+## Aplicação por sistema
 
-## Escalas
+- **Qualidade** (tema claro): acento **vermelho**, logo **preto**.
+- **PCP** (tema escuro, chão de fábrica): acento **dourado** sobre preto, logo **branco**;
+  vermelho reservado a alertas.
 
-- **brand** (terracota): 50→900 — cor primária da marca.
-- **sand** (neutros quentes): 50→900 — superfícies, textos, bordas no tema claro.
-- **night** (neutros escuros quentes): 50→950 — superfícies do tema escuro (PCP).
-- **semantic**: success / warning / danger / info (+ versões `*Bg`).
+## Como atualizar
 
-## Tipografia
+1. Edite `palette.json` **e** `tokens.css` (mesmos nomes de token) e/ou troque os PNGs em `logos/`.
+2. Rode `bash shared/brand/sync.sh` (copia tokens/paleta/logos para cada app).
+3. Recompile o PCP (`npm run build`) e recarregue o Qualidade.
 
-- **Títulos / marca:** Bricolage Grotesque (800).
-- **Corpo (Qualidade):** stack de sistema.
-- **Dados / monoespaçado (PCP):** JetBrains Mono.
-
-Fontes carregadas via Google Fonts em cada app; podem ser auto-hospedadas para
-deploy offline (ver `docs/DEPLOYMENT.md`).
+O `tailwind.config.js` do PCP lê `palette.json` e remapeia `amber`→dourado e
+`stone`→preto da marca, aplicando a identidade sem reescrever componentes.

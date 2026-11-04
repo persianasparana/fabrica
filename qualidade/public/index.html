@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Sistema de Qualidade — Persianas Paraná</title>
+<link rel="icon" type="image/png" href="assets/brand/logos/favicon.png">
+<link rel="apple-touch-icon" href="assets/brand/logos/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 <header class="topbar">
   <div class="topbar-inner">
     <div class="topbar-brand">
-      <strong>Persianas Paraná</strong>
+      <img class="brand-logo" src="assets/brand/logos/logo-preto.png" alt="Persianas Paraná">
       <span>Gestão de Não Conformidades</span>
     </div>
     <div class="topbar-user">
@@ -89,6 +91,11 @@
         <textarea id="f-acao" name="acao_imediata" maxlength="2000" placeholder="O que foi feito no momento..."></textarea>
       </div>
 
+      <div class="field">
+        <label for="f-acao-corr">Ação corretiva</label>
+        <textarea id="f-acao-corr" name="acao_corretiva" maxlength="2000" placeholder="Ação para evitar reincidência (causa raiz)..."></textarea>
+      </div>
+
       <div class="grid2">
         <div class="field">
           <label for="f-resp">Responsável</label>
@@ -156,7 +163,7 @@
   <small>v1.0.0 · Persianas Paraná · Gestão de Qualidade</small>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="assets/vendor/chart.umd.min.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

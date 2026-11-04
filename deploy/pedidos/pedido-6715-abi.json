@@ -1,0 +1,277 @@
+{
+ "pedido": "6715",
+ "data_cliente": "2026-07-20",
+ "cliente": "ABI Administração de Locação de Bens LTDA",
+ "itens": [
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,985 x 2,37 m | peça 1/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,985 x 2,37 m | peça 2/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,99 x 2,37 m | peça 3/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,255 x 2,30 m | peça 4/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,54 x 2,67 m | peça 5/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,985 x 2,67 m | peça 6/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,985 x 2,67 m | peça 7/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião térreo | 0,985 x 2,67 m | peça 8/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Recepção | 0,985 x 2,7 m | peça 9/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Recepção | 0,985 x 2,37 m | peça 10/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Recepção | 0,985 x 2,37 m | peça 11/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Recepção | 0,985 x 2,37 m | peça 12/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 1,445 x 2,57 m | peça 13/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 0,835 x 2,13 m | peça 14/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 0,84 x 2,13 m | peça 15/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 0,84 x 2,13 m | peça 16/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 0,41 x 2,13 m | peça 17/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Corredor | 0,36 x 2,13 m | peça 18/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião 2°andar | 0,985 x 2,52 m | peça 19/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Reunião 2°andar | 0,88 x 2,52 m | peça 20/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,985 x 2,52 m | peça 21/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,99 x 2,52 m | peça 22/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,985 x 2,52 m | peça 23/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,99 x 2,52 m | peça 24/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,835 x 1,72 m | peça 25/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,835 x 1,72 m | peça 26/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,835 x 1,72 m | peça 27/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,91 x 1,715 m | peça 28/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,905 x 1,715 m | peça 29/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,91 x 1,715 m | peça 30/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,905 x 1,715 m | peça 31/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 2°andar | 0,91 x 1,715 m | peça 32/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Gerência 3°andar | 0,98 x 2,82 m | peça 33/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Gerência 3°andar | 0,985 x 2,82 m | peça 34/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Gerência 3°andar | 0,66 x 2,82 m | peça 35/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,25 x 2,82 m | peça 36/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,985 x 2,82 m | peça 37/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,985 x 2,82 m | peça 38/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,985 x 2,82 m | peça 39/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 1,07 x 2,82 m | peça 40/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 1,07 x 2,82 m | peça 41/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 1,07 x 2,82 m | peça 42/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,96 x 2,82 m | peça 43/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 44/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 45/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 46/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 47/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 48/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,695 x 1,71 m | peça 49/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,77 x 1,71 m | peça 50/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,77 x 1,71 m | peça 51/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,77 x 1,71 m | peça 52/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,77 x 1,71 m | peça 53/54"
+  },
+  {
+   "produto": "PH 25mm (Horizontal)",
+   "qnt": 1,
+   "observacoes": "Cor 34 | Escritório 3° andar | 0,77 x 1,71 m | peça 54/54"
+  }
+ ]
+}
