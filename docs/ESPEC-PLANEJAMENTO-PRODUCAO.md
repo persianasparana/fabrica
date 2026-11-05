@@ -1,6 +1,7 @@
 # Espec para decisão — Planejamento de produção no PCP reaproveitando o Núcleo, requisição de compra ao Compras e retomada das Solicitações
 
-**Status:** rascunho para o cliente decidir (05/11/2026). Nada foi codificado.
+**Status:** **decidido pelo cliente em 05/11/2026** (§6 traz as respostas; §4 a ordem de execução).
+Nada foi codificado ainda.
 **Pedido:** *"melhorar o PCP com o planejamento de produção; fizemos várias melhorias no cálculo de
 custo com base na forma de fabricação e preciso implementar essas regras no PCP, que é quem vai
 planejar a produção. No PCP não tem onde adicionar um pedido de cortina para calcular o consumo de
@@ -181,13 +182,12 @@ quantidades**, sem preço, sem margem:
 `nucleo_*` + `tecido_sku` + `cor` + `area_m2` + `preco_custo`… — tudo que o `/lista-materiais` precisa.
 O item do PCP passa a carregar a peça **como foi vendida**. Peça antiga (sem spec) segue como hoje.
 
-**(b) "Novo pedido" com produto do Núcleo.** O cadastro manual ganha: produto pelo **catálogo do
-Núcleo** (`/catalogo/produtos` + de-para de linha, inclusive **cortina de tecido**, cortina fixa,
-celular, vertical…), coleção e cor (`/catalogo/colecoes`, `/cores`), e as opções que o Núcleo pede por
-linha (mecanismo/estilo/volume/abertura na cortina; comando/monocomando na PH50; vias/varetas/comando no
-painel; bandô/box/trilho plus/tubo no rolô) — a mesma mecânica do /novo do Comercial, só que sem preço.
-É o caso "pedido de cortina para calcular o consumo" (reposição, retrabalho, amostra, pedido que não
-passou pelo Comercial).
+**(b) Entrada de pedido só pelo Comercial** (decisão 2). O cadastro manual "Novo pedido" do PCP
+(formulário, importação por Excel/CSV/PDF/JSON) **sai da tela**; reposição, retrabalho e amostra entram
+como pedido no Comercial (que já tem o tipo de peça, a coleção e todas as opções) e chegam ao PCP pela
+liberação com a especificação completa. O caso "pedido de cortina para calcular o consumo" é resolvido
+por (a) + (d): a cortina vendida no Comercial chega com mecanismo/estilo/volume/abertura e o Núcleo
+calcula o tecido.
 
 **(c) Estruturas com SKU.** Migração que preenche `pcp_produtos.produto_sku` nas 35 estruturas pelo
 de-para evidente (Soft → `soft`/`soft_sheer`, Premium → `premium`/`premium47`, Romana → `romana`,
@@ -196,9 +196,9 @@ por SKU finalmente acontecer. Peça cujo SKU não tem estrutura local (cortina, 
 fica mais "pendente"**: o roteiro por setor vem de um cadastro mínimo por **linha** (cortina → costura
 → montagem → embalagem), e os cortes da Ficha vêm do `/plano-corte` quando existir.
 
-**(d) Tela nova "Planejamento → Necessidade de materiais".** Seleciona pedidos (por status, data
-prometida, período, ou "tudo que está liberado e ainda não cortou"), chama o `/lista-materiais` com as
-peças desses pedidos e mostra:
+**(d) Tela nova "Planejamento → Necessidade de materiais".** Abre com o padrão **"tudo que está
+liberado e ainda não cortou"** (decisão 6; filtros por data prometida, período e status na hora), chama
+o `/lista-materiais` com as peças desses pedidos e mostra:
 
 - **Tecido** por coleção × cor × rolo: metros, bobinas, sobra, quais pedidos; "cor em falta nos
   fornecedores" em âmbar.
@@ -206,14 +206,18 @@ peças desses pedidos e mostra:
 - **Tubos**, **componentes** por sku (com os adicionais).
 - Ao lado de cada linha, o **saldo do Compras** (§3.3) e a **falta** (necessidade − saldo − já requisitado).
 - Botões: **Imprimir/CSV** (separação de estoque) e **Requisitar ao Compras** (as linhas com falta, ou
-  todas) — gera a requisição estruturada; a resposta volta com o número da requisição, que fica no
-  pedido. Reenviar não duplica (idempotente por `origem_ref`).
+  todas) — gera a requisição estruturada **direto na fila do comprador** (decisão 6: sem aprovação
+  intermediária); a resposta volta com o número da SC, que fica no pedido. Reenviar não duplica
+  (idempotente por `origem_ref`).
 - O plano de corte por pedido continua onde está (aba Ordem de Corte); a Ficha passa a trazer a lista
   de materiais da peça (hoje não traz).
 
-**(e) Baixa de estoque** (decisão 4): quando o PCP registra o plano de corte (botão "registrar" que já
-existe) ou quando o setor de corte bipa início, o PCP manda ao Compras a **saída de produção** (sku,
-quantidade, pedido). É o que faltava para a sugestão de compra do Compras ter consumo real.
+**(e) Baixa de estoque** (decisão 4): a **saída de produção** (sku, quantidade, pedido) vai ao Compras
+na **primeira bipagem que existir** para o pedido — a de início do setor de corte quando os leitores
+estiverem no chão de fábrica; enquanto só houver a bipagem final da expedição, é ela que dispara — e
+também por **botão manual "Dar baixa dos materiais"** no pedido (gerência/PCP). Idempotente por pedido ×
+sku × plano: bipar de novo ou clicar duas vezes não baixa duas vezes; baixa manual depois de uma
+automática não repete. É o que faltava para a sugestão de compra do Compras ter consumo real.
 
 **(f) Planejamento de carga** (fase posterior): data prometida = `aprovadoFinanceiroEm + prazoEntregaDias`
 (já em `data_cliente`); capacidade por setor (peças/dia ou minutos por tipo de peça, cadastro);
@@ -234,37 +238,87 @@ O Comercial não precisa mudar (ele não espera nada de volta além do status).
   (saldo + reservado + em OC aberta), `POST /integracao/estoque/saida-producao` (idempotente por
   `pedido + sku + plano`).
 - **De-para sku do Núcleo ↔ produto do Compras**: hoje mora no Núcleo (`custo_fonte`, só componentes,
-  cadastrado à mão). Proposta: o Compras ganha a coluna `produtos.nucleo_sku` (componentes **e tecidos
-  por cor**, ex. `t123:BEGE`), preenchida por tela com sugestão automática por nome, e o `/custos` do
-  Compras já devolve `nucleo_sku` — o Núcleo passa a casar por ela e o `custo_fonte` vira legado. Um
-  de-para, dois usos (custo e estoque).
+  cadastrado à mão). Decisão 7: o produto do Compras é por **coleção × cor**. O Compras ganha a coluna
+  `produtos.nucleo_sku` (componente `cf_base_duo`; tecido por cor `t123:BEGE`), preenchida por tela com
+  sugestão automática por nome, e o `/custos` do Compras já devolve `nucleo_sku` — o Núcleo passa a
+  casar por ela e o `custo_fonte` vira legado. Um de-para, dois usos (custo e estoque).
 - **Pendências do roadmap que entram no caminho**: `produtos.sku` UNIQUE + POST de produto; fase 2
   (SC/OC a partir da sugestão); fase 5 (consolidar por fornecedor/UF) nasce junto com a tela de SC;
   histórico de movimentações do Bling (decisão); estoque por CNPJ (decisão); write-back Bling (fase 6,
   depois). Docs corrigidos (roadmap e CLAUDE.md).
 
-### 3.4 Solicitações e Comunicados — o canal humano
+### 3.4 Solicitações e Comunicados — o canal humano (decisões de 05/11)
 
-O módulo da espec de 28/10 segue como proposto, com uma ligação: a requisição de compra **estruturada**
-mora no Compras (§3.3) e **aparece no módulo de Solicitações** como uma solicitação do tipo *material*
-para o departamento Compras, com link para a SC — assim o comprador tem a fila dele no Compras e todo
-mundo vê o andamento no lugar único, sem redigitar. O mesmo vale para "falta de material" avulsa que o
-operador da fábrica abre à mão (vira SC manual). Precisa das 8 decisões da espec anterior (decisão 8
-abaixo).
+O módulo da espec de 28/10 segue como proposto, com as decisões fechadas hoje:
+- **Módulo novo no hub** (porta 3080, banco `solicitacoes_db`, stack da Logística/RH), card
+  "Solicitações" com badge.
+- **Departamentos iniciais (10):** Comercial · Fábrica/PCP · Expedição · Logística/Instalação · Compras ·
+  Financeiro · Fiscal · RH · TI · Diretoria (responsável de cada um no cadastro).
+- **Comunicado:** publicam gerência/diretoria (para todos) e o responsável de cada departamento (para o
+  próprio setor). Leitura obrigatória **só avisa e insiste** (banner fixo até "Li e entendi"; o autor vê
+  quem não leu) — nunca bloqueia o app/painel.
+- **Prazos de alerta:** urgente sem dono em **2 h úteis** avisa responsável + diretoria; concluída sem
+  confirmação fecha sozinha em **3 dias** (ambos editáveis no cadastro).
+- **Notificação:** e-mail + sino no hub + push no app do técnico. WhatsApp fica para uma 2ª etapa.
+- **App do técnico: formulário DENTRO do app, offline** (como o check list da v5.34: fila no IndexedDB +
+  sync; fotos/áudio como anexo), não só um link. É a parte mais cara da fase.
+- **Login pelo módulo de Credenciais** (§3.5): Solicitações nasce nele.
+- A requisição de compra **estruturada** mora no Compras (§3.3, decisão 3) e **aparece no módulo** como
+  solicitação do tipo *material* para Compras, com link para a SC — o comprador tem a fila dele no
+  Compras e todo mundo vê o andamento num lugar só. "Falta de material" aberta à mão pelo operador vira
+  SC manual.
+
+### 3.5 Credenciais — login único, migração um a um (decisão nova de 05/11)
+
+Hoje cada sistema tem a própria tabela de usuários e a própria senha (8 cadastros; sem SSO — achado
+também na espec do espelho VPS). Decisão: **módulo de Credenciais** no hub (porta própria, banco
+`credenciais_db`): usuários, papéis **por módulo** (admin no Compras, consultor no Comercial, técnico na
+Logística…), senha, 2FA, primeiro acesso/redefinição, API de login (`POST /login` → token assinado) e
+de validação (`GET /me`, chave pública), auditoria. **Estratégia gradual:** o módulo de Solicitações
+nasce nele; os sistemas existentes trocam o login **um por vez**, cada um importando os usuários que já
+tem (mesmo e-mail = mesma pessoa) e aceitando os dois tokens durante a transição (o próprio e o das
+Credenciais). Ordem sugerida de migração: Logística (hub e app do técnico) → Comercial → Fábrica →
+Compras → RH → Financeiro → Fiscal → Núcleo. Nenhum usuário perde acesso: a senha antiga vale até a
+pessoa definir a nova no módulo.
+
+### 3.6 Estoque próprio no Compras, migrando do Bling aos poucos (decisão 5)
+
+O Compras já tem `estoque_saldo`/`estoque_movimentacoes`, mas só espelha o saldo do Bling. Decisão:
+virar **módulo de estoque de verdade** dentro do Compras, integrado ao Bling nos dois sentidos para
+migrar sem corte: (1) movimentação própria (entrada por NF, saída de produção vinda do PCP, ajuste,
+inventário com contagem), (2) sincronização Bling → Compras continua (saldo de referência) e nasce
+**Compras → Bling** (write-back das movimentações, fase 6 do blueprint), (3) por item, um marcador
+"fonte da verdade = Bling | Compras" para migrar categoria a categoria (ex.: tecidos primeiro), (4)
+tela de divergência Bling × Compras por item. Depende da requisição/saída de produção (§3.3) para ter
+movimento real; o histórico de movimentações do Bling é importado uma vez no início.
 
 ---
 
-## 4. Fases (cada uma entrega algo usável)
+## 4. Fases e ORDEM de execução (decisão 9: do que gasta menos tokens para o que gasta mais, com
+## as dependências respeitadas)
 
-| Fase | O que entra | O que o cliente ganha | Esforço |
-|---|---|---|---|
-| **F0 — Contratos e correções** | Núcleo `/lista-materiais` (+ correções do §1.2); PCP grava `spec_nucleo` na liberação e preenche `produto_sku` nas 35 estruturas; defeitos do §1.5 | Nada visível ainda, mas a peça chega inteira ao PCP e a lista de materiais existe por chamada | 2 conversas |
-| **F1 — Necessidade de materiais** | Tela Planejamento no PCP (tecido por coleção × cor, perfis em barras, tubos, componentes, por pedido ou lote, CSV/impressão); Ficha com a lista de materiais da peça; "Novo pedido" com produto/coleção/cor/opções do Núcleo (cortina incluída) | **O pedido de cortina entra e o consumo sai**; separação de estoque por lote de pedidos | 3 conversas |
-| **F2 — Requisição ao Compras** | Compras: SC + rotas de serviço + de-para por sku/cor + saldo; PCP: coluna "saldo/falta" e botão "Requisitar" com outbox; baixa de estoque na saída de produção; sugestão do cockpit gera SC | Fábrica pede ao Compras sem WhatsApp; Compras vê falta real e consumo real | 3–4 conversas |
-| **F3 — Planejamento de carga** | Capacidade por setor, calendário/sequenciamento por data prometida, prioridade, alertas | "Planejar" de verdade: o que cabe na semana e o que vai atrasar | 2–3 conversas |
-| **F4 — Solicitações/Comunicados** | O módulo da espec de 28/10 (v1) com a SC do Compras espelhada como solicitação | Canal único entre setores | 3–4 conversas (depende das 8 decisões) |
+Estimativa de custo em "conversas" (uma conversa ≈ uma sessão de trabalho com levantamento, código,
+testes, prova de tela, deploy e docs). As dependências estão na coluna própria; a ordem final é a
+sequência da tabela.
 
-F0 + F1 são independentes do Compras e já resolvem o relato principal. F2 depende das decisões 3 a 6.
+| # | Fase | O que entra | Depende de | Custo |
+|---|---|---|---|---|
+| **1** | **P0 — Contratos e correções** | Núcleo `/lista-materiais` (só quantidades, com adicionais e tecido por cor) + correções do §1.2 e §1.5; PCP grava `spec_nucleo` na liberação, preenche `produto_sku` nas 35 estruturas e **remove o "Novo pedido" manual**; Ficha mostra a lista de materiais da peça | — | 2 |
+| **2** | **P2 — Planejamento de carga** | Capacidade por setor (cadastro), calendário semanal sequenciado por data prometida (`data_cliente`) e prioridade, alerta de setor estourado | — (usa o que a fila já tem) | 2–3 |
+| **3** | **P1 — Necessidade de materiais** | Tela Planejamento no PCP: tecido por coleção × cor × rolo, perfis em barras consolidadas, tubos, componentes, por pedido ou lote ("liberado e ainda não cortou" por padrão), CSV/impressão | P0 | 3 |
+| **4** | **P3 — Requisição ao Compras** | Compras: `solicitacoes_compra` + tela do comprador (agrupar por fornecedor, gerar OC) + rotas de serviço (SC, saldo por sku, saída de produção) + `produtos.nucleo_sku` por coleção × cor + `sku` UNIQUE; PCP: coluna saldo/falta, botão "Requisitar" com outbox, baixa na 1ª bipagem (corte ou expedição) + manual; sugestão do cockpit gera SC; docs do Compras corrigidos | P1 | 3–4 |
+| **5** | **P4 — Credenciais** | Módulo novo: usuários, papéis por módulo, senha/2FA/primeiro acesso, API de login e validação, auditoria; migração da Logística (hub + app) como 1º sistema | — | 3–4 |
+| **6** | **P6 — Estoque próprio no Compras + Bling nos dois sentidos** | Movimentação própria, inventário, write-back ao Bling, marcador "fonte da verdade" por item, tela de divergência, importação do histórico do Bling | P3 | 3–4 |
+| **7** | **P5 — Solicitações/Comunicados** | Módulo novo no hub (10 departamentos, comunicados, prazos, e-mail + sino + push), **formulário offline no app do técnico**, SC do Compras espelhada como solicitação | P4 (login) · P3 (espelho da SC) | 4–5 |
+
+Observações sobre a ordem:
+- P2 (carga) ficou antes de P1 (necessidade) porque custa menos e não depende de nada; se preferir
+  atacar primeiro o relato da cortina, basta trocar as posições 2 e 3 — nada quebra.
+- P4 (Credenciais) e P6 (Estoque) têm custo parecido; P4 vem antes porque P5 depende dele, e P5 é a
+  mais cara (o formulário offline no app é o que pesa).
+- Os 8 sistemas migram para o login único **depois** de P4, um por conversa curta cada (não contados
+  acima): Comercial → Fábrica → Compras → RH → Financeiro → Fiscal → Núcleo.
+- P0 e P1 são independentes do Compras e já entregam "o pedido de cortina entra e o consumo sai".
 
 ---
 
@@ -283,26 +337,29 @@ F0 + F1 são independentes do Compras e já resolvem o relato principal. F2 depe
 
 ---
 
-## 6. Decisões para o cliente
+## 6. Decisões do cliente (05/11/2026)
 
-1. **Fonte da lista de materiais:** só o Núcleo (recomendado — fórmula uma vez) **ou** manter também as
-   fórmulas de tecido do PCP como "segunda opinião"?
-2. **Pedido manual no PCP com produto do Núcleo:** quem pode criar (PCP, gerência)? Ele precisa virar
-   pedido no Comercial depois, ou fica só na fábrica (reposição, retrabalho, amostra)?
-3. **Onde mora a requisição de compra:** registro estruturado no **Compras** (recomendado) espelhado
-   no módulo de Solicitações, **ou** tudo dentro do módulo de Solicitações?
-4. **Baixa de estoque na produção:** ao registrar o plano de corte, na bipagem de início do setor de
-   corte, ou manual pelo Compras?
-5. **O saldo que o planejamento usa** é o espelho do Bling no Compras (hoje) — aceita, ou quer migrar o
-   estoque para o Compras antes (fase 6 do blueprint, write-back)?
-6. **Horizonte e aprovação:** o planejamento é por semana? A SC do PCP vai direto para a fila do
-   comprador ou passa por aprovação (gerência)?
-7. **Tecido por cor no Compras:** cadastrar produto por coleção × cor (recomendado — é como se compra)
-   ou por coleção só?
-8. **As 8 decisões da espec de Solicitações/Comunicados** (28/10) — sem elas a F4 não começa.
-9. **Ordem:** F0 → F1 → F2 → F3 → F4 (proposta) ou puxar a F4 (Solicitações) antes da F2?
+1. **Fonte da lista de materiais:** **só o Núcleo** — o que for editado lá reflete no PCP. O PCP guarda
+   só as regras de corte e o roteiro, que são de fabricação.
+2. **Pedido manual no PCP:** **removido**; a entrada de pedidos é só pelo Comercial.
+3. **Requisição de compra:** registro estruturado **no Compras**, espelhado no módulo de Solicitações.
+4. **Baixa de estoque:** **na bipagem do corte e também manual** — a infraestrutura física dos leitores
+   ainda não está pronta e, por enquanto, possivelmente só a bipagem final da expedição vai funcionar;
+   o mecanismo tem de ser flexível (§3.2 e).
+5. **Estoque:** segue no Bling por ora; **módulo de estoque no Compras integrado ao Bling** para migrar
+   aos poucos (§3.6).
+6. **Horizonte:** padrão "tudo que está liberado e ainda não cortou". **Aprovação:** a requisição vai
+   **direto para o comprador**.
+7. **Produto do Compras por coleção × cor.**
+8. **Solicitações/Comunicados** (remodeladas e respondidas em 05/11): módulo novo no hub; 10
+   departamentos (Comercial · Fábrica/PCP · Expedição · Logística/Instalação · Compras · Financeiro ·
+   Fiscal · RH · TI · Diretoria); publicam gerência/diretoria + responsável do departamento; alertas 2 h
+   e 3 dias; **formulário offline dentro do app do técnico**; e-mail + sino (WhatsApp depois); leitura
+   obrigatória só avisa e insiste; **login pelo módulo de Credenciais** (novo — §3.5), com migração dos
+   sistemas existentes um a um.
+9. **Ordem:** do que gasta menos tokens para o que gasta mais, com dependências — tabela do §4.
 
-Com as decisões 1 e 2 a F0 e a F1 começam; a F2 precisa de 3 a 7.
+**Próximo passo:** começar a P0 (Núcleo `/lista-materiais` + PCP recebendo a especificação).
 
 ---
 
