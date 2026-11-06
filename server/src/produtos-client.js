@@ -69,6 +69,35 @@ export async function buscarVariantesCorte() {
   }
 }
 
+// ─── Lista de materiais de produção (v14.88 do Núcleo) — P0 do planejamento ─
+// Habilitada quando a chave de serviço existe; PRODUTOS_LISTA_MATERIAIS_ENABLED=0
+// desliga sem tirar a chave (kill switch).
+export const listaMateriaisHabilitado = () =>
+  Boolean(chave()) && process.env.PRODUTOS_LISTA_MATERIAIS_ENABLED !== '0';
+
+/**
+ * Lista de materiais EM LOTE (1 chamada por pedido/tela — sem cache).
+ * `pecas` = o mesmo corpo do /relatorio-orcamento ({ ref, qtd, ...campos do
+ * /precificar }, medidas em METROS). Retorna o `data` do Núcleo (sem
+ * dinheiro) ou null em qualquer erro.
+ */
+export async function buscarListaMateriais(pecas) {
+  if (!listaMateriaisHabilitado() || !Array.isArray(pecas) || !pecas.length) return null;
+  try {
+    const resp = await fetch(`${base()}/lista-materiais`, {
+      method: 'POST',
+      headers: { 'X-Service-Key': chave(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pecas }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    return j && j.data && typeof j.data === 'object' ? j.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * BOM de um produto para uma medida (METROS). Retorna
  * { custo_total, itens: [{ sku, descricao, unidade, quantidade, custo_unitario, custo_total }] }

@@ -81,10 +81,10 @@ function renderManual() {
     )}
     Obs.: a expedição oficial do dia a dia pode ser feita também pela tela de Expedição da Logística — os dois convivem.`)}
 
-  ${S('🔎 Buscar / ✏️ Editar Pedido / ➕ Novo Pedido', `${ul(
+  ${S('🔎 Buscar / ✏️ Editar Pedido / ➕ Entrada de pedidos', `${ul(
       `${b('Buscar')}: por produto, nº do pedido ou observação (o QR da etiqueta lido no celular cai aqui já filtrado).`,
       `${b('Editar Pedido')}: altera todos os itens/peças de um pedido de uma vez (datas, tipo, status, concluir/reabrir).`,
-      `${b('Novo Pedido')}: cadastro manual (fallback de sempre) — produto, quantidade, datas, medidas; importação por Excel/PDF continua no topo.`
+      `${b('Entrada de pedidos')}: SÓ pelo Comercial (aba Pedidos Comercial → Liberar produção) — o cadastro manual e a importação por Excel/PDF saíram do PCP (decisão de 05/11/2026); reposição, retrabalho e amostra entram como pedido no Comercial, que já traz a especificação completa da peça.`
     )}`)}
 
   ${S('📊 Indicadores', 'Números da produção no período: concluídos, atraso médio, distribuição por tipo/status.')}

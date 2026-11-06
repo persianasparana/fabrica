@@ -9,7 +9,6 @@
 <link rel="apple-touch-icon" href="assets/brand/logos/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/fonts/manrope.css">
 <link rel="stylesheet" href="assets/css/style.css">
-<script src="assets/vendor/pdf.min.js" defer></script>
 <script src="assets/vendor/qrcode.js" defer></script>
 <script src="assets/js/ordem-corte-plano.js" defer></script>
 <script src="assets/js/app.js" defer></script>
@@ -96,10 +95,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span>Usuários</span>
     </a>
-    <a onclick="goTo('novo')" data-page="novo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      <span>Novo Pedido</span>
-    </a>
     <a onclick="goTo('manual')" data-page="manual">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       <span>Manual</span>
@@ -119,11 +114,7 @@
     <div class="today" id="today-label"></div>
     <button class="btn btn-outline" onclick="atualizarDados()" style="font-size:11px" title="Recarregar dados do servidor">↻ Atualizar</button>
     <button class="btn btn-outline" onclick="exportXLSX()" style="font-size:11px">⬇ Exportar CSV</button>
-    <button class="btn btn-outline" onclick="document.getElementById('import-file').click()" style="font-size:11px">⬆ Importar Excel</button>
-    <button class="btn btn-outline" onclick="document.getElementById('import-pdf-file').click()" style="font-size:11px;color:#C1212D;border-color:#C1212D">📄 Importar PDF</button>
-    <input type="file" id="import-pdf-file" accept=".pdf" style="display:none" onchange="importPDFDirect(event)">
-    <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFile(event)">
-    <button class="btn btn-red" id="btn-novo-topo" onclick="openModal()">+ Novo Pedido</button>
+    <a class="btn btn-red" onclick="goTo('comercial')" title="A entrada de pedidos é pelo Comercial: libere a produção na aba Pedidos Comercial">+ Pedido (Comercial)</a>
   </div>
 
   <div id="content">
@@ -489,139 +480,10 @@
     </div>
 
     <!-- NOVO PEDIDO -->
-    <div class="section" id="sec-novo">
-      <div class="card" style="max-width:680px">
-        <div class="card-title">1 · Dados do pedido</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Nº Pedido *</label><input type="text" id="fn-pedido" placeholder="Ex: 18500"></div>
-          <div class="form-group"><label>Data do cliente *</label><input type="date" id="fn-data-cliente"></div>
-          <div class="form-group"><label>Chegada PCP</label><input type="date" id="fn-chegada"></div>
-          <div class="form-group"><label>Prev. produção</label><input type="date" id="fn-prev-prod"></div>
-          <div class="form-group"><label>Tipo</label>
-            <select id="fn-tipo"><option>Carregando…</option></select>
-          </div>
-          <div class="form-group"><label>Motivo atraso</label>
-            <select id="fn-motivo">
-              <option value=""></option>
-              <option>Falta de material</option><option>Defeito de material</option>
-              <option>Ausência de colaborador</option><option>Pedido esquecido</option>
-              <option>Solicitação do cliente</option><option>Aguardando material</option>
-              <option>Aviso ao cliente pendente</option><option>Peça showroom</option><option>Outros</option>
-            </select>
-          </div>
-          <div class="form-group" style="grid-column:1/-1"><label>Observações do pedido</label><textarea id="fn-obs" rows="2"></textarea></div>
-        </div>
-      </div>
-
-      <div class="card" style="max-width:680px">
-        <div class="card-title">2 · Produtos do pedido</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
-          Selecione o produto e <strong>bipe a etiqueta da peça</strong> (gerada pelo sistema de pedidos) — a leitura adiciona o produto automaticamente. Cada produto/etiqueta é individual. Sem leitor, deixe a etiqueta em branco e vincule depois.
-        </div>
-        <div class="form-grid">
-          <div class="form-group" style="grid-column:1/-1"><label>Produto <span style="font-weight:400;text-transform:none;color:var(--text3)">(da Estrutura do Produto)</span></label>
-            <select id="fn-produto" onchange="toggleProdutoLivre();fnAtualizarHorizontal()"><option value="">Carregando...</option></select>
-            <input type="text" id="fn-produto-livre" placeholder="Digite o nome do produto" style="display:none;margin-top:6px" oninput="fnAtualizarHorizontal()">
-          </div>
-          <div class="form-group"><label>Largura (m)</label>
-            <input type="number" step="0.001" id="fn-larg" placeholder="ex: 1,54"></div>
-          <div class="form-group"><label>Altura (m)</label>
-            <input type="number" step="0.001" id="fn-alt" placeholder="ex: 1,31"></div>
-          <div class="form-group" id="fn-horiz-group" style="display:none;grid-column:1/-1">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Produto horizontal (PH 25 / PH 50) — informe nº de furos e modelo.</div>
-            <div class="form-grid" style="margin:0">
-              <div class="form-group"><label>Nº de furos</label><input type="number" step="1" id="fn-furos" placeholder="furos"></div>
-              <div class="form-group"><label>Modelo</label><input type="text" id="fn-modelo" placeholder="modelo"></div>
-            </div>
-          </div>
-          <div class="form-group"><label>Etiqueta da peça (bipe aqui)</label>
-            <input type="text" id="fn-etiqueta" placeholder="Aguardando leitura..." autocomplete="off"
-              style="font-family:monospace;letter-spacing:.05em;border-color:var(--red)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarProdutoPedido();}">
-          </div>
-          <div class="form-group"><label>&nbsp;</label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px;padding-top:9px">
-              <input type="checkbox" id="fn-especial" style="width:15px;height:15px;accent-color:var(--red)">
-              <span>★ <strong>Peça especial</strong> — atenção ao prazo</span>
-            </label>
-          </div>
-        </div>
-        <button class="btn btn-black" style="margin-top:10px" onclick="adicionarProdutoPedido()">+ Adicionar produto</button>
-
-        <div id="fn-lista-produtos" style="margin-top:14px"></div>
-      </div>
-
-      <div style="max-width:680px;display:flex;gap:8px">
-        <button class="btn btn-red" onclick="salvarNovo()" id="fn-salvar">Salvar pedido</button>
-        <button class="btn btn-outline" onclick="limparForm()">Limpar tudo</button>
-      </div>
-    </div>
-
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /app -->
 
-
-
-<!-- JSON PASTE MODAL -->
-<div id="json-paste-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:10px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)">
-    <div style="background:var(--black);color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:14px;font-weight:700">Importar via JSON (PDF lido no chat)</div>
-        <div style="font-size:11px;color:#aaa;margin-top:2px">Cole o JSON gerado pelo Claude a partir do PDF</div>
-      </div>
-      <button onclick="closeJsonPaste()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">✕</button>
-    </div>
-    <div style="padding:20px">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
-        1. Envie o PDF no chat com o Claude<br>
-        2. Peça: <em style="color:var(--red)">"extraia os dados para o PCP"</em><br>
-        3. Copie o JSON retornado e cole abaixo:
-      </div>
-      <textarea id="json-paste-input" rows="10"
-        style="width:100%;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;font-family:monospace;resize:vertical;background:var(--gray-bg);color:var(--text)"
-        placeholder='{"pedido":"19213","data_cliente":"2026-06-24","cliente":"Deise Vaz Berg do Prado","itens":[{"produto":"ROLO SOFT SHEER","qnt":1,"observacoes":"..."}]}'></textarea>
-      <div id="json-paste-error" style="color:var(--red);font-size:11px;margin-top:6px;display:none"></div>
-    </div>
-    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closeJsonPaste()">Cancelar</button>
-      <button class="btn btn-red" onclick="processJsonPaste()">✓ Processar e revisar</button>
-    </div>
-  </div>
-</div>
-
-<!-- PDF IMPORT MODAL -->
-<div id="pdf-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center">
-  <div id="pdf-modal" style="background:var(--surface);border-radius:10px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)">
-    <div style="background:var(--black);color:#fff;padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:14px;font-weight:700">Importar Ordem de Produção — PDF</div>
-        <div id="pdf-modal-sub" style="font-size:11px;color:#aaa;margin-top:2px"></div>
-      </div>
-      <button onclick="closePdfModal()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">✕</button>
-    </div>
-    <div id="pdf-modal-body" style="padding:20px">
-      <div id="pdf-loading" style="text-align:center;padding:40px 20px">
-        <div style="font-size:28px;margin-bottom:12px">⏳</div>
-        <div style="font-size:13px;color:var(--text2)" id="pdf-loading-msg">Lendo o PDF com IA...</div>
-      </div>
-      <div id="pdf-result" style="display:none">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Dados extraídos do PDF. Revise e ajuste antes de salvar:</div>
-        <div id="pdf-items-container"></div>
-        <div style="margin-top:16px;padding:12px;background:var(--gray-bg);border-radius:6px;font-size:11px;color:var(--text3)" id="pdf-raw-obs"></div>
-      </div>
-      <div id="pdf-error" style="display:none;text-align:center;padding:30px;color:var(--red)">
-        <div style="font-size:24px;margin-bottom:8px">⚠</div>
-        <div id="pdf-error-msg" style="font-size:13px"></div>
-      </div>
-    </div>
-    <div id="pdf-modal-footer" style="display:none;padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closePdfModal()">Cancelar</button>
-      <button class="btn btn-red" onclick="confirmarPdfImport()">✓ Confirmar e salvar todos</button>
-    </div>
-  </div>
-</div>
 
 
 <!-- MODAL editar/ver -->

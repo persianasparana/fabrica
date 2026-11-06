@@ -68,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','novo','tipos','comercial','etiquetas','expedicao'];
+const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','tipos','comercial','etiquetas','expedicao'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -84,8 +84,6 @@ function aplicarPermissoes() {
     if (aba === 'manual') return; // o Manual é visível pra todos os logados
     a.style.display = podeVer(aba) ? '' : 'none';
   });
-  const nb = document.getElementById('btn-novo-topo');
-  if (nb) nb.style.display = podeEditar('novo') ? '' : 'none';
 }
 
 function primeiraAbaVisivel() {
@@ -126,7 +124,6 @@ async function carregarDados() {
   SETORES = (setores.data || []).map((s) => Object.assign({}, s, { id: Number(s.id) }));
   TIPOS = (tipos.data || []).map((t) => Object.assign({}, t, { id: Number(t.id) }));
   popularFiltroStatus();
-  popularSelectTipos();
 }
 
 async function atualizarDados() {
@@ -217,7 +214,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',novo:'Novo Pedido',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -239,7 +236,6 @@ function goTo(page) {
   if (page === 'tipos') renderTiposAdmin();
   if (page === 'setores') renderSetoresAdmin();
   if (page === 'usuarios') renderUsuariosAdmin();
-  if (page === 'novo') renderProdutosPedido();
   if (page === 'pedido') setTimeout(()=>document.getElementById('ped-busca')?.focus(), 80);
   if (page === 'bip') { popularSetoresBip(); setBipEvento(bipEvento); setTimeout(()=>{ const el=document.getElementById('bip-input'); if(el) el.focus(); },100); }
 }
@@ -522,7 +518,9 @@ function renderFila() {
     const sc = statusClass(s);
     const done = pecasConcluidas(item), tot = pecasTotal(item);
     const estrPend = !item.produto_id && item.comercial_item_id
-      ? ' <span class="st st-atencao" style="font-size:9px" title="Nenhuma regra de estrutura casou com a spec — escolha a estrutura no item ou ajuste as regras (aba Estrutura do Produto)">estrutura pendente</span>'
+      ? (linhaSemEstruturaLocal(item.produto_sku)
+        ? ' <span class="st st-gray" style="font-size:9px" title="Linha sem Estrutura do Produto local (cortina, cortina fixa, celular, vertical, toldo): cortes e lista de materiais vêm do Núcleo de Produtos; roteiro por linha">pelo Núcleo</span>'
+        : ' <span class="st st-atencao" style="font-size:9px" title="Nenhuma regra de estrutura casou com a spec — escolha a estrutura no item ou ajuste as regras (aba Estrutura do Produto)">estrutura pendente</span>')
       : '';
     const desenho = item.desenho_fabricacao
       ? ' <span class="st st-gray" style="font-size:9px" title="Pedido possui desenho de fabricação">📐 desenho</span>'
@@ -1005,7 +1003,6 @@ async function criarTipo() {
 async function recarregarTipos() {
   const r = await api('pcp/tipos');
   TIPOS = (r.data || []).map((t) => Object.assign({}, t, { id: Number(t.id) }));
-  popularSelectTipos();
 }
 
 function editarTipo(id) {
@@ -1206,6 +1203,12 @@ function cmParaM(cm) {
   if (cm == null || cm === '' || !Number.isFinite(Number(cm))) return '';
   return Math.round(Number(cm) * 100) / 10000; // 154 cm → 1.54 m
 }
+// P0 do planejamento — linhas cujas peças NÃO têm Estrutura do Produto local
+// (espelho de server/src/nucleo-spec.js): cortes/materiais vêm do Núcleo.
+function linhaSemEstruturaLocal(sku) {
+  return /^(fixa_|cortina|celular|vertical|toldo)/i.test(String(sku || ''));
+}
+
 function ehHorizontal(item) {
   if (!item) return false;
   const fam = String(item.familia || '').toUpperCase();
@@ -1430,6 +1433,19 @@ function openDetail(id) {
 
   document.getElementById('modal-body-content').innerHTML = `
     <div class="form-group"><label>Produto</label><input type="text" id="ed-produto" list="produtos-datalist" value="${esc(item.produto)}"></div>
+    <div class="form-group"><label>Estrutura do Produto <span style="font-weight:400;text-transform:none;color:var(--text3)">(cortes do PCP)</span></label>
+      <select id="ed-estrutura" ${linhaSemEstruturaLocal(item.produto_sku) && !item.produto_id ? 'title="Linha sem estrutura local: cortes e materiais vêm do Núcleo de Produtos"' : ''}>
+        <option value="">${linhaSemEstruturaLocal(item.produto_sku) ? '— pelo Núcleo (linha sem estrutura local) —' : '— sem estrutura —'}</option>
+        ${ESTRUTURA.map(p => `<option value="${p.id}" ${Number(item.produto_id) === Number(p.id) ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>SKU no Núcleo de Produtos</label><input type="text" id="ed-produto-sku" value="${esc(item.produto_sku || '')}" placeholder="ex.: soft, premium47, cortina" style="font-family:monospace" maxlength="64"></div>
+    <div class="form-group"><label>Coleção</label><input type="text" id="ed-colecao" value="${esc(item.colecao || '')}" maxlength="120"></div>
+    <div class="form-group"><label>Cor do tecido</label><input type="text" id="ed-cor-tecido" value="${esc(item.cor_tecido || '')}" maxlength="120"></div>
+    <div class="form-group"><label>Cor do perfil</label><input type="text" id="ed-cor-perfil" value="${esc(item.cor_perfil || '')}" maxlength="120"></div>
+    <div class="form-group"><label>Acionamento</label><input type="text" id="ed-acionamento" value="${esc(item.acionamento || '')}" maxlength="120"></div>
+    <div class="form-group"><label>Ambiente</label><input type="text" id="ed-ambiente" value="${esc(item.ambiente || '')}" maxlength="120"></div>
+    ${item.tem_spec ? '<div class="form-group" style="grid-column:1/-1;font-size:11px;color:var(--text3)">✔ Especificação da venda recebida do Comercial (tecido, cores, acabamento, motorização, cortina/PH50/painel…) — alimenta a lista de materiais da Ficha de Produção.</div>' : '<div class="form-group" style="grid-column:1/-1;font-size:11px;color:var(--amber,#b45309)">⚠ Item sem a especificação do Comercial (anterior ao planejamento ou entrada antiga): a lista de materiais usa só produto/coleção/medidas.</div>'}
     <div class="form-group"><label>Nº Pedido</label><input type="text" id="ed-pedido" value="${esc(item.pedido)}"></div>
     <div class="form-group"><label>Quantidade</label><input type="number" id="ed-qnt" value="${item.qnt}" min="1"></div>
     <div class="form-group"><label>Data do cliente</label><input type="date" id="ed-data-cliente" value="${item.data_cliente||''}"></div>
@@ -1513,9 +1529,6 @@ function reabrirPeca(id) {
   if (confirm('Reabrir esta peça (remover a baixa)?')) atualizarPeca(id, { conclusao: null }, 'Peça reaberta.');
 }
 
-function openModal() {
-  goTo('novo');
-}
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   editingId = null;
@@ -1528,10 +1541,20 @@ async function salvarEdicao() {
   const item = DB.find(i => i.id === editingId);
   if (!item) return;
   const produtoNome = document.getElementById('ed-produto').value.trim().toUpperCase();
-  const matchEstrutura = ESTRUTURA.find(p => p.nome.toUpperCase() === produtoNome);
+  // P0 do planejamento — DEFEITO fechado: o save casava a estrutura pelo NOME
+  // digitado e, como o nome do item do Comercial nunca é o nome da estrutura,
+  // regravava produto_id = null a cada edição (a peça virava "estrutura
+  // pendente" e a Ordem de Corte sumia). Agora a estrutura é o SELECT.
+  const estSel = document.getElementById('ed-estrutura').value;
   const payload = {
     produto: produtoNome,
-    produto_id: matchEstrutura ? matchEstrutura.id : null,
+    produto_id: estSel === '' ? null : Number(estSel),
+    produto_sku: document.getElementById('ed-produto-sku').value.trim() || null,
+    colecao: document.getElementById('ed-colecao').value.trim() || undefined,
+    cor_tecido: document.getElementById('ed-cor-tecido').value.trim() || undefined,
+    cor_perfil: document.getElementById('ed-cor-perfil').value.trim() || undefined,
+    acionamento: document.getElementById('ed-acionamento').value.trim() || undefined,
+    ambiente: document.getElementById('ed-ambiente').value.trim() || undefined,
     pedido: document.getElementById('ed-pedido').value.trim(),
     qnt: parseInt(document.getElementById('ed-qnt').value) || 1,
     data_cliente: document.getElementById('ed-data-cliente').value || null,
@@ -1566,162 +1589,6 @@ async function excluir(id) {
   } catch (e) { toast('Erro ao excluir: ' + e.message); }
 }
 
-// ─── NOVO PEDIDO ─────────────────────────────────────────────────────────────
-// ─── NOVO PEDIDO: vários produtos, etiqueta bipada na adição ─────────────────
-let pedidoProdutos = [];
-
-function adicionarProdutoPedido() {
-  const sel = document.getElementById('fn-produto');
-  const livre = document.getElementById('fn-produto-livre');
-  const etiquetaEl = document.getElementById('fn-etiqueta');
-  const produto = sel.value === '__livre__' ? livre.value.trim().toUpperCase() : sel.value;
-  let produto_id = null;
-  if (sel.value && sel.value !== '__livre__') {
-    const opt = sel.options[sel.selectedIndex];
-    produto_id = opt && opt.dataset.id ? Number(opt.dataset.id) : null;
-  }
-  if (!produto) { toast('Selecione o produto antes de adicionar.'); sel.focus(); return; }
-
-  const etiqueta = etiquetaEl.value.trim();
-  if (etiqueta && pedidoProdutos.some(p => p.etiqueta === etiqueta)) {
-    toast('Esta etiqueta já foi bipada neste pedido.');
-    etiquetaEl.select();
-    return;
-  }
-  if (etiqueta && DB.some(i => (i.pecas || []).some(p => p.cod_barras === etiqueta))) {
-    toast('Esta etiqueta já está vinculada a uma peça de outro pedido.');
-    etiquetaEl.select();
-    return;
-  }
-
-  const horiz = ehHorizontal({ produto, produto_id });
-  const largEl = document.getElementById('fn-larg');
-  const altEl = document.getElementById('fn-alt');
-  const largM = largEl && largEl.value !== '' ? Number(largEl.value) : null; // metros (como vem do pedido)
-  const altM = altEl && altEl.value !== '' ? Number(altEl.value) : null;
-  const larg = mParaCm(largM); // converte para cm (unidade do cálculo)
-  const alt = mParaCm(altM);
-  const medidas = {};
-  if (horiz) {
-    const furosEl = document.getElementById('fn-furos');
-    const modeloEl = document.getElementById('fn-modelo');
-    if (furosEl && furosEl.value !== '') medidas.furos = Number(furosEl.value);
-    if (modeloEl && modeloEl.value.trim()) medidas.modelo = modeloEl.value.trim();
-  }
-
-  if ((largM != null && largM > 10) || (altM != null && altM > 10))
-    toast('Atenção: a medida é em metros (ex.: 1,54). O valor parece estar em cm — confira.');
-
-  pedidoProdutos.push({
-    produto,
-    produto_id,
-    etiqueta: etiqueta || null,
-    especial: document.getElementById('fn-especial').checked,
-    largura: larg,
-    altura: alt,
-    medidas: Object.keys(medidas).length ? medidas : null,
-    horiz,
-  });
-  etiquetaEl.value = '';
-  document.getElementById('fn-especial').checked = false;
-  ['fn-larg', 'fn-alt', 'fn-furos', 'fn-modelo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  renderProdutosPedido();
-  etiquetaEl.focus(); // próxima leitura (mesmo produto selecionado = sequência rápida)
-}
-
-function removerProdutoPedido(ix) {
-  pedidoProdutos.splice(ix, 1);
-  renderProdutosPedido();
-}
-
-function renderProdutosPedido() {
-  const el = document.getElementById('fn-lista-produtos');
-  if (!el) return;
-  if (!pedidoProdutos.length) {
-    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Nenhum produto adicionado ainda.</div>';
-  } else {
-    el.innerHTML = `
-      <table style="width:100%">
-        <thead><tr><th style="width:30px">#</th><th>Produto</th><th>Etiqueta</th><th>Medidas</th><th style="width:70px"></th></tr></thead>
-        <tbody>
-          ${pedidoProdutos.map((p, ix) => {
-            const med = [];
-            if (p.largura != null || p.altura != null) med.push(`${p.largura != null ? p.largura : '?'}×${p.altura != null ? p.altura : '?'} cm`);
-            if (p.medidas) { if (p.medidas.furos != null) med.push(`${p.medidas.furos} furos`); if (p.medidas.modelo) med.push(esc(p.medidas.modelo)); }
-            const medTxt = med.length ? med.join(' · ') : '<span style="color:var(--text3)">—</span>';
-            return `
-            <tr>
-              <td>${ix + 1}</td>
-              <td class="td-produto">${p.especial ? '<span class="st st-especial">★ ESPECIAL</span> ' : ''}${esc(p.produto)}</td>
-              <td style="font-family:monospace">${p.etiqueta ? esc(p.etiqueta) : '<span style="color:var(--text3)">— vincular depois</span>'}</td>
-              <td style="font-size:11px">${medTxt}</td>
-              <td><button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="removerProdutoPedido(${ix})">remover</button></td>
-            </tr>`; }).join('')}
-        </tbody>
-      </table>`;
-  }
-  const btn = document.getElementById('fn-salvar');
-  if (btn) btn.textContent = pedidoProdutos.length
-    ? `Salvar pedido (${pedidoProdutos.length} produto${pedidoProdutos.length > 1 ? 's' : ''})`
-    : 'Salvar pedido';
-}
-
-async function salvarNovo() {
-  const pedido = document.getElementById('fn-pedido').value.trim();
-  const dataCliente = document.getElementById('fn-data-cliente').value;
-  if (!pedido || !dataCliente) { toast('Preencha o nº do pedido e a data do cliente.'); return; }
-  if (!pedidoProdutos.length) { toast('Adicione pelo menos um produto ao pedido.'); return; }
-
-  const base = {
-    pedido,
-    qnt: 1,
-    data_cliente: dataCliente,
-    chegada_pcp: document.getElementById('fn-chegada').value || null,
-    prev_producao: document.getElementById('fn-prev-prod').value || null,
-    tipo: document.getElementById('fn-tipo').value,
-    motivo_atraso: document.getElementById('fn-motivo').value,
-    observacoes: document.getElementById('fn-obs').value.trim(),
-  };
-  const itens = pedidoProdutos.map(p => Object.assign({}, base, {
-    produto: p.produto,
-    produto_id: p.produto_id,
-    especial: p.especial,
-    etiqueta: p.etiqueta || undefined,
-    largura: p.largura,
-    altura: p.altura,
-    medidas: p.medidas || undefined,
-  }));
-
-  try {
-    const r = await api('pcp/itens/lote', { method: 'POST', body: { itens } });
-    await carregarDados();
-    renderAll();
-    limparForm();
-    toast(`Pedido ${pedido} cadastrado com ${r.count} produto(s).`);
-    goTo('fila');
-  } catch (e) { toast('Erro ao cadastrar: ' + e.message); }
-}
-
-function limparForm() {
-  ['fn-pedido','fn-chegada','fn-prev-prod','fn-obs','fn-produto-livre','fn-etiqueta','fn-larg','fn-alt','fn-furos','fn-modelo'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('fn-produto').value = '';
-  document.getElementById('fn-produto-livre').style.display = 'none';
-  document.getElementById('fn-data-cliente').value = '';
-  document.getElementById('fn-tipo').value = tipoPadraoNome();
-  document.getElementById('fn-motivo').value = '';
-  document.getElementById('fn-especial').checked = false;
-  const hg = document.getElementById('fn-horiz-group'); if (hg) hg.style.display = 'none';
-  pedidoProdutos = [];
-  renderProdutosPedido();
-}
-
-function toggleProdutoLivre() {
-  const livre = document.getElementById('fn-produto-livre');
-  const mostrar = document.getElementById('fn-produto').value === '__livre__';
-  livre.style.display = mostrar ? 'block' : 'none';
-  if (mostrar) livre.focus();
-}
-
 // ─── EXPORT EXCEL ─────────────────────────────────────────────────────────────
 function exportXLSX() {
   const rows = [['Produto','Pedido','Qtd','Peças c/ baixa','Especial','Chegada PCP','Prev. Produção','Data Conclusão','Data Cliente','Tipo','Status','Motivo Atraso','Observações']];
@@ -1744,479 +1611,10 @@ function exportXLSX() {
 
 
 
-// ─── PDF DIRETO (pdf.js local) ───────────────────────────────────────────────
-async function importPDFDirect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  event.target.value = '';
-
-  // Show modal loading
-  document.getElementById('pdf-modal-overlay').style.display = 'flex';
-  document.getElementById('pdf-loading').style.display = 'block';
-  document.getElementById('pdf-result').style.display = 'none';
-  document.getElementById('pdf-error').style.display = 'none';
-  document.getElementById('pdf-modal-footer').style.display = 'none';
-  document.getElementById('pdf-modal-sub').textContent = file.name;
-  document.getElementById('pdf-loading-msg').textContent = 'Lendo o PDF...';
-  pdfParsedItems = [];
-
-  if (typeof pdfjsLib === 'undefined') {
-    showPdfError('Biblioteca PDF não carregou. Recarregue a página e tente novamente.');
-    return;
-  }
-
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      fullText += content.items.map(i => i.str).join(' ') + '\n';
-    }
-    document.getElementById('pdf-loading-msg').textContent = 'Processando dados...';
-    const parsed = parsePersianasOrder(fullText);
-    renderPdfPreview(parsed);
-  } catch(err) {
-    showPdfError('Erro ao ler o PDF: ' + err.message);
-  }
-}
-
-function parsePersianasOrder(text) {
-  // ── Normalizar texto ──
-  const t = text.replace(/\s+/g, ' ').trim();
-
-  // ── Número do pedido ──
-  let pedido = '';
-  const mPed = t.match(/N[uú]mero\s+F[aá]brica\s+(\d+)/i) ||
-               t.match(/Pedido\s+(\d{4,6})\b/) ||
-               t.match(/N[uú]mero\s+Revenda\s+(\d+)/i);
-  if (mPed) pedido = mPed[1];
-
-  // ── Data do pedido ──
-  let data_pedido = null;
-  const mDp = t.match(/Data\s+do\s+Pedido\s+(\d{2})\/(\d{2})\/(\d{2,4})/i);
-  if (mDp) data_pedido = normDate(mDp[1], mDp[2], mDp[3]);
-
-  // ── Prev. Saída = data cliente ──
-  let data_cliente = null;
-  const mPs = t.match(/Prev\.?\s*Sa[íi]da\s+(\d{2})\/(\d{2})\/(\d{2,4})/i) ||
-              t.match(/Prev\.\s+Sa[íi]da\s*:?\s*(\d{2})\/(\d{2})\/(\d{2,4})/i);
-  if (mPs) data_cliente = normDate(mPs[1], mPs[2], mPs[3]);
-
-  // ── Cliente ──
-  let cliente = '';
-  const mCli = t.match(/^\d{4}\s+-\s+(.+?)\s+CPF/i) ||
-               t.match(/(\d{4})\s+-\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Úa-zà-ú]+){1,6})\s+CPF/i);
-  if (mCli) cliente = (mCli[2] || mCli[1] || '').trim();
-
-  // ── Produtos ──
-  // Padrão: 001 Nome do produto MEDIDA ... QTD  VALOR  VALOR
-  // ex: "001 Cortina Rolô Soft 0,660 X 1,730 1,142 1 620,00 620,00"
-  const itens = [];
-  // Match product lines: starts with 3-digit sequence number
-  const prodRegex = /(\d{3})\s+([\w\sÀ-úãõâêîôûáéíóúàèìòùç,\.\/\-]+?)\s+([\d,]+\s+X\s+[\d,]+)?\s*([\d,]+)?\s+(\d+)\s+[\d\.,]+\s+[\d\.,]+/gi;
-  
-  let match;
-  while ((match = prodRegex.exec(t)) !== null) {
-    const rawNome = (match[2] || '').trim();
-    const medida = match[3] ? match[3].trim() : '';
-    const qnt = parseInt(match[5]) || 1;
-
-    // Look for the spec block after this product line
-    // Spec block typically contains: Modelo*, Acabamento*, Coleção*, etc.
-    const afterProduct = t.slice(match.index + match[0].length, match.index + match[0].length + 500);
-    const obsMatch = afterProduct.match(/Modelo\*?[:\s].+?(?=(?:\d{3}\s+[A-Z]|Valor Total|$))/is);
-    const obsRaw = obsMatch ? obsMatch[0].replace(/\s+/g, ' ').trim() : '';
-
-    // Simplify obs: extract key fields
-    const obs = buildObs(rawNome, medida, obsRaw);
-
-    // Simplify product name for PCP
-    const produto = simplifyProductName(rawNome, obsRaw);
-
-    itens.push({ produto, qnt, observacoes: obs });
-
-    // Check if there's a bando/trilho in spec — add as separate item
-    if (/bando/i.test(obsRaw)) {
-      const bandoColor = (obsRaw.match(/Cor\s+Perfil[^,]*:\s*([^,]+)/i)||[])[1]||'';
-      itens.push({ produto: 'BANDO', qnt, observacoes: `Bando Vision${bandoColor ? ' | ' + bandoColor.trim() : ''} | Ped. ${pedido}` });
-    }
-  }
-
-  // Fallback: if regex didn't catch products, try simpler approach
-  if (!itens.length) {
-    const lines = t.split(/\n/);
-    lines.forEach(line => {
-      const lm = line.match(/^(\d{3})\s+(.+?)\s+(\d+)\s+[\d\.,]+\s+[\d\.,]+\s*$/);
-      if (lm) {
-        itens.push({
-          produto: simplifyProductName(lm[2], ''),
-          qnt: parseInt(lm[3]) || 1,
-          observacoes: lm[2].trim()
-        });
-      }
-    });
-  }
-
-  return { pedido, data_pedido, data_cliente, cliente, itens };
-}
-
-function normDate(d, m, y) {
-  const year = y.length === 2 ? '20' + y : y;
-  return `${year}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-}
-
-function simplifyProductName(raw, obs) {
-  const r = raw.toUpperCase();
-  const o = (obs||'').toUpperCase();
-
-  if (/ROLO|ROL[Ô O]/.test(r)) {
-    if (/MOTORIZ/.test(r+o)) return 'ROLO MOTORIZADO';
-    if (/SOFT\s+SHEER|SHEER\s+STRIPE/.test(r+o)) return 'ROLO SOFT SHEER';
-    if (/SOFT/.test(r+o)) return 'ROLO SOFT LISA';
-    if (/SHEER/.test(r+o)) return 'ROLO SHEER';
-    if (/VISION/.test(r+o)) return 'ROLO VISION SHEER';
-    return 'ROLO LISA';
-  }
-  if (/CORTINA/.test(r)) {
-    if (/MOTORIZ/.test(r+o)) return 'CORTINA MOTORIZADA';
-    if (/FRANZIDO|FRANZIDA/.test(r+o)) return 'CORTINA FRANZIDO';
-    if (/GOMOS/.test(r+o)) return 'CORTINA GOMOS';
-    return 'CORTINA';
-  }
-  if (/PERSIANA|PH\s*25|PH25/.test(r)) return 'PH25MM';
-  if (/PH\s*50|PH50/.test(r)) return 'PH50MM';
-  if (/ROMANA/.test(r)) return 'ROMANA';
-  if (/TRILHO\s+VERT/.test(r)) return 'TRILHO VERTICAL';
-  if (/TRILHO\s+SU[IÍ]/.test(r)) return 'TRILHO SUÍÇO';
-  if (/BOX/.test(r)) return 'BOX70MM';
-  if (/BANDO/.test(r)) return 'BANDO';
-  if (/ROMANA/.test(r)) return 'ROMANA';
-  // fallback: clean up the raw name
-  return raw.replace(/\d+[,\.]\d+\s*[Xx]\s*\d+[,\.]\d+/g,'').replace(/\s+/g,' ').trim().toUpperCase().slice(0,30);
-}
-
-function buildObs(nome, medida, obsRaw) {
-  const parts = [];
-  if (medida) parts.push(medida);
-  // Extract key spec fields
-  const fields = [
-    ['Modelo', /Modelo\*?[:\s]+([^,\|]+)/i],
-    ['Cor', /Cor\s+Cole[çc][ãa]o[:\s]+([^,\|]+)/i],
-    ['Acabamento', /Acabamento\*?[:\s]+([^,\|]+)/i],
-    ['Acionamento', /Acionamento\*?[:\s]+([^,\|]+)/i],
-    ['Ambiente', /Ambiente[:\s]+([^,\|]+)/i],
-    ['Obs', /Observa[çc][õo]es[:\s]+([^,\|\.]+)/i],
-  ];
-  fields.forEach(([label, rx]) => {
-    const m = obsRaw.match(rx);
-    if (m && m[1].trim().length > 1) parts.push(m[1].trim());
-  });
-  return parts.join(' | ').slice(0, 200);
-}
-
-// ─── JSON PASTE (PDF lido no chat) ───────────────────────────────────────────
-function openJsonPaste() {
-  document.getElementById('json-paste-overlay').style.display = 'flex';
-  document.getElementById('json-paste-input').value = '';
-  document.getElementById('json-paste-error').style.display = 'none';
-  setTimeout(() => document.getElementById('json-paste-input').focus(), 50);
-}
-function closeJsonPaste() {
-  document.getElementById('json-paste-overlay').style.display = 'none';
-}
-document.getElementById('json-paste-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('json-paste-overlay')) closeJsonPaste();
-});
-
-function processJsonPaste() {
-  const raw = document.getElementById('json-paste-input').value.trim();
-  const errEl = document.getElementById('json-paste-error');
-  errEl.style.display = 'none';
-  if (!raw) { errEl.textContent = 'Cole o JSON antes de continuar.'; errEl.style.display = 'block'; return; }
-
-  let parsed;
-  try {
-    let clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    parsed = JSON.parse(clean);
-  } catch(e) {
-    errEl.textContent = 'JSON inválido. Verifique se copiou o texto completo.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  closeJsonPaste();
-  // Reuse the existing PDF preview modal
-  pdfParsedItems = (parsed.itens || []).map((item, i) => ({
-    _idx: i,
-    pedido: parsed.pedido || '',
-    data_pedido: parsed.data_pedido || null,
-    data_cliente: parsed.data_cliente || null,
-    cliente: parsed.cliente || '',
-    produto: (item.produto || '').toUpperCase(),
-    qnt: item.qnt || 1,
-    observacoes: item.observacoes || '',
-  }));
-
-  if (!pdfParsedItems.length) {
-    toast('Nenhum item encontrado no JSON.');
-    return;
-  }
-
-  // Show the PDF review modal with the parsed data
-  document.getElementById('pdf-modal-overlay').style.display = 'flex';
-  document.getElementById('pdf-loading').style.display = 'none';
-  document.getElementById('pdf-error').style.display = 'none';
-  document.getElementById('pdf-modal-sub').textContent = `Pedido ${parsed.pedido || ''} — ${parsed.cliente || ''}`;
-  renderPdfPreview(parsed);
-}
-
-// ─── IMPORT ───────────────────────────────────────────────────────────────────
-function importFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const name = file.name.toLowerCase();
-
-  if (name.endsWith('.csv')) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      parseCSV(e.target.result);
-      event.target.value = '';
-    };
-    reader.readAsText(file, 'UTF-8');
-    return;
-  }
-
-  // XLSX via SheetJS (vendorizado localmente — sem CDN)
-  const lerXlsx = () => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
-        // Try sheet named PLANEJAMENTO, else first sheet
-        const sheetName = wb.SheetNames.includes('PLANEJAMENTO') ? 'PLANEJAMENTO' : wb.SheetNames[0];
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
-        processImportedRows(rows, sheetName);
-      } catch(err) {
-        toast('Erro ao ler o arquivo. Tente exportar como CSV primeiro.');
-      }
-      event.target.value = '';
-    };
-    reader.readAsArrayBuffer(file);
-  };
-  if (window.XLSX) { lerXlsx(); return; }
-  const script = document.createElement('script');
-  script.src = 'assets/vendor/xlsx.full.min.js';
-  script.onload = lerXlsx;
-  script.onerror = () => toast('Falha ao carregar biblioteca de leitura. Use CSV.');
-  document.head.appendChild(script);
-}
-
-function fmtImportDate(val) {
-  if (!val) return null;
-  if (val instanceof Date) {
-    if (isNaN(val)) return null;
-    return val.toISOString().split('T')[0];
-  }
-  const s = String(val).trim();
-  if (!s || s === '—' || s === 'null') return null;
-  // DD/MM/YYYY
-  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
-  return null;
-}
-
-function processImportedRows(rows, sheetName) {
-  // Column name aliases (handles both our export and the original XLSX headers)
-  const alias = {
-    produto:       ['PRODUTO','Produto','produto'],
-    pedido:        ['PEDIDO','Pedido','pedido','PEDIDO  '],
-    qnt:           ['QNT','Qtd','qnt','QUANTIDADE','Quantidade'],
-    chegada_pcp:   ['CHEGADA PCP','Chegada PCP','chegada_pcp','CHEGADA_PCP'],
-    prev_inicial:  ['PREV. INICIAL','DATA PREVISTA INICIAL','prev_inicial'],
-    prev_producao: ['PREV. PRODUÇÃO','DATA PREVISTA\n PRODUÇÃO','prev_producao','Prev. produção'],
-    conclusao:     ['CONCLUSÃO','DATA DA \nCONCLUSÃO','conclusao','Data Conclusão'],
-    data_cliente:  ['DATA CLIENTE','Data Cliente','data_cliente','DATA CLIENTE'],
-    tipo:          ['TIPO','Tipo','tipo'],
-    motivo_atraso: ['MOTIVO ATRASO','Motivo Atraso','motivo_atraso'],
-    observacoes:   ['OBSERVAÇÕES','Observações','observacoes'],
-    especial:      ['ESPECIAL','Especial','especial'],
-  };
-
-  function get(row, field) {
-    for (const k of alias[field]) {
-      if (k in row) return row[k];
-    }
-    return '';
-  }
-
-  const imported = [];
-  rows.forEach((row) => {
-    const prod = String(get(row,'produto')||'').trim();
-    if (!prod || prod.toUpperCase() === 'PRODUTO') return;
-    const nomeUpper = prod.toUpperCase();
-    const matchEstrutura = ESTRUTURA.find(p => p.nome.toUpperCase() === nomeUpper);
-    imported.push({
-      produto: nomeUpper,
-      produto_id: matchEstrutura ? matchEstrutura.id : null,
-      pedido: String(get(row,'pedido')||'').replace('.0','').trim(),
-      qnt: parseInt(get(row,'qnt')) || 1,
-      chegada_pcp:   fmtImportDate(get(row,'chegada_pcp')),
-      prev_inicial:  fmtImportDate(get(row,'prev_inicial')),
-      prev_producao: fmtImportDate(get(row,'prev_producao')),
-      conclusao:     fmtImportDate(get(row,'conclusao')),
-      data_cliente:  fmtImportDate(get(row,'data_cliente')),
-      tipo:          String(get(row,'tipo')||'').trim() || tipoPadraoNome() || 'Produção nova',
-      motivo_atraso: String(get(row,'motivo_atraso')||'').trim(),
-      observacoes:   String(get(row,'observacoes')||'').trim(),
-      especial:      /^(s|sim|x|1|true)$/i.test(String(get(row,'especial')||'').trim()),
-    });
-  });
-
-  if (!imported.length) { toast('Nenhum dado válido encontrado no arquivo.'); return; }
-  if (imported.some(i => !i.pedido)) { toast('Há linhas sem número de pedido — corrija o arquivo.'); return; }
-
-  const substituir = DB.length > 0 && confirm(`Substituir os ${DB.length} pedidos existentes pelos ${imported.length} importados?\n\nCancelar = adicionar ao existente.`);
-
-  (async () => {
-    try {
-      const r = await api('pcp/itens/lote', { method: 'POST', body: { itens: imported, substituir } });
-      await carregarDados();
-      renderAll();
-      if (currentPage === 'fila') renderFila();
-      toast(`${r.count} pedidos importados da aba "${sheetName}".`);
-    } catch (e) { toast('Erro na importação: ' + e.message); }
-  })();
-}
-
-function parseCSV(text) {
-  // Remove BOM
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-  const sep = text.includes(';') ? ';' : ',';
-  const lines = text.split(/\r?\n/).filter(l=>l.trim());
-  if (lines.length < 2) { toast('CSV vazio ou inválido.'); return; }
-
-  const headers = lines[0].split(sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const rows = lines.slice(1).map(line => {
-    const vals = line.split(sep).map(v=>v.replace(/^"|"$/g,'').trim());
-    const obj = {};
-    headers.forEach((h,i) => obj[h] = vals[i]||'');
-    return obj;
-  });
-  processImportedRows(rows, 'CSV');
-}
-
-
-
-
-// ─── PDF/JSON — REVISÃO E CONFIRMAÇÃO ────────────────────────────────────────
-let pdfParsedItems = [];
-let pdfParsedHeader = { pedido: '', data_cliente: null, cliente: '' };
-
-function showPdfError(msg) {
-  document.getElementById('pdf-loading').style.display = 'none';
-  document.getElementById('pdf-result').style.display = 'none';
-  document.getElementById('pdf-modal-footer').style.display = 'none';
-  document.getElementById('pdf-error').style.display = 'block';
-  document.getElementById('pdf-error-msg').textContent = msg;
-}
-
-function closePdfModal() {
-  document.getElementById('pdf-modal-overlay').style.display = 'none';
-  pdfParsedItems = [];
-}
-
-function renderPdfPreview(parsed) {
-  pdfParsedHeader = {
-    pedido: parsed.pedido || '',
-    data_cliente: parsed.data_cliente || null,
-    cliente: parsed.cliente || '',
-  };
-  pdfParsedItems = (parsed.itens || []).map((item) => ({
-    produto: (item.produto || '').toUpperCase(),
-    qnt: item.qnt || 1,
-    observacoes: item.observacoes || '',
-  }));
-
-  if (!pdfParsedItems.length) {
-    showPdfError('Nenhum produto identificado. Confira se o PDF é uma ordem de produção da fábrica.');
-    return;
-  }
-
-  document.getElementById('pdf-loading').style.display = 'none';
-  document.getElementById('pdf-error').style.display = 'none';
-  document.getElementById('pdf-result').style.display = 'block';
-  document.getElementById('pdf-modal-footer').style.display = 'flex';
-
-  const container = document.getElementById('pdf-items-container');
-  container.innerHTML = `
-    <div class="form-grid" style="margin-bottom:14px">
-      <div class="form-group"><label>Nº Pedido *</label><input type="text" id="pdf-h-pedido" value="${esc(pdfParsedHeader.pedido)}"></div>
-      <div class="form-group"><label>Data do cliente (Prev. Saída)</label><input type="date" id="pdf-h-data" value="${pdfParsedHeader.data_cliente||''}"></div>
-    </div>
-    ${pdfParsedHeader.cliente ? `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Cliente: <strong>${esc(pdfParsedHeader.cliente)}</strong></div>` : ''}
-    ${pdfParsedItems.map((it, i) => `
-      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px" data-pdf-row="${i}">
-        <div class="form-grid">
-          <div class="form-group"><label>Produto *</label><input type="text" id="pdf-i-produto-${i}" list="produtos-datalist" value="${esc(it.produto)}"></div>
-          <div class="form-group"><label>Qtd</label><input type="number" id="pdf-i-qnt-${i}" value="${it.qnt}" min="1"></div>
-          <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="pdf-i-obs-${i}" value="${esc(it.observacoes)}"></div>
-        </div>
-        <button class="btn btn-outline" style="margin-top:8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="removerPdfItem(${i})">✕ Remover item</button>
-      </div>`).join('')}
-  `;
-  document.getElementById('pdf-raw-obs').textContent =
-    'Confira os produtos contra a Estrutura do Produto antes de salvar. A chegada no PCP será registrada como hoje.';
-}
-
-function removerPdfItem(i) {
-  pdfParsedItems[i] = null;
-  const row = document.querySelector(`[data-pdf-row="${i}"]`);
-  if (row) row.remove();
-}
-
-async function confirmarPdfImport() {
-  const pedido = document.getElementById('pdf-h-pedido').value.trim();
-  const dataCliente = document.getElementById('pdf-h-data').value || null;
-  if (!pedido) { toast('Informe o número do pedido.'); return; }
-
-  const itens = [];
-  pdfParsedItems.forEach((it, i) => {
-    if (!it) return;
-    const produto = (document.getElementById(`pdf-i-produto-${i}`)?.value || '').trim().toUpperCase();
-    if (!produto) return;
-    const matchEstrutura = ESTRUTURA.find(p => p.nome.toUpperCase() === produto);
-    itens.push({
-      produto,
-      produto_id: matchEstrutura ? matchEstrutura.id : null,
-      pedido,
-      qnt: parseInt(document.getElementById(`pdf-i-qnt-${i}`)?.value) || 1,
-      chegada_pcp: hojeISO(),
-      data_cliente: dataCliente,
-      tipo: tipoPadraoNome() || 'Produção nova',
-      motivo_atraso: '',
-      observacoes: (document.getElementById(`pdf-i-obs-${i}`)?.value || '').trim(),
-    });
-  });
-  if (!itens.length) { toast('Nenhum item para importar.'); return; }
-
-  try {
-    const r = await api('pcp/itens/lote', { method: 'POST', body: { itens } });
-    await carregarDados();
-    renderAll();
-    closePdfModal();
-    toast(`${r.count} item(ns) do pedido ${pedido} importado(s) com sucesso.`);
-    goTo('fila');
-  } catch (e) { toast('Erro ao importar: ' + e.message); }
-}
-
-document.getElementById('pdf-modal-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('pdf-modal-overlay')) closePdfModal();
-});
+// P0 do planejamento (06/11/2026, decisão do cliente): o cadastro manual de
+// pedido (formulário Novo Pedido, importação Excel/CSV/PDF/JSON) SAIU do PCP —
+// a entrada de peças é só a liberação do pedido do Comercial (aba Pedidos
+// Comercial), que traz a especificação completa da venda.
 
 // ─── BIPAGEM ─────────────────────────────────────────────────────────────────
 let bipTimer = null;
@@ -2659,54 +2057,10 @@ async function desativarProduto(id) {
   } catch (e) { toast('Erro: ' + e.message); }
 }
 
-// ── Lista de produtos no formulário de novo pedido (puxa da estrutura) ───────
+// ── Datalist de nomes da Estrutura (campo Produto do modal de edição) ───────
 function popularSelectProdutos() {
-  const sel = document.getElementById('fn-produto');
-  if (sel) {
-    const atual = sel.value;
-    const porFam = {};
-    ESTRUTURA.forEach(p => { (porFam[p.familia] = porFam[p.familia] || []).push(p); });
-    sel.innerHTML = '<option value="">— Selecione o produto —</option>' +
-      Object.entries(porFam).map(([fam, prods]) =>
-        `<optgroup label="${esc(familiaMeta(fam).rotulo)}">` +
-        prods.map(p => `<option value="${esc(p.nome)}" data-id="${p.id}">${esc(p.nome)}</option>`).join('') +
-        '</optgroup>'
-      ).join('') +
-      '<option value="__livre__">— Outro (digitar manualmente) —</option>';
-    if (atual) sel.value = atual;
-  }
   const dl = document.getElementById('produtos-datalist');
   if (dl) dl.innerHTML = ESTRUTURA.map(p => `<option value="${esc(p.nome)}">`).join('');
-}
-
-// Preenche o select de tipo do novo pedido a partir do cadastro (pcp_tipos).
-function popularSelectTipos() {
-  const sel = document.getElementById('fn-tipo');
-  if (!sel) return;
-  const atual = sel.value;
-  sel.innerHTML = TIPOS.map(t => `<option>${esc(t.nome)}</option>`).join('');
-  if (atual && TIPOS.some(t => t.nome === atual)) sel.value = atual;
-  else sel.value = tipoPadraoNome();
-}
-
-// Produto atualmente selecionado no formulário de novo pedido.
-function fnProdutoSelecionado() {
-  const sel = document.getElementById('fn-produto');
-  const livre = document.getElementById('fn-produto-livre');
-  const produto = sel.value === '__livre__' ? (livre.value || '').trim().toUpperCase() : sel.value;
-  let produto_id = null;
-  if (sel.value && sel.value !== '__livre__') {
-    const opt = sel.options[sel.selectedIndex];
-    produto_id = opt && opt.dataset.id ? Number(opt.dataset.id) : null;
-  }
-  return { produto, produto_id };
-}
-
-// Mostra os campos de furos/modelo só quando o produto é horizontal (PH 25/50).
-function fnAtualizarHorizontal() {
-  const grp = document.getElementById('fn-horiz-group');
-  if (!grp) return;
-  grp.style.display = ehHorizontal(fnProdutoSelecionado()) ? '' : 'none';
 }
 
 // ─── ORDEM DE CORTE ──────────────────────────────────────────────────────────
@@ -3350,9 +2704,7 @@ function renderAll() {
 
 document.getElementById('today-label').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-if (typeof pdfjsLib !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/vendor/pdf.worker.min.js';
-}
+
 
 document.getElementById('btn-sair').addEventListener('click', sair);
 

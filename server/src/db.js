@@ -396,6 +396,50 @@ export async function migrate() {
   // Planejamento de Corte via Núcleo (plano-corte-nucleo.html).
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS produto_sku VARCHAR(64)`);
 
+  // ─── P0 do PLANEJAMENTO DE PRODUÇÃO (06/11/2026; espec docs/ESPEC-PLANEJAMENTO-PRODUCAO.md)
+  // A peça do PCP carrega a especificação COMO FOI VENDIDA (tudo que o Núcleo
+  // lê: produto/tecido/cor + seleções nucleo*), gravada na liberação do
+  // Comercial. É o que alimenta a lista de materiais (/lista-materiais do
+  // Núcleo v14.88). NULL = item anterior ao planejamento / entrada antiga.
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS spec_nucleo JSONB`);
+
+  // Estruturas com SKU do Núcleo (§3.2 c): preenche `pcp_produtos.produto_sku`
+  // pelo de-para evidente SÓ onde ainda está NULL (edição manual no editor de
+  // Estrutura é preservada; idempotente). Rolô Soft/Premium são N:1 de
+  // propósito (variantes com/sem plus, box… — as regras continuam decidindo);
+  // romana/painel/PH25/PH50 ficam 1:1 e o casamento por SKU passa a acontecer.
+  const DE_PARA_SKU = [
+    ['soft-lisa-sem-plus', 'soft'], ['soft-lisa-com-plus', 'soft'], ['soft-lisa-bando-vision', 'soft'],
+    ['soft-lisa-box-70', 'soft'], ['soft-sheer-trilho-plus', 'soft_sheer'], ['soft-sheer-bando-vision', 'soft_sheer'],
+    ['premium-lisa-bando-vision', 'premium'], ['premium-lisa-trilho-plus', 'premium'],
+    ['premium-vision-bando-vision', 'premium'], ['premium-vision-trilho-plus', 'premium'],
+    ['premium-sheer-bando-vision', 'premium_sheer'], ['premium-sheer-trilho-plus', 'premium_sheer'],
+    ['premium-lisa-box-90', 'premium'],
+    ['motor-lisa-trilho-plus-47', 'premium47'], ['motor-lisa-bando-vision-47', 'premium47'],
+    ['motor-sheer-trilho-plus-47', 'premium_sheer_47'], ['motor-sheer-bando-vision-47', 'premium_sheer_47'],
+    ['motor-box-90-47', 'premium47'],
+    ['intermed-plus-32-lisa', 'soft'], ['intermed-plus-32-sheer', 'soft_sheer'],
+    ['intermed-bv-32-lisa', 'soft'], ['intermed-bv-32-sheer', 'soft_sheer'], ['intermed-plus-40-lisa', 'premium'],
+    ['acoplada-bv-47-lisa', 'premium47'], ['acoplada-plus-47-lisa', 'premium47'],
+    ['romana-padrao', 'romana'], ['romana-teto', 'romanateto'],
+    ['painel-3-vias', 'painel3'], ['painel-4-vias', 'painel4'],
+    ['ph-25mm', 'ph25'], ['ph-50mm-aluminio', 'ph50aluminiocad'], ['ph-50mm-mad-sintetica', 'ph50madsintcad'],
+    ['ph-50mm-mad-natural', 'ph50madnatcad'], ['ph-50mm-pvc', 'ph50pvccad'],
+  ];
+  for (const [chave, sku] of DE_PARA_SKU) {
+    await q(`UPDATE pcp_produtos SET produto_sku = $2, updated_at = now() WHERE chave = $1 AND produto_sku IS NULL`, [chave, sku]);
+  }
+  // Roteiro por LINHA para as peças SEM Estrutura do Produto local (cortina,
+  // cortina fixa, celular, vertical, toldo): nomes de setor em ordem. Editável
+  // em pcp_config (JSON); ON CONFLICT DO NOTHING preserva a edição.
+  await q(
+    `INSERT INTO pcp_config (chave, valor) VALUES ('roteiro_linhas', $1) ON CONFLICT (chave) DO NOTHING`,
+    [JSON.stringify({
+      cortina: ['Corte', 'Montagem', 'Embalagem'], fixa: ['Corte', 'Montagem', 'Embalagem'],
+      celular: ['Embalagem'], vertical: ['Montagem', 'Embalagem'], toldo: ['Embalagem'],
+    })],
+  );
+
   // ─── Etiquetas próprias (F2) ──────────────────────────────────────────────
   // Modelos parametrizáveis pelo admin: formato físico (mm), setores que usam,
   // campos exibidos (dicionário + atributos custom) e tipo de código impresso.

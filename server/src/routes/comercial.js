@@ -23,6 +23,8 @@ import { inserirItem, emTransacao } from './pcp.js';
 import { regrasAtivas, selecionarEstrutura, contextoDeSpec, categoriasPorColecao } from '../estrutura-regras.js';
 // Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
 import { chamar, baixarBinario } from '../comercial-client.js';
+// P0 do planejamento (06/11/2026): a peça do PCP guarda a spec COMO FOI VENDIDA
+import { specDoItemComercial, semEstruturaLocal, linhaDoSku } from '../nucleo-spec.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -238,7 +240,12 @@ r.get(
     const categorias = await categoriasPorColecao();
     const produtos = await produtosAtivos();
     const porId = new Map(produtos.map((p) => [Number(p.id), p]));
-    const itens = (detalhe.itens || []).filter((it) => Number(it.quantidade) > 0).map((it) => {
+    // P0 do planejamento — a prévia mostra o MESMO conjunto que a liberação
+    // importa (acessório não é peça de produção — v14/08/2026)
+    const itens = (detalhe.itens || [])
+      .filter((it) => Number(it.quantidade) > 0)
+      .filter((it) => it.isAcessorio !== true && it.is_acessorio !== true)
+      .map((it) => {
       const a = (it.atributos && typeof it.atributos === 'object' && !Array.isArray(it.atributos)) ? { ...it.atributos } : {};
       if (it.acabamento) a.acabamento = it.acabamento;
       if (it.janela) a.janela = it.janela;
@@ -268,13 +275,20 @@ r.get(
         produtoId = fallbackPorNome(it.tipo, produtos);
         if (produtoId) origem = 'nome';
       }
+      // P0 do planejamento — linha SEM Estrutura do Produto local (cortina,
+      // fixa, celular, vertical, toldo): cortes/materiais vêm do Núcleo e o
+      // roteiro do cadastro por linha; não é "pendente".
+      const semLocal = !produtoId && semEstruturaLocal(it.produtoSku);
       return {
         item_id: it.id != null ? String(it.id) : null,
         tipo: it.tipo || null, colecao: it.colecao || null,
         produto_id: produtoId,
         produto_nome: produtoId && porId.get(produtoId) ? porId.get(produtoId).nome : null,
-        origem, // 'regra' | 'sku' | 'nome' | null (pendente)
+        origem: origem || (semLocal ? 'nucleo' : null), // 'regra' | 'sku' | 'nome' | 'nucleo' (linha sem estrutura local) | null (pendente)
         regra_nome: regra ? regra.nome || null : null,
+        produto_sku: it.produtoSku || null,
+        linha: linhaDoSku(it.produtoSku),
+        sem_estrutura_local: semLocal,
       };
     });
     res.json({ itens, estruturas: produtos.map((p) => ({ id: Number(p.id), nome: p.nome, familia: p.familia })) });
@@ -381,6 +395,10 @@ r.post(
             comercial_item_id: it.id != null ? String(it.id).slice(0, 64) : null,
             // SKU canônico do MOTOR (Núcleo :3070) — alimenta o Plano de Corte
             produto_sku: it.produtoSku ? String(it.produtoSku).slice(0, 64) : null,
+            // P0 do planejamento — a especificação completa da venda (tudo que o
+            // Núcleo lê: tecido/cor, cortina, ph50, painel, box/bandô, motor…)
+            // para a lista de materiais (/lista-materiais) e o plano de corte.
+            spec_nucleo: specDoItemComercial(it),
             // medidas por peça (cm) — alimentam a Ordem de Corte e a etiqueta
             largura: Number(it.larguraCm) > 0 ? Number(it.larguraCm) : null,
             altura: Number(it.alturaCm) > 0 ? Number(it.alturaCm) : null,

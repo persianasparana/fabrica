@@ -147,9 +147,11 @@ async function comDetalhe(id) {
           ? '<span class="st st-ok" style="font-size:9px" title="SKU canônico do Núcleo de Produtos vindo do pedido (única estrutura com este SKU)">sku</span>'
         : pv.origem === 'nome'
           ? '<span class="st st-ok" style="font-size:9px" title="nome idêntico ao da Estrutura">nome</span>'
+        : pv.origem === 'nucleo'
+          ? '<span class="st st-gray" style="font-size:9px" title="Linha sem Estrutura do Produto local (cortina, cortina fixa, celular, vertical, toldo): cortes e lista de materiais vêm do Núcleo de Produtos; roteiro por linha">pelo Núcleo</span>'
           : '<span class="st st-atencao" style="font-size:9px" title="nenhuma regra casou — escolha manualmente (sem estrutura a Ordem de Corte não sai para este item)">pendente</span>';
       const select = podeEscolher
-        ? `<select data-est-item="${esc(String(it.id))}" style="font-size:11px;max-width:220px${pv.produto_id ? '' : ';border-color:var(--red)'}">
+        ? `<select data-est-item="${esc(String(it.id))}" data-sem-local="${pv.sem_estrutura_local ? '1' : '0'}" style="font-size:11px;max-width:220px${pv.produto_id || pv.sem_estrutura_local ? '' : ';border-color:var(--red)'}">
              <option value="">— sem estrutura —</option>
              ${estruturas.map((e2) => `<option value="${e2.id}" ${Number(pv.produto_id) === Number(e2.id) ? 'selected' : ''}>${esc(e2.nome)}</option>`).join('')}
            </select>`
@@ -170,7 +172,7 @@ async function comDetalhe(id) {
         <td>${esc(it.observacoesTecnicas || '')}</td>
       </tr>`;
     }).join('');
-    const pendentes = [...previaPorItem.values()].filter((x) => !x.produto_id).length;
+    const pendentes = [...previaPorItem.values()].filter((x) => !x.produto_id && !x.sem_estrutura_local).length;
     // Desenhos anexados no Comercial — abrem via proxy do PCP (mesma sessão)
     const desenhos = (p.desenhos || []).map((d) =>
       `<a href="../api/comercial/pedidos/${encodeURIComponent(id)}/desenhos/${encodeURIComponent(d.id)}/arquivo" target="_blank" rel="noopener" style="margin-right:10px">📐 ${esc(d.tipo === 'INSTALACAO' ? 'Instalação' : 'Fabricação')} — ${esc(d.nomeOriginal || 'arquivo')}</a>`
@@ -194,7 +196,7 @@ async function comLiberar(id, codigo) {
     // detalhe aberto: usa o que o avaliador escolheu na tela
     selects.forEach((s) => {
       if (s.value) estruturas[s.dataset.estItem] = Number(s.value);
-      else pendentes++;
+      else if (s.dataset.semLocal !== '1') pendentes++;
     });
   } else {
     // detalhe fechado: consulta a prévia (regras + nome)
@@ -202,7 +204,7 @@ async function comLiberar(id, codigo) {
       const previa = await api(`comercial/pedidos/${id}/estrutura-previa`);
       for (const it of (previa.itens || [])) {
         if (it.produto_id) estruturas[it.item_id] = Number(it.produto_id);
-        else pendentes++;
+        else if (!it.sem_estrutura_local) pendentes++;
       }
     } catch (e) { /* prévia indisponível — segue com a seleção automática do backend */ }
   }

@@ -59,6 +59,34 @@
     </table>`;
   }
 
+  // P0 do planejamento (06/11/2026) — LISTA DE MATERIAIS da peça, calculada pelo
+  // Núcleo de Produtos (/lista-materiais) com a especificação da venda: receita,
+  // tubo/kit/motor, box, bandô, tecido (metros de rolo, coleção × cor). Sem
+  // dinheiro. Agregada por ITEM (Σ das peças) — é o que a bancada separa.
+  const ROTULO_ORIGEM = {
+    receita: 'receita', mecanismo: 'mecanismo', tubo: 'tubo', kit: 'kit motor', motor: 'motor', emissor: 'emissor',
+    fonte: 'fonte', box: 'box', bando: 'bandô', bando_tira: 'tira do bandô', tecido: 'tecido', lamina: 'lâminas',
+    terceirizado: 'fornecedor', vertical: 'vertical', avulso: 'avulso',
+  };
+  const fmtQtd = (q) => Number(q || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  function blocoMateriais(item, porItem) {
+    const agg = porItem && porItem[String(item.id)];
+    if (!agg) return '';
+    const mats = agg.materiais || [];
+    if (!mats.length && !agg.erros.length) return '';
+    const linhas = mats.map((m) => `<tr>
+        <td style="font-family:monospace;font-size:11px">${esc(m.sku || '—')}</td>
+        <td>${esc(m.descricao || '')}${m.tipo === 'tecido' && m.colecao ? ` <small style="color:var(--text3)">${esc(m.colecao)}${m.cor ? ' · ' + esc(m.cor) : ''}${m.largura_rolo ? ' · rolo ' + fmtQtd(m.largura_rolo) + ' m' : ''}</small>` : ''}</td>
+        <td style="text-align:right;font-weight:800">${fmtQtd(m.qtd)}</td>
+        <td>${esc(m.un || '')}</td>
+        <td><small style="color:var(--text3)">${esc(ROTULO_ORIGEM[m.origem] || m.origem || '')}</small></td>
+      </tr>`).join('');
+    return `<table class="pecas" style="border-top:2px solid var(--gold)">
+      <thead><tr><th style="width:150px">SKU</th><th>📦 Lista de materiais (${agg.pecas} peça${agg.pecas > 1 ? 's' : ''}, pelo Núcleo)</th><th style="width:80px;text-align:right">Qtd</th><th style="width:44px">Un</th><th style="width:90px">Origem</th></tr></thead>
+      <tbody>${linhas}${agg.erros.length ? `<tr><td colspan="5" style="color:var(--red)">⚠ ${esc(agg.erros.join(' · '))}</td></tr>` : ''}</tbody>
+    </table>`;
+  }
+
   function blocoItem(item, ix, estruturaPorId, cortesPorPeca, setorFiltro) {
     const prod = item.produto_id != null ? estruturaPorId.get(Number(item.produto_id)) : null;
     const atributos = (item.atributos && typeof item.atributos === 'object') ? item.atributos : {};
@@ -101,7 +129,7 @@
       <div class="item-head">
         <span class="num">${ix + 1}</span>
         <span class="nome">${esc(item.produto || 'Peça')}${item.especial ? ' <span style="color:#ffd76e">★ ESPECIAL</span>' : ''}</span>
-        <span class="estrutura">${prod ? 'Estrutura: ' + esc(prod.nome) : '⚠ SEM ESTRUTURA — Ordem de Corte não sai para este item'}</span>
+        <span class="estrutura">${prod ? 'Estrutura: ' + esc(prod.nome) : (/^(fixa_|cortina|celular|vertical|toldo)/i.test(String(item.produto_sku || '')) ? 'Cortes e materiais pelo Núcleo de Produtos (' + esc(item.produto_sku) + ')' : '⚠ SEM ESTRUTURA — Ordem de Corte não sai para este item')}</span>
       </div>
       ${spec ? `<div class="spec">${spec}</div>` : ''}
       ${item.observacoes ? `<div class="obs"><b>Observações técnicas</b>${esc(item.observacoes)}</div>` : ''}
@@ -110,10 +138,36 @@
         <tbody>${pecas || '<tr><td colspan="5" style="color:var(--text3)">Sem peças cadastradas.</td></tr>'}</tbody>
       </table>
       ${blocoCortes(item, cortesPorPeca, setorFiltro)}
+      ${blocoMateriais(item, estado.materiais && estado.materiais.por_item)}
     </div>`;
   }
 
-  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map(), desenhosFab: [], comercialId: null };
+  // Resumo de materiais do PEDIDO inteiro (tecido por coleção × cor × rolo com
+  // bobinas, perfis em barras, tubos, componentes consolidados)
+  function blocoResumoMateriais() {
+    const lm = estado.materiais;
+    if (!lm) return '';
+    if (!lm.habilitado || !lm.data) {
+      return `<div class="alerta so-tela">📦 Lista de materiais indisponível: ${esc(lm.motivo || 'Núcleo de Produtos fora do ar')}</div>`;
+    }
+    const d = lm.data;
+    const tecido = (d.tecido || []).map((t) => `<tr><td>${esc(t.colecao)}</td><td>${esc(t.cor || '—')}</td><td>${t.largura_rolo ? fmtQtd(t.largura_rolo) + ' m' : '—'}</td><td style="text-align:right;font-weight:800">${fmtQtd(t.metros)} m</td><td style="text-align:right">${t.bobinas}</td><td style="text-align:right">${fmtQtd(t.sobra)} m</td></tr>`).join('');
+    const perfis = (d.perfis || []).map((x) => `<tr><td>${esc(x.componente)}</td><td style="text-align:right">${x.cortes}</td><td style="text-align:right;font-weight:800">${fmtQtd(x.metros)} m</td><td style="text-align:right">${x.barras} × ${fmtQtd(x.barra_m)} m</td><td style="text-align:right">${fmtQtd(x.sobra_m)} m</td></tr>`).join('');
+    // os tubos já saem na saída de perfis (mesmo corte) — só entram aqui os que não estão lá
+    const nomesPerfis = new Set((d.perfis || []).map((x) => String(x.componente || '').toLowerCase().replace(/\s+/g, '')));
+    const tubos = (d.tubos || []).filter((t) => !nomesPerfis.has(String(t.corte || '').toLowerCase().replace(/\s+/g, ''))).map((t) => `<tr><td>Tubo ${t.tubo} mm</td><td style="text-align:right">${t.cortes}</td><td style="text-align:right;font-weight:800">${fmtQtd(t.metros)} m</td><td style="text-align:right">${t.barras} × ${fmtQtd(t.barra_m)} m</td><td></td></tr>`).join('');
+    const comps = (d.materiais || []).filter((m) => m.tipo === 'componente').map((m) => `<tr><td style="font-family:monospace;font-size:11px">${esc(m.sku || '—')}</td><td>${esc(m.descricao || '')}</td><td style="text-align:right;font-weight:800">${fmtQtd(m.qtd)}</td><td>${esc(m.un || '')}</td><td><small style="color:var(--text3)">${(m.origens || []).map((o) => ROTULO_ORIGEM[o] || o).join(', ')}</small></td></tr>`).join('');
+    const avisos = (lm.avisos || []).map((a) => `<div class="alerta">${esc(a)}</div>`).join('');
+    return `<div class="resumo-materiais" style="margin-top:16px;page-break-inside:avoid">
+      <h2 style="font-size:13px;letter-spacing:.04em;border-bottom:2px solid var(--gold);padding-bottom:4px">📦 MATERIAIS DO PEDIDO — separação (pelo Núcleo de Produtos)</h2>
+      ${avisos}
+      ${tecido ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Tecido — coleção</th><th>Cor</th><th>Rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Bobinas</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${tecido}</tbody></table>` : ''}
+      ${perfis || tubos ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Perfis / tubos (barras)</th><th style="text-align:right">Cortes</th><th style="text-align:right">Metros</th><th style="text-align:right">Barras</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${perfis}${tubos}</tbody></table>` : ''}
+      ${comps ? `<table class="pecas" style="margin-top:8px"><thead><tr><th style="width:150px">SKU</th><th>Componentes (consolidado)</th><th style="text-align:right">Qtd</th><th style="width:44px">Un</th><th style="width:120px">Origem</th></tr></thead><tbody>${comps}</tbody></table>` : ''}
+    </div>`;
+  }
+
+  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map(), desenhosFab: [], comercialId: null, materiais: null };
 
   // Desenho de fabricação anexado no Comercial — servido pelo proxy do PCP
   // (mesma sessão). Imagens saem inline na impressão; PDF vira link (não sai).
@@ -139,7 +193,7 @@
     const cliente = (info && info.cliente) || itens.map((i) => i.cliente).find(Boolean) || '—';
     const dataCliente = itens.map((i) => i.data_cliente).find(Boolean) || null;
     const totalPecas = itens.reduce((a, i) => a + ((i.pecas || []).length || Number(i.qnt) || 1), 0);
-    const semEstrutura = itens.filter((i) => i.produto_id == null).length;
+    const semEstrutura = itens.filter((i) => i.produto_id == null && !/^(fixa_|cortina|celular|vertical|toldo)/i.test(String(i.produto_sku || ''))).length;
     const semMedida = itens.reduce((a, i) => a + (i.pecas || []).filter((p) => !(Number(p.largura) > 0)).length, 0);
 
     const avisos = [];
@@ -175,6 +229,7 @@
       ${avisos.map((a) => `<div class="alerta">${a}</div>`).join('')}
       ${itens.map((it, ix) => blocoItem(it, ix, estruturaPorId, estado.cortesPorPeca, estado.setorFiltro)).join('') || '<div class="alerta">Pedido sem itens.</div>'}
       ${blocoDesenhos()}
+      ${blocoResumoMateriais()}
       <div class="assinatura">
         <div class="campo">Produzido por</div>
         <div class="campo">Conferido por</div>
@@ -195,11 +250,14 @@
     }
     try {
       await api('auth/session');
-      const [dados, estrutura, oc] = await Promise.all([
+      const [dados, estrutura, oc, materiais] = await Promise.all([
         api('pcp/pedido?pedido=' + encodeURIComponent(pedido)),
         api('pcp/estrutura'),
         api('pcp/ordem-corte/preview?pedidos=' + encodeURIComponent(pedido)).catch(() => null),
+        // P0 do planejamento — lista de materiais pelo Núcleo (best-effort: sem ela a ficha sai como antes)
+        api('pcp/pedido/materiais?pedido=' + encodeURIComponent(pedido)).catch((e2) => ({ habilitado: false, motivo: e2.message, data: null, por_item: {} })),
       ]);
+      estado.materiais = materiais;
       const porId = new Map((estrutura.data || []).map((p) => [Number(p.id), p]));
       // Desenho de fabricação anexado no Comercial (flag gravada na liberação)
       const info = dados.info || null;

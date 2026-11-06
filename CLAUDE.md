@@ -62,14 +62,22 @@ digita metros ×100). A OC converte para a unidade do PRODUTO (`unidade='m'` →
 1. Aba **Comercial** lista pedidos `EM_ANALISE_PCP` (REST na Agenda, dona do Pedido).
 2. **Ver** mostra a prévia da **Estrutura do Produto por item** (`GET
    /comercial/pedidos/:id/estrutura-previa`): override manual > **regras condicionais**
-   (F3, com variável `categoria` via `pcp_colecao_categorias`) > nome exato > ⚠ pendente.
+   (F3, com variável `categoria` via `pcp_colecao_categorias`) > SKU único > nome exato >
+   **"pelo Núcleo"** (linha SEM estrutura local — cortina, cortina fixa, celular, vertical,
+   toldo: `origem:'nucleo'`, `sem_estrutura_local:true`; não é pendência) > ⚠ pendente.
 3. **Liberar produção** (idempotente por PED-): PATCH status na Agenda + importa itens/
-   peças pra fila + grava `pcp_pedido_info` (vendedor/modalidade/obs/prazo — alimenta a
-   Ficha offline do Comercial).
+   peças pra fila **com a especificação da venda em `pcp_itens.spec_nucleo`** (P0 do
+   planejamento, 06/11/2026: produto/tecido/cor + todas as seleções `nucleo*`) + grava
+   `pcp_pedido_info` (vendedor/modalidade/obs/prazo — alimenta a Ficha offline do Comercial).
+   **A entrada de peças é SÓ esta** — o "Novo Pedido" manual e a importação Excel/CSV/PDF/
+   JSON saíram do PCP (decisão do cliente 05/11; `POST /pcp/itens[/lote]` responde 410).
 4. **Ficha de Produção** (`ficha-producao.html?pedido=PED-…`): specs + infos do pedido +
-   **cortes calculados por setor** (seletor de setor). **Ordem de Corte**: tabela
-   item×corte igual às planilhas oficiais + SAÍDA DE PERFIS (ceil(metros/barra)) +
-   desenho das barras (FFD) + SAÍDA DE MATERIAIS + CSV.
+   **cortes calculados por setor** (seletor de setor) + **lista de materiais por item e o
+   resumo do pedido** (tecido por coleção × cor × rolo com bobinas, perfis/tubos em barras,
+   componentes) vindos do Núcleo (`GET /api/pcp/pedido/materiais?pedido=` →
+   `POST /lista-materiais` v14.88; sem dinheiro; Núcleo fora = ficha sai sem a lista).
+   **Ordem de Corte**: tabela item×corte igual às planilhas oficiais + SAÍDA DE PERFIS
+   (ceil(metros/barra)) + desenho das barras (FFD) + SAÍDA DE MATERIAIS + CSV.
 5. Produção avança o ciclo federado: EM_PRODUCAO → EMBALADO → NA_EXPEDICAO (avanço
    automático com outbox se o Comercial estiver fora).
 6. Excluir pedido (Editar Pedido) limpa itens/peças em cascata **e** `pcp_pedido_info`
@@ -89,6 +97,49 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (06/11/2026) — na branch (deploy pendente): **P0 do PLANEJAMENTO DE PRODUÇÃO**
+## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md`; decisões do cliente 05/11; ordem P0 → P2 → P1 → P3)
+- **`pcp_itens.spec_nucleo`** (JSONB, migration no boot): a peça COMO FOI VENDIDA
+  (`server/src/nucleo-spec.js specDoItemComercial`), gravada na liberação; `GET /pcp/pedido`
+  e `/itens` ecoam `spec_nucleo` + `tem_spec`. **`corpoDaPeca(item, peca)`** (mesmo módulo
+  puro) monta o corpo do `/lista-materiais` = espelho de `montarCorpoPrecificar` do Comercial
+  (acabamento → box/bandô/guias/abas/revestimento, motorização, cortina/ph50/celular/painel,
+  afastamento); medidas da PEÇA (cm→m) vencem a spec; sem L×H vai `area_m2`.
+- **`server/src/lista-materiais.js`**: `montarPayloadPedidos` (1 peça por `pcp_pecas`, ref
+  `item:peca`) + `listaMateriaisDosPedidos` (chama o Núcleo via `produtos-client.buscarListaMateriais`,
+  `PRODUTOS_LISTA_MATERIAIS_ENABLED=0` desliga; devolve `data` sem dinheiro + `por_item`
+  agregado + `itens_sem_spec` com aviso). Rota **`GET /api/pcp/pedido/materiais?pedido=`**
+  (`?pedidos=a,b` em lote — base da P1). Ficha de Produção imprime por item + resumo.
+- **Estruturas com SKU**: migration no boot preenche `pcp_produtos.produto_sku` nas 34
+  estruturas pelo de-para (`DE_PARA_SKU` em `db.js`) SÓ onde está NULL (edição no editor
+  de Estrutura preservada). Rolô Soft/Premium são N:1 de propósito; romana/painel/PH25/PH50
+  1:1 → o casamento por SKU da liberação passa a acontecer.
+- **Linhas SEM estrutura local** (`nucleo-spec.js LINHAS_SEM_ESTRUTURA_LOCAL`: cortina, fixa,
+  celular, vertical, toldo): a peça não fica "estrutura pendente" (badge **"pelo Núcleo"** na
+  fila, na prévia da aba Comercial e na Ficha) e a **bipagem** usa o roteiro por LINHA de
+  `pcp_config.roteiro_linhas` (JSON `{linha: [nomes de setor em ordem]}`, semeado com
+  `ON CONFLICT DO NOTHING`; sequencial — Corte → Montagem → Embalagem na cortina).
+- **Entrada manual removida**: sidebar/topo sem "Novo Pedido" e sem Importar Excel/PDF; seção,
+  modais JSON/PDF, `pdf.min.js` e o bloco de importação do `app.js` saíram; `POST /pcp/itens`
+  e `/itens/lote` → **410** apontando para o Comercial; `ABAS` sem `novo`. Topo ganhou
+  "+ Pedido (Comercial)" (abre a aba Pedidos Comercial).
+- **DEFEITO fechado no modal "Ver" da fila**: `salvarEdicao` casava a estrutura pelo NOME
+  digitado e, como o nome do item do Comercial nunca é o nome da estrutura, **regravava
+  `produto_id = null` a cada edição** (a peça virava "estrutura pendente" e a Ordem de Corte
+  sumia). Agora a estrutura é um SELECT (`#ed-estrutura`; vazio = sem estrutura/pelo Núcleo) e
+  o modal edita também SKU do Núcleo, coleção, cores, acionamento e ambiente (`PUT /pcp/itens`
+  aceita `produto_sku`, `colecao`, `cor_tecido`, `cor_perfil`, `acionamento`, `ambiente`).
+- Prévia da aba Comercial deixa de listar ACESSÓRIO (a liberação já o pulava).
+- Provado na réplica: E2E (`scratchpad/e2e-pcp-p0.mjs`, mock do Comercial em :3995 + Núcleo
+  real :3070 — 30 checagens: prévia, liberação com spec, idempotência, lista de materiais por
+  item/cor/sem dinheiro, PUT preserva `produto_id`, 410, roteiro por linha na bipagem, pedido
+  antigo sem spec só avisa) + Playwright (17 checagens: navegação, modal, badges, Ficha).
+- Deploy: `deploy/aplicar-planejamento-p0.sh` (migrations no boot; **exige o Núcleo v14.88**
+  no ar — `aplicar-v14-88-lista-materiais.sh` ANTES; sem ele a Ficha sai sem a lista).
+- ⚠ Pendências: reavaliar as regras/estruturas das peças de rolô na produção (com `produto_sku`
+  preenchido o casamento por SKU só decide quando a estrutura é única); itens ANTIGOS da fila
+  não têm `spec_nucleo` (a lista usa produto/coleção/medidas e avisa).
 
 ## Estado (07/08/2026) — na branch (deploy pendente): **desenhos de fabricação/instalação
 ## do Comercial no PCP** — a liberação grava flags em `pcp_pedido_info` (`desenho_fabricacao`/

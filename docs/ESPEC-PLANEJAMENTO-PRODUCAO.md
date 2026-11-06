@@ -359,7 +359,16 @@ Observações sobre a ordem:
    sistemas existentes um a um.
 9. **Ordem:** do que gasta menos tokens para o que gasta mais, com dependências — tabela do §4.
 
-**Próximo passo:** começar a P0 (Núcleo `/lista-materiais` + PCP recebendo a especificação).
+**Andamento (06/11/2026):**
+- ✅ **P0 — Núcleo v14.88** (`produtos@main` ba6428a): `POST /lista-materiais`, chaves aditivas do
+  relatório (`materiais_producao`, `tecido_cor`, `pecas[].materiais`, `perfis[].refs`), qtd nunca nula,
+  plano de corte da cortina pela mesma conta, `/bom` com `A`. Deploy `aplicar-v14-88-lista-materiais.sh`.
+- ✅ **P0 — PCP** (esta branch): `spec_nucleo` na liberação, `produto_sku` nas 34 estruturas, "Novo
+  pedido" manual e importações removidos, Ficha com a lista de materiais (por item + resumo), roteiro por
+  linha para peças sem estrutura local, defeito do modal (`produto_id` zerado) fechado. Deploy
+  `aplicar-planejamento-p0.sh` (DEPOIS do Núcleo v14.88).
+- ▶ Próximo: **P2** (carga) → **P1** (Necessidade de materiais — a rota `GET /pcp/pedido/materiais?pedidos=`
+  já aceita lote) → **P3** (Compras).
 
 ---
 
