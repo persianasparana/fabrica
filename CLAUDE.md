@@ -98,6 +98,42 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
+## Estado (06/11/2026) — na branch (deploy pendente): **P2 do PLANEJAMENTO — aba "Planejamento de carga"**
+## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 f; sem dependência de versão do Núcleo)
+- **`server/src/carga.js`**: `sequenciar({inicio, semanas, cfg, setores, pecas})` é PURO (teste
+  `server/test/carga.test.mjs`, 15 casos, sem banco): peças ABERTAS ordenadas por **prioridade**
+  (2 urgente › 1 alta › 0 normal) › especial › `data_cliente` › `chegada_pcp` › id, alocadas setor a
+  setor (ordem do roteiro) no 1º dia útil com capacidade a partir do dia do setor anterior (fila
+  contínua); etapa com `fim` em `pcp_peca_etapas` não é programada; devolve por setor os dias
+  `{data, total, capacidade, estourado, ocupacao_pct, pecas[]}`, por peça/item `previsao`,
+  `data_limite` (= data prometida − `folga_dias`), `atrasa`, `alem_horizonte`, e `alertas`
+  (setores estourados, itens que atrasam, sem roteiro, sem data, sem capacidade, roteiro padrão).
+  `carregarCarga()` lê a fila (`pcp_pecas.conclusao IS NULL`), o roteiro da ESTRUTURA ou da LINHA
+  (`server/src/roteiro.js roteiroDaLinha` — saiu de `routes/pcp.js`, compartilhado com a bipagem);
+  **peça sem roteiro cadastrado passa por TODOS os setores ativos em ordem** (`roteiro_padrao`,
+  com aviso na tela) — espelha a bipagem, onde roteiro vazio aceita qualquer setor.
+- **Cadastro (migrations no boot)**: `pcp_setores.capacidade_dia NUMERIC` (peças/dia útil; NULL =
+  sem limite — `GET/PUT /pcp/setores` ecoam/aceitam; `''`/`null` explícito limpa, chave ausente
+  preserva, texto = 422), `pcp_itens.prioridade SMALLINT DEFAULT 0` (`PUT /pcp/itens` e
+  `PUT /pcp/pedido` aceitam 0/1/2; `GET /itens` ecoa), `pcp_config.carga_cfg`
+  `{dias_uteis:[1..5], folga_dias:1, semanas:2}` (seed `ON CONFLICT DO NOTHING`).
+- **Rotas** (`routes/pcp.js`): `GET /api/pcp/carga?inicio=&semanas=` (quem vê a fila),
+  `GET/PUT /api/pcp/carga/cfg` (PUT admin + CSRF), `POST /api/pcp/carga/previsoes` (grava a
+  previsão em `pcp_itens.prev_producao` dos itens abertos; `requirePerm('fila','editar')`;
+  idempotente — só regrava quando muda). Aba `carga` em `ABAS` (admin.js) e `ABAS_PERM` (app.js).
+- **Tela** (`pcp/public/assets/js/carga.js` + `sec-carga` no index + CSS `.carga-*`): toolbar
+  (início, semanas 1–8, Recalcular, Gravar previsões, ⚙ Calendário), 4 métricas, avisos (roteiro
+  padrão, setor sem capacidade), um card por setor com **capacidade editável inline** (admin) e a
+  grade de dias (verde/âmbar ≥ 80 %/vermelho estourado; clique lista as peças do dia), tabela
+  "Itens que vão atrasar". Prioridade: select no modal "Ver" (`#ed-prioridade`), em massa no
+  Editar Pedido (`#ped-prioridade`, "(manter atual)"), badge ⚡/▲ na fila e `priorityOrder`
+  (prioridade vence a especial). Capacidade também em Setores (coluna + editar). Manual atualizado.
+- Provado na réplica: unitário 15 · e2e API `scratchpad/e2e-pcp-p2.mjs` 25 · Playwright
+  `pw-pcp-p2.js` 21 (aba, grade 12/dia, clique no dia, capacidade inline → 20, modal/editor/fila com
+  prioridade, Setores). Deploy `deploy/aplicar-planejamento-p2.sh` (sem migration manual; roda o
+  teste do sequenciador; cobre o P0 se pendente). ⚠ Depois do deploy é CADASTRO: capacidade por setor
+  e roteiros nas estruturas (na réplica as 34 estruturas estão com roteiro `[]`).
+
 ## Estado (06/11/2026) — na branch (deploy pendente): **P0 do PLANEJAMENTO DE PRODUÇÃO**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md`; decisões do cliente 05/11; ordem P0 → P2 → P1 → P3)
 - **`pcp_itens.spec_nucleo`** (JSONB, migration no boot): a peça COMO FOI VENDIDA

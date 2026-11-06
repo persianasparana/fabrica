@@ -429,6 +429,12 @@ export async function migrate() {
   for (const [chave, sku] of DE_PARA_SKU) {
     await q(`UPDATE pcp_produtos SET produto_sku = $2, updated_at = now() WHERE chave = $1 AND produto_sku IS NULL`, [chave, sku]);
   }
+  // P2 do planejamento — CAPACIDADE por setor (peças por dia útil; NULL = sem
+  // limite), PRIORIDADE do item (0 normal · 1 alta · 2 urgente) e a config do
+  // calendário (dias úteis, folga antes da data prometida, semanas do horizonte).
+  await q(`ALTER TABLE pcp_setores ADD COLUMN IF NOT EXISTS capacidade_dia NUMERIC(8,2)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS prioridade SMALLINT NOT NULL DEFAULT 0`);
+  await q(`INSERT INTO pcp_config (chave, valor) VALUES ('carga_cfg', '{"dias_uteis":[1,2,3,4,5],"folga_dias":1,"semanas":2}') ON CONFLICT (chave) DO NOTHING`);
   // Roteiro por LINHA para as peças SEM Estrutura do Produto local (cortina,
   // cortina fixa, celular, vertical, toldo): nomes de setor em ordem. Editável
   // em pcp_config (JSON); ON CONFLICT DO NOTHING preserva a edição.

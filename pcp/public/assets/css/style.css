@@ -395,3 +395,12 @@ tbody td { padding: 8px 10px; white-space: nowrap; }
   #modal { box-shadow: 0 20px 48px rgba(0, 0, 0, 0.26), 0 4px 12px rgba(0, 0, 0, 0.12); }
   #toast { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 }
+
+/* Planejamento de carga (P2 do planejamento, 06/11/2026) */
+.carga-semana { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.carga-dia { border: 2px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; background: var(--surface); transition: transform .08s; }
+.carga-dia:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.carga-dia-data { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; }
+.carga-dia-total { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.carga-barra { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.carga-barra > div { height: 100%; border-radius: 2px; }

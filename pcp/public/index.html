@@ -17,6 +17,7 @@
 <script src="assets/js/regras-estrutura.js" defer></script>
 <script src="assets/js/expedicao.js" defer></script>
 <script src="assets/js/manual.js" defer></script>
+<script src="assets/js/carga.js" defer></script>
 </head>
 <div id="app">
 
@@ -42,6 +43,10 @@
     <a onclick="goTo('alertas')" data-page="alertas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span>Alertas</span>
+    </a>
+    <a onclick="goTo('carga')" data-page="carga">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="13" width="4" height="4"/></svg>
+      <span>Planejamento de carga</span>
     </a>
     <a onclick="goTo('busca')" data-page="busca">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -255,6 +260,30 @@
       <div class="card">
         <div class="card-title" style="color:var(--amber)">Atenção — vence nos próximos 3 dias</div>
         <div class="alert-list" id="alertas-atencao"></div>
+      </div>
+    </div>
+
+    <!-- PLANEJAMENTO DE CARGA (P2 do planejamento, 06/11/2026) -->
+    <div class="section" id="sec-carga">
+      <div class="toolbar">
+        <label style="font-size:11px;color:var(--text3)">Início <input type="date" id="carga-inicio" style="margin-left:4px"></label>
+        <label style="font-size:11px;color:var(--text3)">Semanas
+          <select id="carga-semanas" style="margin-left:4px"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select>
+        </label>
+        <button class="btn btn-black" onclick="renderCarga()">↻ Recalcular</button>
+        <button class="btn btn-outline" onclick="cargaGravarPrevisoes()" title="Grava a previsão de término calculada em “Prev. produção” dos itens abertos">💾 Gravar previsões</button>
+        <button class="btn btn-outline" onclick="cargaEditarCfg()" title="Dias úteis, folga antes da data prometida e horizonte padrão">⚙ Calendário</button>
+        <span id="carga-info" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
+      </div>
+      <div class="metrics" id="metrics-carga"></div>
+      <div id="carga-setores"></div>
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">Itens que vão atrasar — previsão depois da data prometida (menos a folga)</div>
+        <div class="tbl-wrap" id="carga-atrasos"></div>
+      </div>
+      <div class="card" id="carga-dia-card" style="display:none">
+        <div class="card-title" id="carga-dia-titulo"></div>
+        <div class="tbl-wrap" id="carga-dia"></div>
       </div>
     </div>
 
