@@ -97,7 +97,9 @@ function renderManual() {
   ${S('📦 Necessidade de materiais', `${ul(
       `O que é: a lista CONSOLIDADA do que a produção vai consumir no ${b('horizonte')} escolhido — padrão ${b('“liberado e ainda não cortou”')} (peça aberta sem bipagem no setor de corte; sem setor marcado “imprime ordem de corte”, sem bipagem nenhuma); ou tudo em aberto; ou pedidos específicos; com filtro de data prometida.`,
       `Calculada pelo Núcleo de Produtos com a especificação da venda (sem preço): ${b('tecido por coleção × cor × rolo')} (metros, bobinas, sobra), ${b('perfis e tubos em barras')} e ${b('componentes')} (sku, quantidade, origem) — cada linha diz quais pedidos a puxam. Lotes acima de 250 peças são calculados em blocos (bobinas/barras somadas por bloco).`,
-      `${b('CSV')} para o Compras/almoxarifado e impressão. O botão ${b('Requisitar ao Compras')} entra na fase seguinte (P3).`
+      `Com o Compras integrado, cada linha mostra o ${b('saldo disponível')} e a ${b('falta')} (necessidade − saldo); “sem de-para” = o produto do Compras ainda não tem o sku do Núcleo (vincule na tela Solicitações do Compras).`,
+      `${b('Requisitar ao Compras')} abre uma SOLICITAÇÃO DE COMPRA (SC) com os itens marcados (pré-marcados os com falta); o mesmo conjunto nunca vira duas solicitações; Compras fora do ar = fica pendente e é reenviada sozinha. O card ${b('Requisições feitas')} mostra o número da SC e a situação (aberta · em cotação · atendida).`,
+      `${b('Baixa de estoque')}: a ${b('1ª bipagem')} de cada peça baixa os materiais dela no Compras (idempotente); Editar Pedido tem o botão ${b('Baixar materiais no Compras')} para fazer à mão o que ainda não baixou. ${b('CSV')} e impressão continuam.`
     )}`)}
 
   ${S('📊 Indicadores', 'Números da produção no período: concluídos, atraso médio, distribuição por tipo/status.')}

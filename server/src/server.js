@@ -14,6 +14,7 @@ import helmet from 'helmet';
 
 import { pool, migrate } from './db.js';
 import { iniciarRetryCiclo } from './comercial-client.js';
+import { iniciarRetryCompras } from './compras-client.js';
 import authRoutes from './routes/auth.js';
 import pcpRoutes from './routes/pcp.js';
 import adminRoutes from './routes/admin.js';
@@ -140,6 +141,7 @@ app.use((err, req, res, next) => {
 async function start() {
   await migrate();
   iniciarRetryCiclo();   // reenvio das pendências do ciclo (Comercial fora do ar)
+  iniciarRetryCompras(); // P3: reenvio das requisições/saídas de produção (Compras fora do ar)
   app.listen(PORT, HOST, () => {
     console.log(`fabrica-server ouvindo em http://${HOST}:${PORT}`);
   });

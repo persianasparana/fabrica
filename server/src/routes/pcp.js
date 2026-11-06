@@ -35,7 +35,10 @@ import { roteiroDaLinha } from '../roteiro.js';
 // P2 do planejamento (06/11/2026): carga por setor (capacidade × fila sequenciada)
 import { carregarCarga, cargaCfg, CARGA_CFG_PADRAO } from '../carga.js';
 // P1 do planejamento (06/11/2026): necessidade de materiais do horizonte
-import { necessidadeMateriais, necessidadeCsv } from '../necessidade.js';
+import { necessidadeMateriais, necessidadeCsv, requisitarCompras, listarRequisicoes } from '../necessidade.js';
+// P3 do planejamento (06/11/2026): requisição ao Compras + baixa de produção (outbox)
+import { materiaisDaPecaParaBaixa } from '../lista-materiais.js';
+import { enviarComOutbox, comprasHabilitado } from '../compras-client.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -466,6 +469,81 @@ r.get(
   })
 );
 
+// P3 — REQUISITAR ao Compras (quem edita a fila) · requisições feitas · baixa manual
+r.post(
+  '/necessidade/requisitar',
+  requireCsrf,
+  requirePerm('fila', 'editar'),
+  ah(async (req, res) => {
+    const b = req.body || {};
+    const r2 = await requisitarCompras({ ...b, usuario: { id: req.session.user.id, nome: req.session.user.full_name } });
+    await audit(req.session.user.id, 'pcp', r2.ok ? 'compras.requisitar' : 'compras.requisitar.pendente', { entityType: 'pcp_requisicao', entityId: Number(r2.requisicao?.id) || 0 });
+    res.status(r2.ok ? (r2.criada ? 201 : 200) : 202).json(r2);
+  })
+);
+r.get('/necessidade/requisicoes', requirePerm('fila', 'ver'), ah(async (req, res) => {
+  res.json(await listarRequisicoes({ atualizar: String(req.query.atualizar || '') === '1', limite: req.query.limite }));
+}));
+
+/**
+ * Baixa de produção de UMA peça no Compras (idempotente: pedido + sku + plano
+ * `peca:<id>`; a marca `materiais_baixados_em` evita recomputar). Fire-and-forget
+ * com outbox — nunca atrasa nem derruba a bipagem.
+ */
+export async function baixarMateriaisDaPeca(pecaId, quem) {
+  if (!comprasHabilitado()) return { ok: false, motivo: 'compras_desligado' };
+  const { rows } = await q(`SELECT materiais_baixados_em FROM pcp_pecas WHERE id = $1`, [Number(pecaId)]);
+  if (!rows[0]) return { ok: false, motivo: 'peca_inexistente' };
+  if (rows[0].materiais_baixados_em) return { ok: true, motivo: 'ja_baixada' };
+  const { rows: pend } = await q(`SELECT 1 FROM pcp_compras_pendencias WHERE chave = $1`, [`saida:peca:${pecaId}`]);
+  if (pend[0]) return { ok: false, motivo: 'pendente' };
+  const m = await materiaisDaPecaParaBaixa(pecaId);
+  if (!m) return { ok: false, motivo: 'sem_lista' };
+  if (!m.itens.length) {
+    await q(`UPDATE pcp_pecas SET materiais_baixados_em = now() WHERE id = $1`, [Number(pecaId)]);
+    return { ok: true, motivo: 'sem_itens_com_sku', sem_sku: m.sem_sku };
+  }
+  const r2 = await enviarComOutbox('saida', `saida:peca:${pecaId}`, { pedido: m.pedido, plano: `peca:${pecaId}`, itens: m.itens, observacao: quem ? `bipagem por ${quem}` : 'bipagem' });
+  if (r2.ok && !r2.resultado.efetiva) return { ...r2, motivo: 'sem_de_para', sem_produto: r2.resultado.sem_produto || [], sem_sku: m.sem_sku, itens: m.itens.length };
+  return { ...r2, sem_sku: m.sem_sku, itens: m.itens.length };
+}
+
+r.post(
+  '/pedido/baixa-materiais',
+  requireCsrf,
+  requirePerm('fila', 'editar'),
+  ah(async (req, res) => {
+    const pedido = String(req.body?.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    if (!comprasHabilitado()) throw new HttpError(503, 'Integração com o Compras não configurada');
+    const { rows } = await q(`SELECT pp.id, pp.materiais_baixados_em FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE i.pedido = $1 ORDER BY pp.id`, [pedido]);
+    if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
+    const out = { pedido, pecas: rows.length, baixadas: 0, ja_baixadas: 0, pendentes: 0, sem_lista: 0, sem_de_para: 0, sem_sku: [], sem_produto: [] };
+    for (const p of rows) {
+      if (p.materiais_baixados_em) { out.ja_baixadas++; continue; }
+      const r2 = await baixarMateriaisDaPeca(p.id, `${req.session.user.full_name} (manual)`);
+      if (r2.ok && r2.motivo === 'ja_baixada') out.ja_baixadas++;
+      else if (r2.ok && r2.motivo === 'sem_de_para') out.sem_de_para++;
+      else if (r2.ok) out.baixadas++;
+      else if (r2.motivo === 'sem_lista') out.sem_lista++;
+      else out.pendentes++;
+      for (const s2 of (r2.sem_sku || [])) if (!out.sem_sku.includes(s2)) out.sem_sku.push(s2);
+      for (const s2 of (r2.sem_produto || [])) if (!out.sem_produto.includes(s2)) out.sem_produto.push(s2);
+    }
+    await audit(req.session.user.id, 'pcp', 'compras.baixa_manual', { entityType: 'pcp_pedido', entityId: 0 });
+    res.json(out);
+  })
+);
+r.get('/pedido/baixa-materiais', requirePerm('fila', 'ver'), ah(async (req, res) => {
+  const pedido = String(req.query.pedido || '').trim();
+  if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+  const { rows } = await q(
+    `SELECT count(*) AS pecas, count(*) FILTER (WHERE pp.materiais_baixados_em IS NOT NULL) AS baixadas,
+            (SELECT count(*) FROM pcp_compras_pendencias cp WHERE cp.tipo = 'saida' AND cp.chave = ANY(array_agg('saida:peca:' || pp.id::text))) AS pendentes
+     FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE i.pedido = $1`, [pedido]);
+  res.json({ pedido, pecas: Number(rows[0].pecas), baixadas: Number(rows[0].baixadas), pendentes: Number(rows[0].pendentes), compras_habilitado: comprasHabilitado() });
+}));
+
 // P0 do planejamento — LISTA DE MATERIAIS do(s) pedido(s) pelo Núcleo (:3070,
 // /lista-materiais v14.88): sem dinheiro; por item (Ficha) e consolidada
 // (tecido por coleção × cor, perfis em barras, tubos). ?pedidos=a,b ou ?pedido=
@@ -629,6 +707,7 @@ r.post(
     const peca = rows[0];
     if (!peca) return res.json({ acao: 'desconhecido' });
 
+    let primeiraBipagem = false; // P3: 1ª bipagem da peça → baixa de materiais no Compras
     const out = await emTransacao(async (exec) => {
       // roteiro do produto (se houver)
       let roteiro = [];
@@ -663,6 +742,7 @@ r.post(
       regs.forEach((rr) => (reg[Number(rr.setor_id)] = rr));
 
       if (evento === 'inicio') {
+        primeiraBipagem = !regs.some((rr) => rr.inicio);
         const dep = (noRoteiro?.depende_de || []).map(Number);
         const pendentes = dep.filter((d) => !reg[d] || !reg[d].fim);
         if (pendentes.length) {
@@ -706,6 +786,14 @@ r.post(
 
     if (out.acao !== 'jafoi')
       await audit(req.session.user.id, 'pcp', 'bip.' + out.acao, { entityType: 'pcp_peca', entityId: Number(peca.id) });
+
+    // P3 do planejamento — a 1ª BIPAGEM da peça baixa os materiais dela no estoque do
+    // Compras (idempotente por peça; falha vira pendência re-tentável; nunca atrasa o bip)
+    if (out.acao === 'inicio' && primeiraBipagem && comprasHabilitado()) {
+      baixarMateriaisDaPeca(peca.id, req.session.user.full_name)
+        .then((r2) => { if ((!r2.ok && r2.motivo !== 'pendente') || r2.motivo === 'sem_de_para') console.warn(`[compras] baixa da peça ${peca.id}: ${r2.motivo || r2.erro}${r2.sem_produto ? ` (${r2.sem_produto.length} sku sem de-para)` : ''}`); })
+        .catch((e) => console.warn(`[compras] baixa da peça ${peca.id} falhou: ${e.message}`));
+    }
 
     // Ciclo do pedido (Fase C) — avanço automático do estado federado, sem
     // atrasar a resposta da bipagem: 1º início → EM_PRODUCAO; última baixa

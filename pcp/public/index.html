@@ -307,7 +307,7 @@
         <button class="btn btn-black" onclick="renderNecessidade()">↻ Calcular</button>
         <button class="btn btn-outline" onclick="necExportarCsv()">⬇ CSV</button>
         <button class="btn btn-outline" onclick="window.print()">🖨 Imprimir</button>
-        <button class="btn btn-outline" disabled title="Requisição ao Compras entra na próxima fase (P3)">📨 Requisitar ao Compras</button>
+        <button class="btn btn-outline" data-requisitar onclick="necAbrirRequisicao()" disabled title="Calcule a necessidade primeiro">📨 Requisitar ao Compras</button>
         <span id="nec-info" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
       </div>
       <div class="metrics" id="metrics-necessidade"></div>
@@ -328,6 +328,10 @@
       <div class="card">
         <div class="card-title">Pedidos no horizonte</div>
         <div class="tbl-wrap" id="nec-pedidos-tabela"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Requisições feitas ao Compras <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;margin-left:8px" onclick="necCarregarRequisicoes(true)" title="consulta a situação atual no Compras">↻ situação</button></div>
+        <div class="tbl-wrap" id="nec-requisicoes"></div>
       </div>
     </div>
 
