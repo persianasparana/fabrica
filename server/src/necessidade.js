@@ -13,7 +13,9 @@
  */
 import { q } from './db.js';
 import { HttpError } from './util.js';
-import { listaMateriaisDosPedidos } from './lista-materiais.js';
+import { listaMateriaisDosPedidos, skuCompras } from './lista-materiais.js';
+import { saldos as saldosCompras, comprasHabilitado, enviarComOutbox, consultarSolicitacao } from './compras-client.js';
+import { createHash } from 'node:crypto';
 
 export const HORIZONTES = ['nao_cortou', 'abertos', 'pedidos'];
 
@@ -77,17 +79,25 @@ export async function necessidadeMateriais(opts = {}) {
   const { rows: itens } = await q(`SELECT id, pedido FROM pcp_itens WHERE pedido = ANY($1)`, [pedidos.map((p) => p.pedido)]);
   const pedidoDoItem = new Map(itens.map((i) => [String(i.id), i.pedido]));
   const d = lm.data;
-  const componentes = comPedidos((d.materiais || []).filter((m) => m.tipo !== 'tecido'), pedidoDoItem);
-  const tecido = comPedidos(d.tecido || [], pedidoDoItem);
+  const componentes = comPedidos((d.materiais || []).filter((m) => m.tipo !== 'tecido'), pedidoDoItem).map((m) => ({ ...m, sku_compras: skuCompras(m) }));
+  const tecido = comPedidos(d.tecido || [], pedidoDoItem).map((t) => ({ ...t, sku_compras: t.tecido_sku ? skuCompras({ tipo: 'tecido', sku: t.tecido_sku, cor: t.cor }) : null }));
   const perfis = comPedidos(d.perfis || [], pedidoDoItem);
+  // P3: saldo · reservado · em OC pelo COMPRAS (best-effort; null = sem de-para; compras null = fora)
+  const compras = await saldosCompras([...componentes, ...tecido].map((x) => x.sku_compras).filter(Boolean));
+  const comSaldo = (linha, qtdNecessaria) => {
+    const s = linha.sku_compras && compras ? compras[linha.sku_compras] : undefined;
+    const saldo = s ? Number(s.disponivel) : null;
+    return { ...linha, compras: s === undefined ? null : s, saldo, falta: saldo == null ? null : Math.max(0, Math.round((Number(qtdNecessaria) - saldo) * 10000) / 10000) };
+  };
   return {
+    compras_habilitado: comprasHabilitado(), compras_online: compras !== null,
     ...base,
     totais: { ...base.totais, pecas_ok: Number(d.totais?.pecas_ok) || 0, pecas_erro: Number(d.totais?.pecas_erro) || 0 },
     habilitado: true, motivo: null, avisos: lm.avisos || [],
-    tecido, tecido_totais: d.tecido_totais || { metros: 0, bobinas: 0 },
+    tecido: tecido.map((t) => comSaldo(t, t.metros)), tecido_totais: d.tecido_totais || { metros: 0, bobinas: 0 },
     perfis, perfis_totais: d.perfis_totais || null,
     tubos: d.tubos || [],
-    componentes,
+    componentes: componentes.map((m) => comSaldo(m, m.qtd)),
     itens_sem_spec: lm.itens_sem_spec || [],
     pecas_erro: (d.pecas || []).filter((p) => !p.ok).map((p) => ({ ref: p.ref, pedido: pedidoDoItem.get(String(p.ref || '').split(':')[0]) || null, motivo: p.motivo || p.error || null })),
     por_item: lm.por_item,
@@ -115,4 +125,53 @@ export function necessidadeCsv(n) {
   out.push(linha(['COMPONENTES', 'SKU', 'Qtd', 'Un', 'Peças', 'Origem', 'Pedidos']));
   for (const m of n.componentes) out.push(linha([m.descricao, m.sku || '', num(m.qtd), m.un || '', m.pecas, (m.origens || []).join(' '), (m.pedidos || []).join(' ')]));
   return '﻿' + out.join('\n');
+}
+
+// ─── P3 — REQUISIÇÃO ao Compras ───────────────────────────────────────────────
+/**
+ * Transforma itens escolhidos da necessidade numa SOLICITAÇÃO DE COMPRA no Compras.
+ * `d`: { horizonte, pedidos[], data_necessidade?, observacoes?, itens:[{sku, descricao, quantidade, un, pedidos[]}], usuario }
+ * origem_ref = pcp:nec:<hash do conteúdo> — o mesmo conjunto (sku+qtd+pedidos) nunca
+ * vira duas SCs (idempotente dos dois lados). Falha transitória = pendência (outbox).
+ */
+export async function requisitarCompras(d) {
+  const itens = (Array.isArray(d.itens) ? d.itens : []).map((it) => ({
+    sku: String(it.sku || '').trim() || null, descricao: String(it.descricao || it.sku || '').trim().slice(0, 255),
+    quantidade: Math.round(Number(it.quantidade) * 10000) / 10000, unidade: String(it.un || it.unidade || 'un').slice(0, 20),
+    pedidos: Array.isArray(it.pedidos) ? [...new Set(it.pedidos.map(String))].sort() : [],
+  })).filter((it) => it.descricao && it.quantidade > 0);
+  if (!itens.length) throw new HttpError(422, 'Escolha ao menos um item com quantidade > 0');
+  if (!comprasHabilitado()) throw new HttpError(503, 'Integração com o Compras não configurada (COMPRAS_SERVICE_KEY / COMPRAS_API_BASE)');
+  if (d.data_necessidade && !/^\d{4}-\d{2}-\d{2}$/.test(String(d.data_necessidade))) throw new HttpError(422, 'Data de necessidade inválida');
+  const pedidos = [...new Set([...(Array.isArray(d.pedidos) ? d.pedidos.map(String) : []), ...itens.flatMap((i) => i.pedidos)])].sort();
+  const conteudo = itens.map((i) => `${i.sku || i.descricao}=${i.quantidade}${i.unidade}[${i.pedidos.join(',')}]`).sort().join('|') + '#' + pedidos.join(',');
+  const origemRef = `pcp:nec:${createHash('sha1').update(conteudo).digest('hex').slice(0, 20)}`;
+  const payload = { origem_ref: origemRef, data_necessidade: d.data_necessidade || null, pedidos, solicitante: d.usuario?.nome ? `PCP · ${d.usuario.nome}` : 'PCP', observacoes: d.observacoes || `Necessidade de materiais do PCP (${d.horizonte || 'horizonte'}) — ${itens.length} item(ns), ${pedidos.length} pedido(s)`, itens };
+  const { rows: ex } = await q(`SELECT * FROM pcp_requisicoes WHERE origem_ref = $1`, [origemRef]);
+  if (!ex[0]) {
+    await q(`INSERT INTO pcp_requisicoes (origem_ref, horizonte, pedidos, itens, data_necessidade, observacoes, criado_por, criado_por_nome)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (origem_ref) DO NOTHING`,
+      [origemRef, d.horizonte || null, JSON.stringify(pedidos), JSON.stringify(itens), d.data_necessidade || null, payload.observacoes, d.usuario?.id || null, d.usuario?.nome || null]);
+  }
+  const r = await enviarComOutbox('solicitacao', `solicitacao:${origemRef}`, payload);
+  if (!r.ok) await q(`UPDATE pcp_requisicoes SET erro = $2, updated_at = now() WHERE origem_ref = $1`, [origemRef, r.erro]);
+  const { rows } = await q(`SELECT * FROM pcp_requisicoes WHERE origem_ref = $1`, [origemRef]);
+  return { ...r, ja_existia: !!ex[0], requisicao: rows[0], solicitacao: r.ok ? r.resultado.solicitacao : null, criada: r.ok ? r.resultado.criada : false };
+}
+
+/** requisições feitas (com o status atual no Compras quando ele responde) */
+export async function listarRequisicoes({ atualizar = false, limite = 50 } = {}) {
+  const { rows } = await q(`SELECT * FROM pcp_requisicoes ORDER BY created_at DESC LIMIT $1`, [Math.min(200, Number(limite) || 50)]);
+  if (atualizar) {
+    for (const r of rows) {
+      if (!r.numero_sc) continue;
+      const sc = await consultarSolicitacao(r.numero_sc);
+      if (sc && sc.status && sc.status !== r.status_sc) {
+        await q(`UPDATE pcp_requisicoes SET status_sc = $2, updated_at = now() WHERE id = $1`, [r.id, sc.status]);
+        r.status_sc = sc.status;
+      }
+    }
+  }
+  const { rows: pend } = await q(`SELECT tipo, chave, tentativas, ultimo_erro, bloqueada, updated_at FROM pcp_compras_pendencias ORDER BY updated_at DESC LIMIT 50`);
+  return { requisicoes: rows, pendencias: pend, compras_habilitado: comprasHabilitado() };
 }

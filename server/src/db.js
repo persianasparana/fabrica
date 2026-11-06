@@ -423,6 +423,41 @@ export async function migrate() {
   for (const [chave, sku] of DE_PARA_SKU) {
     await q(`UPDATE pcp_produtos SET produto_sku = $2, updated_at = now() WHERE chave = $1 AND produto_sku IS NULL`, [chave, sku]);
   }
+  // P3 do planejamento (06/11/2026) — integração com o COMPRAS: OUTBOX das escritas
+  // (requisição de compra e saída de produção; reenvio automático), registro das
+  // REQUISIÇÕES feitas pela Necessidade de materiais (idempotentes por origem_ref)
+  // e a marca de "materiais baixados no Compras" por peça (1ª bipagem ou manual).
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_compras_pendencias (
+      id          BIGSERIAL PRIMARY KEY,
+      tipo        VARCHAR(20) NOT NULL CHECK (tipo IN ('solicitacao','saida')),
+      chave       VARCHAR(160) NOT NULL UNIQUE,
+      payload     JSONB NOT NULL,
+      tentativas  INT NOT NULL DEFAULT 0,
+      ultimo_erro TEXT,
+      bloqueada   BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`);
+  await q(`
+    CREATE TABLE IF NOT EXISTS pcp_requisicoes (
+      id          BIGSERIAL PRIMARY KEY,
+      origem_ref  VARCHAR(120) NOT NULL UNIQUE,
+      numero_sc   VARCHAR(30),
+      status_sc   VARCHAR(20),
+      horizonte   VARCHAR(20),
+      pedidos     JSONB NOT NULL DEFAULT '[]'::jsonb,
+      itens       JSONB NOT NULL DEFAULT '[]'::jsonb,
+      data_necessidade DATE,
+      observacoes TEXT,
+      criado_por  BIGINT,
+      criado_por_nome VARCHAR(160),
+      enviada_em  TIMESTAMPTZ,
+      erro        TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`);
+  await q(`ALTER TABLE pcp_pecas ADD COLUMN IF NOT EXISTS materiais_baixados_em TIMESTAMPTZ`);
   // P2 do planejamento — CAPACIDADE por setor (peças por dia útil; NULL = sem
   // limite), PRIORIDADE do item (0 normal · 1 alta · 2 urgente) e a config do
   // calendário (dias úteis, folga antes da data prometida, semanas do horizonte).

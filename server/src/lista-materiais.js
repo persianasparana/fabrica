@@ -175,3 +175,41 @@ export async function listaMateriaisDosPedidos(pedidos) {
   }
   return out;
 }
+
+// ─── P3 do planejamento (06/11/2026) — sku do COMPRAS por linha de material ─────
+// O de-para do Compras (`produtos.nucleo_sku`) é o sku do Núcleo: componente =
+// sku do componente; TECIDO POR COR = `<sku do tecido>:<COR>` (sem cor = só o sku).
+export function skuCompras(mat) {
+  if (!mat || !mat.sku) return null;
+  if (mat.tipo === 'tecido') {
+    const cor = mat.cor || (mat.extra && mat.extra.cor) || null;
+    return cor ? `${mat.sku}:${String(cor).trim().toUpperCase()}` : String(mat.sku);
+  }
+  return String(mat.sku);
+}
+
+/**
+ * Materiais de UMA peça (para a baixa de produção na 1ª bipagem): consulta o
+ * Núcleo só com essa peça. Devolve { pedido, ref, itens:[{sku, quantidade,
+ * descricao, un}], sem_sku:[descricao] } ou null (Núcleo fora / peça não cota).
+ */
+export async function materiaisDaPecaParaBaixa(pecaId) {
+  const { rows } = await q(`SELECT pp.id, i.pedido FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE pp.id = $1`, [Number(pecaId)]);
+  if (!rows[0]) return null;
+  const m = await montarPayloadPedidos([rows[0].pedido]);
+  const ref = `${m.pecas.find((p) => Number(p.id) === Number(pecaId))?.item_id}:${pecaId}`;
+  const corpo = m.payload.find((pc) => pc.ref === ref);
+  if (!corpo) return null;
+  const resp = await buscarListaMateriais([corpo]);
+  const pc = resp && Array.isArray(resp.pecas) ? resp.pecas[0] : null;
+  if (!pc || !pc.ok) return null;
+  const agg = new Map(); const semSku = [];
+  for (const mat of (pc.materiais || [])) {
+    if (mat.tipo === 'servico' || !(Number(mat.qtd) > 0)) continue;
+    const sku = skuCompras(mat);
+    if (!sku) { semSku.push(mat.descricao || '?'); continue; }
+    if (!agg.has(sku)) agg.set(sku, { sku, quantidade: 0, descricao: mat.descricao || sku, un: mat.un || null });
+    agg.get(sku).quantidade = Math.round((agg.get(sku).quantidade + Number(mat.qtd)) * 10000) / 10000;
+  }
+  return { pedido: rows[0].pedido, ref, itens: [...agg.values()], sem_sku: semSku };
+}

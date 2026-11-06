@@ -47,6 +47,8 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
   `unidade` do produto, componentes/BOM por peça).
 - `server/src/comercial-client.js` — cliente REST do Comercial (X-Service-Key) +
   **outbox `pcp_ciclo_pendencias`** (retry do avanço de ciclo com o Comercial fora).
+- `server/src/compras-client.js` — cliente REST do Compras (X-Service-Key) + **outbox
+  `pcp_compras_pendencias`** (requisição de compra e saída de produção — P3, 06/11/2026).
 - `server/bin/` — `install.js` (schema+seed+admin) e utilitários: `preencher-barras.js`,
   `reparar-keys.js`, `preencher-medidas.js`, `preencher-componentes.js`.
 - `pcp/public/assets/js/` — `app.js` (fila/editar pedido/estrutura), `comercial.js`
@@ -97,6 +99,41 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (06/11/2026) — na branch (deploy pendente): **P3 do PLANEJAMENTO — integração com o COMPRAS**
+## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d/e + §3.3; exige o Compras com a migration 013)
+- **`server/src/compras-client.js`**: `saldos(skus)` (best-effort → null com o Compras fora),
+  `criarSolicitacao`/`saidaProducao` (lançam) e a **OUTBOX `pcp_compras_pendencias`**
+  (`enviarComOutbox(tipo, chave, payload)`: falha transitória = pendência re-tentável a cada
+  `COMPRAS_RETRY_MS` (5 min, `iniciarRetryCompras()` no boot); 4xx definitivo = `bloqueada`).
+  Envs `COMPRAS_API_BASE`/`COMPRAS_SERVICE_KEY` (= `SERVICE_KEY_PCP` do Compras),
+  `COMPRAS_INTEGRACAO_ENABLED=0` desliga. Sem chave: nada quebra, nada requisita, nada baixa.
+- **Sku do Compras** (`lista-materiais.js skuCompras`): componente = `sku` do Núcleo; **tecido por
+  COR = `<sku do tecido>:<COR>`** (`t1:BEGE`) — é o `produtos.nucleo_sku` que o comprador cadastra
+  na tela Solicitações do Compras ("De-para com o Núcleo"). `necessidade.js` enriquece cada linha
+  com `sku_compras`, `compras {saldo, reservado, em_oc, disponivel}` (null = sem de-para),
+  `saldo`, `falta` (= necessidade − disponível) e devolve `compras_habilitado`/`compras_online`.
+- **Requisitar** (`POST /api/pcp/necessidade/requisitar`, `requirePerm('fila','editar')`):
+  `requisitarCompras()` grava em `pcp_requisicoes` (origem_ref = `pcp:nec:<sha1 do conteúdo>` —
+  o MESMO conjunto sku+qtd+pedidos nunca vira duas SCs, dos dois lados) e envia com outbox;
+  resposta 201 (SC criada) · 200 (já existia) · 202 (pendente, Compras fora). `GET
+  /api/pcp/necessidade/requisicoes?atualizar=1` lista com o status atual da SC no Compras.
+- **Baixa de estoque**: `baixarMateriaisDaPeca(pecaId)` (materiais de UMA peça pelo Núcleo —
+  `materiaisDaPecaParaBaixa` —, plano `peca:<id>`, chave `saida:peca:<id>`) roda na **1ª bipagem**
+  (`/bip` inicio sem etapa anterior, fire-and-forget) e na baixa manual `POST /api/pcp/pedido/
+  baixa-materiais {pedido}` (+ `GET` com o estado). `pcp_pecas.materiais_baixados_em` só é marcada
+  quando o Compras baixou/já tinha baixado ao menos um sku — peça cujos itens NÃO têm de-para fica
+  aberta (`sem_de_para`) para quando o cadastro existir.
+- **Tela**: Necessidade com colunas Saldo/Falta ("sem de-para" · "Compras fora"), botão
+  **Requisitar ao Compras** (modal: pré-marca os itens com falta, quantidade sugerida = falta, data
+  de necessidade, obs) e card **Requisições feitas** (SC · situação · pendente de envio); Editar
+  Pedido: **"Baixar materiais no Compras"**. Manual atualizado.
+- Provado na réplica (Compras real :3051 + Núcleo :3070): e2e `scratchpad/e2e-pcp-p3.mjs` 31
+  (saldo por de-para, tecido:COR, requisição idempotente, reservado, Compras derrubado → 202 +
+  outbox → religado → reenvio automático vira SC, 1ª bipagem baixa e marca, 2ª não repete, baixa
+  manual idempotente) · Playwright `pw-pcp-p3.js` 11. Deploy `deploy/aplicar-planejamento-p3.sh`
+  (sem migration manual; ORDEM: Compras `aplicar-solicitacoes-compra.sh` ANTES; depois o .env
+  daqui com `COMPRAS_*` + restart). ⚠ Depois: o comprador faz o DE-PARA no Compras.
 
 ## Estado (06/11/2026) — na branch (deploy pendente): **P1 do PLANEJAMENTO — aba "Necessidade de materiais"**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d; exige o Núcleo v14.88 — reaproveita o P0)

@@ -381,8 +381,25 @@ Observações sobre a ordem:
   pedidos que a puxam; CSV; `GET /pcp/necessidade`. O Núcleo limita o lote a 300 peças → blocos de 250
   por fronteira de pedido, mesclados (bobinas/barras somadas por bloco, com aviso). Botão "Requisitar ao
   Compras" já na tela, desabilitado até a P3. Deploy `aplicar-planejamento-p1.sh`.
-- ▶ Próximo: **P3** (Compras: solicitações de compra + saldo por sku + saída de produção; PCP:
-  saldo/falta + Requisitar com outbox + baixa na 1ª bipagem).
+- ✅ **P3 — Compras** (`compras@claude/unified-server-status-7633oz`, migration 013): `produtos.nucleo_sku`
+  (ÚNICO; componente = sku do Núcleo, tecido por cor `t1:BEGE`) + `produtos.sku` ÚNICO (só sem duplicado);
+  `solicitacoes_compra` + `solicitacao_itens` (SC-AAAA-NNNN, `origem_ref` ÚNICO, origem pcp/manual/
+  sugestão, status aberta → em_cotacao → atendida | cancelada, `oc_item_id`); `estoque_saidas_producao`
+  (pedido+sku+plano ÚNICO); rotas de serviço `POST /integracao/solicitacoes-compra`, `GET …/:numero`,
+  `GET /integracao/estoque/saldos?skus=` (saldo · reservado · em OC), `POST /integracao/estoque/
+  saida-producao`; fila do comprador (`solicitacoes.html`: vincular produto gravando o de-para,
+  sugestão por nome, gerar OC rascunho com os itens, SC manual, de-para); cockpit → "Gerar
+  solicitação" (idempotente por dia); `/custos` ecoa `nucleo_sku`. Deploy `aplicar-solicitacoes-compra.sh`.
+- ✅ **P3 — Núcleo v14.89** (`produtos@main`): custo-sync usa o `nucleo_sku` como fonte virtual
+  (componente sem `custo_fonte`); tecido por cor não sincroniza preço (decisão pendente).
+- ✅ **P3 — PCP** (esta branch): `compras-client.js` + outbox `pcp_compras_pendencias`; Necessidade com
+  saldo/falta por sku do Compras; **Requisitar ao Compras** (idempotente por conteúdo, `pcp_requisicoes`);
+  baixa de produção na **1ª bipagem** e manual por pedido (`materiais_baixados_em` por peça). Deploy
+  `aplicar-planejamento-p3.sh` (ORDEM: Compras 013 → Núcleo v14.89 → Fábrica + `.env` COMPRAS_*).
+- ⏭ **Fora desta rodada (pendências)**: Solicitações/Comunicados no hub (§3.4) e Credenciais (§3.5) —
+  módulos novos; estoque por CNPJ e histórico do Bling (decisões); a Agenda não muda.
+- ⚠ **Cadastro depois dos deploys**: capacidade por setor + roteiros (P2), de-para `nucleo_sku` no Compras
+  (P3) — sem o de-para a Necessidade mostra "sem de-para" e a baixa pula o sku.
 
 ---
 

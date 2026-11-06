@@ -1196,6 +1196,7 @@ function renderPedidoEditor() {
         <button class="btn btn-outline" onclick="carregarPedido()">Recarregar</button>
         <button class="btn btn-black" onclick="abrirFichaProducao()" title="Documento completo pra bancada: specs, cores, medidas, observações e etiquetas por item">🗒 Ficha de produção</button>
         <button class="btn btn-outline" onclick="abrirPlanoCorteNucleo()" title="Planejamento de corte do pedido calculado pelo Núcleo de Produtos (variante + medidas de corte por componente)">📐 Plano de corte</button>
+        <button class="btn btn-outline" id="ped-baixa-materiais" onclick="baixarMateriaisPedido()" title="Dá baixa no estoque do Compras dos materiais das peças deste pedido que ainda não foram baixadas (a 1ª bipagem faz isso sozinha). Idempotente.">📦 Baixar materiais no Compras</button>
         <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
       </div>
     </div>`;
@@ -1369,6 +1370,22 @@ async function salvarPedido() {
     aplicarPedidoResposta(r);
     toast(`Pedido ${ped} atualizado (${r.count} produto(s)).`);
   } catch (e) { toast('Erro ao salvar: ' + e.message); }
+}
+
+// P3 do planejamento (06/11/2026) — baixa MANUAL dos materiais no Compras (peça a peça,
+// idempotente; a 1ª bipagem de cada peça já faz isso sozinha)
+async function baixarMateriaisPedido() {
+  if (!pedidoCarregado) return;
+  const ped = pedidoCarregado.pedido;
+  let st = null;
+  try { st = await api('pcp/pedido/baixa-materiais?pedido=' + encodeURIComponent(ped)); } catch (e) { toast('Erro: ' + e.message); return; }
+  if (!st.compras_habilitado) { toast('Integração com o Compras não configurada (COMPRAS_SERVICE_KEY).'); return; }
+  if (st.baixadas === st.pecas) { toast(`Todas as ${st.pecas} peça(s) do ${ped} já tiveram os materiais baixados no Compras.`); return; }
+  if (!confirm(`Baixar no estoque do Compras os materiais de ${st.pecas - st.baixadas} peça(s) do ${ped} ainda não baixadas (${st.baixadas} já baixadas${st.pendentes ? `, ${st.pendentes} pendente(s) de envio` : ''})?`)) return;
+  try {
+    const r = await api('pcp/pedido/baixa-materiais', { method: 'POST', body: { pedido: ped } });
+    toast(`${ped}: ${r.baixadas} baixada(s) agora · ${r.ja_baixadas} já estavam · ${r.pendentes} pendente(s) de envio · ${r.sem_lista} sem lista do Núcleo · ${r.sem_de_para} sem nenhum de-para no Compras${r.sem_produto.length ? ` (${r.sem_produto.slice(0, 3).join(', ')}…)` : ''}.`);
+  } catch (e) { toast('Erro: ' + e.message); }
 }
 
 async function excluirPedido() {
