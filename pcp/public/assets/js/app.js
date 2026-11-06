@@ -68,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','carga','busca','pedido','indicadores','bipagem','estrutura','tipos','comercial','etiquetas','expedicao'];
+const ABAS_PERM = ['painel','fila','alertas','carga','necessidade','busca','pedido','indicadores','bipagem','estrutura','tipos','comercial','etiquetas','expedicao'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -226,7 +226,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',carga:'Planejamento de carga',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',carga:'Planejamento de carga',necessidade:'Necessidade de materiais',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -237,6 +237,7 @@ function goTo(page) {
   if (page === 'fila') renderFila();
   if (page === 'alertas') renderAlertas();
   if (page === 'carga') renderCarga();
+  if (page === 'necessidade') renderNecessidade();
   if (page === 'comercial') renderComercial();
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();

@@ -375,8 +375,14 @@ Observações sobre a ordem:
   (grava `prev_producao`), tela com grade por setor/dia, clique no dia, itens que vão atrasar. Deploy
   `aplicar-planejamento-p2.sh`. Decisão de implementação: capacidade em **peças/dia** (a alternativa
   "minutos por tipo de peça" fica para quando houver tempo padrão cadastrado).
-- ▶ Próximo: **P1** (Necessidade de materiais — a rota `GET /pcp/pedido/materiais?pedidos=` já aceita
-  lote) → **P3** (Compras).
+- ✅ **P1 — PCP** (esta branch): aba **Necessidade de materiais** — horizonte "liberado e não cortou"
+  (padrão; peça aberta sem bipagem no setor de corte) / tudo em aberto / pedidos, filtro de data
+  prometida; tecido por coleção × cor × rolo, perfis/tubos em barras, componentes, cada linha com os
+  pedidos que a puxam; CSV; `GET /pcp/necessidade`. O Núcleo limita o lote a 300 peças → blocos de 250
+  por fronteira de pedido, mesclados (bobinas/barras somadas por bloco, com aviso). Botão "Requisitar ao
+  Compras" já na tela, desabilitado até a P3. Deploy `aplicar-planejamento-p1.sh`.
+- ▶ Próximo: **P3** (Compras: solicitações de compra + saldo por sku + saída de produção; PCP:
+  saldo/falta + Requisitar com outbox + baixa na 1ª bipagem).
 
 ---
 

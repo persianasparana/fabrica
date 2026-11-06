@@ -34,6 +34,8 @@ import { linhaDoSku, semEstruturaLocal } from '../nucleo-spec.js';
 import { roteiroDaLinha } from '../roteiro.js';
 // P2 do planejamento (06/11/2026): carga por setor (capacidade × fila sequenciada)
 import { carregarCarga, cargaCfg, CARGA_CFG_PADRAO } from '../carga.js';
+// P1 do planejamento (06/11/2026): necessidade de materiais do horizonte
+import { necessidadeMateriais, necessidadeCsv } from '../necessidade.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -438,6 +440,29 @@ r.post(
     });
     await audit(req.session.user.id, 'pcp', 'carga.previsoes', { entityType: 'pcp_item', entityId: 0 });
     res.json({ ok: true, gravados, itens: carga.itens.length, sem_previsao: carga.itens.filter((i) => !i.previsao).length });
+  })
+);
+
+// ─── P1 do planejamento — NECESSIDADE DE MATERIAIS ──────────────────────────
+// GET /necessidade?horizonte=nao_cortou|abertos|pedidos&ate=YYYY-MM-DD&pedidos=a,b
+// (&formato=csv). Leitura: quem vê a fila. Consolidado do Núcleo (sem dinheiro)
+// com os pedidos que puxam cada linha.
+r.get(
+  '/necessidade',
+  requirePerm('fila', 'ver'),
+  ah(async (req, res) => {
+    const opts = {
+      horizonte: String(req.query.horizonte || 'nao_cortou'),
+      ate: req.query.ate ? String(req.query.ate) : null,
+      pedidos: String(req.query.pedidos || '').split(',').map((x) => x.trim()).filter(Boolean),
+    };
+    const n = await necessidadeMateriais(opts);
+    if (String(req.query.formato || '') === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="necessidade-materiais-${new Date().toISOString().slice(0, 10)}.csv"`);
+      return res.send(necessidadeCsv(n));
+    }
+    res.json(n);
   })
 );
 

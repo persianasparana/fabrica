@@ -98,6 +98,37 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
+## Estado (06/11/2026) — na branch (deploy pendente): **P1 do PLANEJAMENTO — aba "Necessidade de materiais"**
+## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d; exige o Núcleo v14.88 — reaproveita o P0)
+- **`server/src/necessidade.js`**: `pedidosDoHorizonte({horizonte, ate, pedidos})` — `nao_cortou`
+  (padrão: peça aberta SEM etapa iniciada no setor de CORTE = `pcp_setores.ordem_corte`; sem setor
+  marcado, sem etapa nenhuma), `abertos`, `pedidos` (lista), `ate` = data prometida; item com pedido
+  vazio fica fora (`totais.itens_sem_pedido`). `necessidadeMateriais()` chama
+  `listaMateriaisDosPedidos` em lote e devolve `{pedidos[], totais, tecido[] (coleção × cor × rolo),
+  tecido_totais, perfis[], perfis_totais, tubos[], componentes[] (≠ tecido), pecas_erro[], por_item}`
+  — cada linha com **`pedidos[]`** derivado das refs `item:peca`. `necessidadeCsv()` (BOM, `;`,
+  vírgula decimal). Rota **`GET /api/pcp/necessidade?horizonte=&ate=&pedidos=&formato=csv`**
+  (`requirePerm('fila','ver')`); aba `necessidade` em `ABAS`/`ABAS_PERM`.
+- **Limite do Núcleo**: `/lista-materiais` aceita até **300 peças** (`lote_grande`) — o horizonte
+  passa disso. `lista-materiais.js` ganhou `dividirEmBlocos` (≤ 250 peças, fechando na fronteira do
+  PEDIDO; um pedido só se divide se sozinho excede) + `mesclarRespostas` (materiais por chave,
+  tecido por coleção × cor × rolo, perfis por componente, tubos por Ø — metros/bobinas/barras
+  SOMADOS por bloco, com aviso "pode sobrar uma a mais"), blocos em paralelo de 3;
+  `produtos-client.buscarListaMateriais` passou a guardar o motivo da falha (`erroListaMateriais()`,
+  timeout 60 s) — a tela diz "HTTP 422 — Máximo de 300 peças" em vez de "indisponível". Vale também
+  para a Ficha (P0) de pedido grande.
+- **Tela** (`pcp/public/assets/js/necessidade.js` + `sec-necessidade`): horizonte / pedidos / data,
+  Calcular, CSV (download pela rota), Imprimir, **"Requisitar ao Compras" desabilitado (P3)**;
+  métricas, avisos (Núcleo fora com o motivo, itens sem spec, peças que não calcularam com o
+  motivo, itens sem pedido, blocos), tabelas Tecido · Perfis/tubos · Componentes (filtro) · Pedidos
+  (link para a Ficha). Manual atualizado.
+- Provado na réplica (Núcleo real :3070): e2e API `scratchpad/e2e-pcp-p1.mjs` 20 (422s, 0002 com
+  AM 3059 BEGE, pedidos nas linhas, sem dinheiro, horizonte de 540 peças em blocos, peça bipada no
+  Corte sai do "não cortou", filtro `ate`, CSV) · Playwright `pw-pcp-p1.js` 16. Deploy
+  `deploy/aplicar-planejamento-p1.sh` (sem migration; Núcleo v14.88 ANTES).
+  ⚠ Na réplica 536 das 540 peças do seed não calculam ("Informe largura e altura") — itens antigos
+  sem spec/medida; em produção, itens liberados depois do P0 chegam completos.
+
 ## Estado (06/11/2026) — na branch (deploy pendente): **P2 do PLANEJAMENTO — aba "Planejamento de carga"**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 f; sem dependência de versão do Núcleo)
 - **`server/src/carga.js`**: `sequenciar({inicio, semanas, cfg, setores, pecas})` é PURO (teste

@@ -83,20 +83,30 @@ export const listaMateriaisHabilitado = () =>
  */
 export async function buscarListaMateriais(pecas) {
   if (!listaMateriaisHabilitado() || !Array.isArray(pecas) || !pecas.length) return null;
+  ultimoErroListaMateriais = null;
   try {
     const resp = await fetch(`${base()}/lista-materiais`, {
       method: 'POST',
       headers: { 'X-Service-Key': chave(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ pecas }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(60000),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      let msg = `HTTP ${resp.status}`;
+      try { const e = await resp.json(); if (e && (e.message || e.error)) msg += ` — ${e.message || e.error}`; } catch { /* corpo não-JSON */ }
+      ultimoErroListaMateriais = msg;
+      return null;
+    }
     const j = await resp.json();
     return j && j.data && typeof j.data === 'object' ? j.data : null;
-  } catch {
+  } catch (e) {
+    ultimoErroListaMateriais = e && e.name === 'TimeoutError' ? 'tempo esgotado (60 s)' : (e && e.message) || 'falha de rede';
     return null;
   }
 }
+/** motivo da última falha de buscarListaMateriais (P1: a tela mostra em vez de "indisponível") */
+let ultimoErroListaMateriais = null;
+export function erroListaMateriais() { return ultimoErroListaMateriais; }
 
 /**
  * BOM de um produto para uma medida (METROS). Retorna
