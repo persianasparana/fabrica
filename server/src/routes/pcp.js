@@ -28,6 +28,9 @@ import { q, pool } from '../db.js';
 import { ah, HttpError } from '../util.js';
 // Fase C do ciclo — avanço automático do pedido federado (fire-and-forget)
 import { avancarPedidoSilencioso, ehPedidoComercial } from '../comercial-client.js';
+// P0 do planejamento (06/11/2026): lista de materiais pelo Núcleo + roteiro por linha
+import { listaMateriaisDosPedidos } from '../lista-materiais.js';
+import { linhaDoSku, semEstruturaLocal } from '../nucleo-spec.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -44,6 +47,7 @@ const SELECT_ITEM = `
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
          i.ambiente, i.atributos, i.comercial_item_id, i.produto_sku,
+         i.spec_nucleo, (i.spec_nucleo IS NOT NULL) AS tem_spec,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pi.desenho_fabricacao, FALSE) AS desenho_fabricacao,
          COALESCE(pc.pecas, '[]'::json) AS pecas
@@ -93,6 +97,10 @@ export function validarItem(d, partial = false) {
   if (d.atributos !== undefined && d.atributos !== null &&
       (typeof d.atributos !== 'object' || Array.isArray(d.atributos)))
     throw new HttpError(422, 'Campo atributos deve ser um objeto { chave: valor }');
+  if (d.produto_sku != null && String(d.produto_sku).length > 64) throw new HttpError(422, 'SKU do Núcleo muito longo (máx. 64)');
+  if (d.spec_nucleo !== undefined && d.spec_nucleo !== null &&
+      (typeof d.spec_nucleo !== 'object' || Array.isArray(d.spec_nucleo)))
+    throw new HttpError(422, 'Campo spec_nucleo deve ser um objeto');
   if (d.status_id != null && d.status_id !== '' && !Number.isInteger(Number(d.status_id)))
     throw new HttpError(422, 'Status de produção inválido');
 }
@@ -148,11 +156,11 @@ export async function inserirItem(client, d, userId) {
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
         conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by,
         cliente, colecao, cor_tecido, cor_perfil, acionamento, ambiente, atributos, comercial_item_id,
-        produto_sku)
+        produto_sku, spec_nucleo)
      VALUES ($1,$2,$3,$4,
              COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
              $6,$7,$8,$9,$10,$11,$12,$13,$14,
-             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23,$24)
+             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23,$24,$25::jsonb)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
@@ -166,6 +174,7 @@ export async function inserirItem(client, d, userId) {
         ? JSON.stringify(d.atributos) : null,
       orNull(d.comercial_item_id),
       orNull(d.produto_sku),
+      d.spec_nucleo && typeof d.spec_nucleo === 'object' && !Array.isArray(d.spec_nucleo) ? JSON.stringify(d.spec_nucleo) : null,
     ]
   );
   const id = Number(rows[0].id);
@@ -244,67 +253,17 @@ r.get(
   })
 );
 
-r.post(
-  '/itens',
-  requireCsrf,
-  requirePerm('novo', 'editar'),
-  ah(async (req, res) => {
-    const d = req.body || {};
-    validarItem(d);
-    let id;
-    try {
-      id = await emTransacao((exec, client) => inserirItem(client, d, req.session.user.id));
-    } catch (e) { throw trataEtiquetaDuplicada(e); }
-    await audit(req.session.user.id, 'pcp', 'item.create', { entityType: 'pcp_item', entityId: id });
-    res.status(201).json({ id, item: await fmtItem(id) });
-  })
-);
-
-// Importação em lote (Excel / PDF / JSON colado) — transação única.
-// { itens: [...], substituir: true } apaga a fila atual antes de inserir.
-r.post(
-  '/itens/lote',
-  requireCsrf,
-  requirePerm('novo', 'editar'),
-  ah(async (req, res) => {
-    const itens = req.body?.itens;
-    const substituir = req.body?.substituir === true;
-    if (!Array.isArray(itens) || itens.length === 0)
-      throw new HttpError(422, 'Envie { itens: [...] } com pelo menos 1 item');
-    if (itens.length > 2000) throw new HttpError(413, 'Lote muito grande (máx. 2000 itens)');
-    itens.forEach((d, i) => {
-      try { validarItem(d); } catch (e) { throw new HttpError(422, `Item ${i + 1}: ${e.message}`); }
-    });
-    // tipos válidos vêm do cadastro de tipos (admin), não de lista fixa
-    const { rows: tnames } = await q('SELECT nome FROM pcp_tipos WHERE ativo = TRUE');
-    const tiposValidos = new Set(tnames.map((t) => t.nome));
-    itens.forEach((d, i) => {
-      if (d.tipo && !tiposValidos.has(String(d.tipo)))
-        throw new HttpError(422, `Item ${i + 1}: tipo de produção “${d.tipo}” não está cadastrado`);
-    });
-    // etiquetas repetidas dentro do próprio lote
-    const etiquetas = itens
-      .map((d) => (d.etiqueta != null ? String(d.etiqueta).trim() : ''))
-      .filter(Boolean);
-    const repetida = etiquetas.find((e, i) => etiquetas.indexOf(e) !== i);
-    if (repetida) throw new HttpError(422, `Etiqueta repetida no pedido: ${repetida}`);
-
-    let ids;
-    try {
-      ids = await emTransacao(async (exec, client) => {
-        if (substituir) await exec('DELETE FROM pcp_itens');
-        const out = [];
-        for (const d of itens) out.push(await inserirItem(client, d, req.session.user.id));
-        return out;
-      });
-    } catch (e) { throw trataEtiquetaDuplicada(e); }
-    await audit(req.session.user.id, 'pcp', substituir ? 'item.lote.substituir' : 'item.lote', {
-      entityType: 'pcp_item',
-      entityId: ids[0],
-    });
-    res.status(201).json({ ids, count: ids.length });
-  })
-);
+// P0 do planejamento (decisão do cliente 05/11/2026: "pode remover pedido
+// manual no PCP, vamos utilizar somente o comercial para entrada de pedidos"):
+// POST /itens e POST /itens/lote (formulário Novo Pedido, importação Excel/
+// CSV/PDF/JSON) saíram. A entrada de peças é SÓ a liberação do pedido do
+// Comercial (routes/comercial.js → inserirItem), que traz a spec completa.
+r.post('/itens', requireCsrf, (req, res) => {
+  res.status(410).json({ error: 'A entrada manual de pedidos saiu do PCP: cadastre o pedido no Comercial e libere a produção na aba Pedidos Comercial.' });
+});
+r.post('/itens/lote', requireCsrf, (req, res) => {
+  res.status(410).json({ error: 'A importação de pedidos (Excel/CSV/PDF) saiu do PCP: cadastre o pedido no Comercial e libere a produção na aba Pedidos Comercial.' });
+});
 
 r.put(
   '/itens',
@@ -334,6 +293,12 @@ r.put(
            observacoes   = COALESCE($16, observacoes),
            especial      = COALESCE($17, especial),
            status_id     = CASE WHEN $18 THEN NULL ELSE COALESCE($19::bigint, status_id) END,
+           produto_sku   = CASE WHEN $20 THEN NULL ELSE COALESCE($21, produto_sku) END,
+           colecao       = COALESCE($22, colecao),
+           cor_tecido    = COALESCE($23, cor_tecido),
+           cor_perfil    = COALESCE($24, cor_perfil),
+           acionamento   = COALESCE($25, acionamento),
+           ambiente      = COALESCE($26, ambiente),
            updated_at    = now()
          WHERE id = $1`,
         [
@@ -352,6 +317,11 @@ r.put(
           typeof d.especial === 'boolean' ? d.especial : null,
           d.status_id === null,
           d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null,
+          // P0 do planejamento — a spec editável da peça (sku do Núcleo, coleção,
+          // cores, acionamento, ambiente); produto_sku null explícito limpa
+          d.produto_sku === null,
+          orNull(d.produto_sku), orNull(d.colecao), orNull(d.cor_tecido), orNull(d.cor_perfil),
+          orNull(d.acionamento), orNull(d.ambiente),
         ]
       );
       if (result.rowCount === 0) throw new HttpError(404, 'Item não encontrado');
@@ -413,6 +383,18 @@ r.delete(
 // ─── Pedido (edição em massa de todos os itens/peças) ───────────────────────
 
 // GET /api/pcp/pedido?pedido=NNN -> { pedido, itens: [...] }
+// P0 do planejamento — LISTA DE MATERIAIS do(s) pedido(s) pelo Núcleo (:3070,
+// /lista-materiais v14.88): sem dinheiro; por item (Ficha) e consolidada
+// (tecido por coleção × cor, perfis em barras, tubos). ?pedidos=a,b ou ?pedido=
+r.get(
+  '/pedido/materiais',
+  ah(async (req, res) => {
+    const pedidos = String(req.query.pedidos || req.query.pedido || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!pedidos.length) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    res.json(await listaMateriaisDosPedidos(pedidos));
+  })
+);
+
 r.get(
   '/pedido',
   ah(async (req, res) => {
@@ -542,6 +524,24 @@ async function progressoPeca(pecaId, exec = q) {
   return rows.map((r) => ({ ...r, setor_id: Number(r.setor_id) }));
 }
 
+/** Roteiro (ids de setor, sequencial) da LINHA pelo cadastro pcp_config.roteiro_linhas. */
+async function roteiroDaLinha(exec, linha) {
+  if (!linha) return [];
+  const { rows } = await exec(`SELECT valor FROM pcp_config WHERE chave = 'roteiro_linhas'`);
+  let cfg = {};
+  try { cfg = rows[0] && rows[0].valor ? JSON.parse(rows[0].valor) : {}; } catch { cfg = {}; }
+  const nomes = Array.isArray(cfg[linha]) ? cfg[linha] : [];
+  if (!nomes.length) return [];
+  const { rows: setores } = await exec('SELECT id, nome FROM pcp_setores');
+  const idDe = (nome) => {
+    const n = String(nome).trim().toLowerCase();
+    const s = setores.find((x) => String(x.nome).trim().toLowerCase() === n);
+    return s ? Number(s.id) : null;
+  };
+  const ids = nomes.map(idDe).filter((x) => x != null);
+  return ids.map((id, i) => ({ setor_id: id, depende_de: i > 0 ? [ids[i - 1]] : [] }));
+}
+
 r.post(
   '/bip',
   requireCsrf,
@@ -555,7 +555,7 @@ r.post(
 
     const { rows } = await q(
       `SELECT pp.id, pp.item_id, pp.numero, to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
-              i.produto_id, i.pedido
+              i.produto_id, i.pedido, i.produto_sku
        FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE pp.cod_barras = $1`,
       [codigo]
     );
@@ -568,6 +568,11 @@ r.post(
       if (peca.produto_id) {
         const { rows: pr } = await exec('SELECT roteiro FROM pcp_produtos WHERE id = $1', [peca.produto_id]);
         roteiro = pr[0]?.roteiro || [];
+      } else if (semEstruturaLocal(peca.produto_sku)) {
+        // P0 do planejamento — peça de linha SEM estrutura local (cortina, fixa,
+        // celular, vertical, toldo): roteiro do cadastro por LINHA
+        // (pcp_config.roteiro_linhas: nomes de setor em ordem → ids, sequencial).
+        roteiro = await roteiroDaLinha(exec, linhaDoSku(peca.produto_sku));
       }
       const noRoteiro = roteiro.find((x) => Number(x.setor_id) === setorId);
       if (roteiro.length && !noRoteiro)
