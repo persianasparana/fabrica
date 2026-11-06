@@ -94,6 +94,12 @@ function renderManual() {
       `${b('Gravar previsões')} escreve a previsão calculada em "Prev. produção" dos itens abertos (quem edita a fila). Peça sem roteiro cadastrado passa por todos os setores, com aviso — cadastre o roteiro na Estrutura do Produto.`
     )}`)}
 
+  ${S('📦 Necessidade de materiais', `${ul(
+      `O que é: a lista CONSOLIDADA do que a produção vai consumir no ${b('horizonte')} escolhido — padrão ${b('“liberado e ainda não cortou”')} (peça aberta sem bipagem no setor de corte; sem setor marcado “imprime ordem de corte”, sem bipagem nenhuma); ou tudo em aberto; ou pedidos específicos; com filtro de data prometida.`,
+      `Calculada pelo Núcleo de Produtos com a especificação da venda (sem preço): ${b('tecido por coleção × cor × rolo')} (metros, bobinas, sobra), ${b('perfis e tubos em barras')} e ${b('componentes')} (sku, quantidade, origem) — cada linha diz quais pedidos a puxam. Lotes acima de 250 peças são calculados em blocos (bobinas/barras somadas por bloco).`,
+      `${b('CSV')} para o Compras/almoxarifado e impressão. O botão ${b('Requisitar ao Compras')} entra na fase seguinte (P3).`
+    )}`)}
+
   ${S('📊 Indicadores', 'Números da produção no período: concluídos, atraso médio, distribuição por tipo/status.')}
 
   ${S('⚙️ Administração (admin)', `${ul(

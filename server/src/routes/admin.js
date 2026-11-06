@@ -16,7 +16,7 @@ const COR_RE = /^#[0-9a-fA-F]{6}$/;
 const NIVEIS = ['none', 'ver', 'editar'];
 // Abas governadas pela matriz de permissões (as de admin não entram aqui)
 // P0 do planejamento (06/11/2026): a aba 'novo' (entrada manual) saiu — a entrada é só pelo Comercial
-export const ABAS = ['painel', 'fila', 'alertas', 'carga', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'tipos', 'comercial', 'etiquetas', 'expedicao'];
+export const ABAS = ['painel', 'fila', 'alertas', 'carga', 'necessidade', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'tipos', 'comercial', 'etiquetas', 'expedicao'];
 
 // ─── Setores de produção ─────────────────────────────────────────────────────
 
