@@ -16,7 +16,7 @@ const COR_RE = /^#[0-9a-fA-F]{6}$/;
 const NIVEIS = ['none', 'ver', 'editar'];
 // Abas governadas pela matriz de permissões (as de admin não entram aqui)
 // P0 do planejamento (06/11/2026): a aba 'novo' (entrada manual) saiu — a entrada é só pelo Comercial
-export const ABAS = ['painel', 'fila', 'alertas', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'tipos', 'comercial', 'etiquetas', 'expedicao'];
+export const ABAS = ['painel', 'fila', 'alertas', 'carga', 'busca', 'pedido', 'indicadores', 'bipagem', 'estrutura', 'tipos', 'comercial', 'etiquetas', 'expedicao'];
 
 // ─── Setores de produção ─────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ r.get(
   '/setores',
   ah(async (req, res) => {
     const { rows } = await q(`
-      SELECT s.id, s.nome, s.cor, s.ordem, s.status_id, s.ordem_corte,
+      SELECT s.id, s.nome, s.cor, s.ordem, s.status_id, s.ordem_corte, s.capacidade_dia,
              st.nome AS status_nome, st.cor AS status_cor, st.final AS status_final
       FROM pcp_setores s
       LEFT JOIN pcp_status st ON st.id = s.status_id
@@ -58,6 +58,14 @@ r.post(
   })
 );
 
+/** P2 — capacidade por dia (peças): número > 0 ou null; texto inválido = 422 */
+function capacidadeDia(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(String(v).replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0 || n > 100000) throw new HttpError(422, 'Capacidade inválida (peças por dia > 0)');
+  return n;
+}
+
 r.put(
   '/setores',
   requireAdmin,
@@ -77,13 +85,17 @@ r.put(
         `UPDATE pcp_setores SET
            nome = COALESCE($2, nome), cor = COALESCE($3, cor), ordem = COALESCE($4, ordem),
            status_id = CASE WHEN $5 THEN NULL ELSE COALESCE($6::bigint, status_id) END,
-           ordem_corte = COALESCE($7, ordem_corte)
+           ordem_corte = COALESCE($7, ordem_corte),
+           capacidade_dia = CASE WHEN $8 THEN NULL ELSE COALESCE($9::numeric, capacidade_dia) END
          WHERE id = $1`,
         [
           id, d.nome != null ? String(d.nome).trim() : null, d.cor != null ? String(d.cor) : null,
           d.ordem != null && Number.isFinite(Number(d.ordem)) ? Number(d.ordem) : null,
           limparStatus, status_id,
           typeof d.ordem_corte === 'boolean' ? d.ordem_corte : null,
+          // P2 — capacidade (peças/dia útil): null/'' explícito limpa; ausente preserva
+          d.capacidade_dia === null || d.capacidade_dia === '',
+          capacidadeDia(d.capacidade_dia),
         ]
       );
     } catch (e) {

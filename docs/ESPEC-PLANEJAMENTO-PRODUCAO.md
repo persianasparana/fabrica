@@ -367,8 +367,16 @@ Observações sobre a ordem:
   pedido" manual e importações removidos, Ficha com a lista de materiais (por item + resumo), roteiro por
   linha para peças sem estrutura local, defeito do modal (`produto_id` zerado) fechado. Deploy
   `aplicar-planejamento-p0.sh` (DEPOIS do Núcleo v14.88).
-- ▶ Próximo: **P2** (carga) → **P1** (Necessidade de materiais — a rota `GET /pcp/pedido/materiais?pedidos=`
-  já aceita lote) → **P3** (Compras).
+- ✅ **P2 — PCP** (esta branch): aba **Planejamento de carga** — `pcp_setores.capacidade_dia`,
+  `pcp_itens.prioridade` (0/1/2 no "Ver", em massa no Editar Pedido, badge na fila),
+  `pcp_config.carga_cfg` (dias úteis, folga, horizonte), `server/src/carga.js sequenciar()` puro
+  (prioridade › especial › data prometida; capacidade por dia; etapas feitas fora; roteiro da estrutura
+  ou da linha; sem roteiro = todos os setores com aviso), `GET /pcp/carga`, `POST /pcp/carga/previsoes`
+  (grava `prev_producao`), tela com grade por setor/dia, clique no dia, itens que vão atrasar. Deploy
+  `aplicar-planejamento-p2.sh`. Decisão de implementação: capacidade em **peças/dia** (a alternativa
+  "minutos por tipo de peça" fica para quando houver tempo padrão cadastrado).
+- ▶ Próximo: **P1** (Necessidade de materiais — a rota `GET /pcp/pedido/materiais?pedidos=` já aceita
+  lote) → **P3** (Compras).
 
 ---
 

@@ -68,7 +68,7 @@ function normalizarItem(i) {
 
 function ehAdmin() { return !!usuario && usuario.role === 'admin'; }
 
-const ABAS_PERM = ['painel','fila','alertas','busca','pedido','indicadores','bipagem','estrutura','tipos','comercial','etiquetas','expedicao'];
+const ABAS_PERM = ['painel','fila','alertas','carga','busca','pedido','indicadores','bipagem','estrutura','tipos','comercial','etiquetas','expedicao'];
 function nivelAba(aba) {
   if (ehAdmin()) return 'editar';
   return (usuario && usuario.permissoes && usuario.permissoes[aba]) || 'none';
@@ -202,7 +202,19 @@ function priorityOrder(item) {
   const dc = parseDate(item.data_cliente);
   // dias desde a época (inteiro pequeno) — peças especiais vêm antes no mesmo status
   const dias = dc ? Math.round(dc.getTime() / 86400000) : 99999999;
-  return base * 1e10 + (item.especial ? 0 : 5e9) + dias;
+  // P2 do planejamento: prioridade do item (2 urgente · 1 alta · 0 normal) vence a especial
+  const pr = Number(item.prioridade) || 0;
+  return base * 1e10 + (2 - Math.min(2, pr)) * 2e9 + (item.especial ? 0 : 1e9) + dias;
+}
+const PRIORIDADES = [{v:0,n:'Normal'},{v:1,n:'Alta'},{v:2,n:'Urgente'}];
+function badgePrioridade(item) {
+  const pr = Number(item && item.prioridade) || 0;
+  if (pr === 2) return '<span class="st st-vencido" style="font-size:9px" title="Prioridade URGENTE — vai à frente da fila no planejamento de carga">⚡ urgente</span> ';
+  if (pr === 1) return '<span class="st st-atencao" style="font-size:9px" title="Prioridade ALTA — vai à frente das normais no planejamento de carga">▲ alta</span> ';
+  return '';
+}
+function prioridadeOptions(sel) {
+  return PRIORIDADES.map((p)=>`<option value="${p.v}" ${Number(sel)===p.v?'selected':''}>${p.n}</option>`).join('');
 }
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -214,7 +226,7 @@ function esc(s) {
 }
 
 // ─── NAVIGATION ──────────────────────────────────────────────────────────────
-const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
+const titles = {painel:'Painel',fila:'Fila de Produção',alertas:'Alertas',carga:'Planejamento de carga',busca:'Buscar Pedido',pedido:'Editar Pedido',indicadores:'Indicadores',bip:'Bipagem',estrutura:'Estrutura do Produto',ordemcorte:'Plano de Corte',etiquetas:'Etiquetas',expedicao:'Expedição (gavetas)',status:'Status de Produção',tipos:'Tipos de Produção',setores:'Setores',usuarios:'Usuários',comercial:'Pedidos Comercial',manual:'Manual do usuário'};
 function goTo(page) {
   currentPage = page;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -224,6 +236,7 @@ function goTo(page) {
   document.getElementById('page-title').textContent = titles[page];
   if (page === 'fila') renderFila();
   if (page === 'alertas') renderAlertas();
+  if (page === 'carga') renderCarga();
   if (page === 'comercial') renderComercial();
   if (page === 'busca') { document.getElementById('busca-input').focus(); renderBusca(); }
   if (page === 'indicadores') renderIndicadores();
@@ -526,7 +539,7 @@ function renderFila() {
       ? ' <span class="st st-gray" style="font-size:9px" title="Pedido possui desenho de fabricação">📐 desenho</span>'
       : '';
     return `<tr>
-      <td class="td-produto">${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}${estrPend}${desenho}</td>
+      <td class="td-produto">${badgePrioridade(item)}${badgeEspecial(item)}${esc(item.produto)} ${statusProducaoBadge(item)}${estrPend}${desenho}</td>
       <td>${esc(item.pedido)}</td>
       <td style="text-align:center">${done > 0 && done < tot ? `<b style="color:var(--blue)">${done}/${tot}</b>` : tot}</td>
       <td>${fmtDate(item.data_cliente)}</td>
@@ -648,6 +661,7 @@ function renderSetoresAdmin() {
         <div class="form-group"><label>Status associado</label><select id="se-status">${statusOptions('')}</select></div>
         <div class="form-group"><label>Cor</label><input type="color" id="se-cor" value="#0891B2" style="height:40px;padding:3px"></div>
         <div class="form-group"><label>Ordem</label><input type="number" id="se-ordem" value="${(SETORES.length+1)*10}" min="0"></div>
+        <div class="form-group"><label>Capacidade (peças/dia útil)</label><input type="number" id="se-capacidade" min="0" step="1" placeholder="vazio = sem limite"></div>
         <div class="form-group" style="grid-column:1/-1">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
             <input type="checkbox" id="se-ordem-corte" style="width:15px;height:15px;accent-color:var(--red)">
@@ -660,11 +674,12 @@ function renderSetoresAdmin() {
     <div class="card" style="max-width:680px">
       <div class="card-title">Setores cadastrados (${SETORES.length})</div>
       ${SETORES.length ? `<div class="tbl-wrap"><table>
-        <thead><tr><th>Setor</th><th>Status ao iniciar</th><th>Ordem de corte</th><th style="width:150px"></th></tr></thead>
+        <thead><tr><th>Setor</th><th>Status ao iniciar</th><th>Ordem de corte</th><th title="Peças por dia útil — usada no Planejamento de carga">Capacidade/dia</th><th style="width:150px"></th></tr></thead>
         <tbody>${SETORES.map((s)=>`<tr>
           <td><span class="st-prod" style="background:${s.cor}22;color:${s.cor};border:1px solid ${s.cor}66">${esc(s.nome)}</span></td>
           <td><select onchange="alterarSetorStatus(${s.id}, this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:4px 8px">${statusOptions(s.status_id)}</select> ${s.status_final?'<span class="st st-ok" style="font-size:9px">final → baixa</span>':''}</td>
           <td>${s.ordem_corte?'<span class="st st-ok" style="font-size:9px">🖨 imprime</span>':'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+          <td>${s.capacidade_dia!=null&&s.capacidade_dia!==''?`<b>${Number(s.capacidade_dia).toLocaleString('pt-BR')}</b> <span style="color:var(--text3);font-size:10px">peças/dia</span>`:'<span style="color:var(--text3);font-size:11px" title="Sem capacidade cadastrada: o planejamento não limita este setor">sem limite</span>'}</td>
           <td>
             <button class="btn btn-outline" style="padding:2px 8px;font-size:10px" onclick="editarSetor(${s.id})">editar</button>
             <button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="excluirSetor(${s.id}, '${esc(s.nome)}')">excluir</button>
@@ -680,7 +695,9 @@ async function criarSetor() {
   const nome = document.getElementById('se-nome').value.trim();
   if (!nome) { toast('Informe o nome do setor.'); return; }
   try {
-    await api('pcp/setores', { method:'POST', body:{ nome, cor:document.getElementById('se-cor').value, ordem:parseInt(document.getElementById('se-ordem').value)||0, status_id:document.getElementById('se-status').value||null, ordem_corte:document.getElementById('se-ordem-corte').checked } });
+    const r = await api('pcp/setores', { method:'POST', body:{ nome, cor:document.getElementById('se-cor').value, ordem:parseInt(document.getElementById('se-ordem').value)||0, status_id:document.getElementById('se-status').value||null, ordem_corte:document.getElementById('se-ordem-corte').checked } });
+    const cap = document.getElementById('se-capacidade').value;
+    if (cap !== '' && r && r.id) await api('pcp/setores?id='+r.id, { method:'PUT', body:{ capacidade_dia: cap } });
     await recarregarSetores(); renderSetoresAdmin(); toast(`Setor “${nome}” cadastrado.`);
   } catch(e){ toast('Erro: '+e.message); }
 }
@@ -696,6 +713,7 @@ function editarSetor(id) {
     <div class="form-group"><label>Status associado</label><select id="se-ed-status">${statusOptions(s.status_id)}</select></div>
     <div class="form-group"><label>Cor</label><input type="color" id="se-ed-cor" value="${s.cor}" style="height:40px;padding:3px"></div>
     <div class="form-group"><label>Ordem</label><input type="number" id="se-ed-ordem" value="${s.ordem}" min="0"></div>
+    <div class="form-group"><label>Capacidade (peças/dia útil)</label><input type="number" id="se-ed-capacidade" value="${s.capacidade_dia!=null?Number(s.capacidade_dia):''}" min="0" step="1" placeholder="vazio = sem limite"></div>
     <div class="form-group" style="grid-column:1/-1">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:12px">
         <input type="checkbox" id="se-ed-ordem-corte" ${s.ordem_corte?'checked':''} style="width:15px;height:15px;accent-color:var(--red)">
@@ -707,7 +725,7 @@ function editarSetor(id) {
 }
 async function salvarSetor(id) {
   try {
-    await api('pcp/setores?id='+id, { method:'PUT', body:{ nome:document.getElementById('se-ed-nome').value.trim(), cor:document.getElementById('se-ed-cor').value, ordem:parseInt(document.getElementById('se-ed-ordem').value)||0, status_id:document.getElementById('se-ed-status').value||null, ordem_corte:document.getElementById('se-ed-ordem-corte').checked } });
+    await api('pcp/setores?id='+id, { method:'PUT', body:{ nome:document.getElementById('se-ed-nome').value.trim(), cor:document.getElementById('se-ed-cor').value, ordem:parseInt(document.getElementById('se-ed-ordem').value)||0, status_id:document.getElementById('se-ed-status').value||null, ordem_corte:document.getElementById('se-ed-ordem-corte').checked, capacidade_dia:document.getElementById('se-ed-capacidade').value } });
     await recarregarSetores(); closeModal(); renderSetoresAdmin(); toast('Setor atualizado.');
   } catch(e){ toast('Erro: '+e.message); }
 }
@@ -1152,6 +1170,9 @@ function renderPedidoEditor() {
         <div class="form-group"><label>Prev. produção</label><input type="date" id="ped-prev-prod" value="${comum(itens,'prev_producao')}"></div>
         <div class="form-group"><label>Chegada PCP</label><input type="date" id="ped-chegada" value="${comum(itens,'chegada_pcp')}"></div>
         <div class="form-group"><label>Tipo</label><select id="ped-tipo">${tiposOpts}</select></div>
+        <div class="form-group"><label>Prioridade (todos os itens)</label>
+          <select id="ped-prioridade"><option value="__keep__" selected>(manter atual)</option>${prioridadeOptions(-1)}</select>
+        </div>
         <div class="form-group" style="grid-column:1/-1"><label>Motivo atraso</label><select id="ped-motivo">${motivoOpts}</select></div>
         <div class="form-group" style="grid-column:1/-1"><label>Status de produção</label>
           <select id="ped-status">
@@ -1340,6 +1361,8 @@ async function salvarPedido() {
   };
   const sv = document.getElementById('ped-status').value;
   if (sv !== '__keep__') body.status_id = sv === '' ? null : Number(sv);
+  const pv = document.getElementById('ped-prioridade').value;
+  if (pv !== '__keep__') body.prioridade = Number(pv) || 0;
   try {
     const r = await api('pcp/pedido?pedido=' + encodeURIComponent(ped), { method: 'PUT', body });
     aplicarPedidoResposta(r);
@@ -1457,6 +1480,9 @@ function openDetail(id) {
         ${(TIPOS.some(t=>t.nome===item.tipo)?TIPOS:[{nome:item.tipo},...TIPOS]).map(t=>`<option ${item.tipo===t.nome?'selected':''}>${esc(t.nome)}</option>`).join('')}
       </select>
     </div>
+    <div class="form-group"><label>Prioridade <span style="font-weight:400;text-transform:none;color:var(--text3)">(planejamento de carga)</span></label>
+      <select id="ed-prioridade">${prioridadeOptions(item.prioridade)}</select>
+    </div>
     <div class="form-group" style="grid-column:1/-1"><label>Motivo atraso</label>
       <select id="ed-motivo">
         <option value=""></option>
@@ -1562,6 +1588,7 @@ async function salvarEdicao() {
     prev_producao: document.getElementById('ed-prev-prod').value || null,
     conclusao: document.getElementById('ed-conclusao').value || null,
     tipo: document.getElementById('ed-tipo').value,
+    prioridade: Number(document.getElementById('ed-prioridade').value) || 0,
     motivo_atraso: document.getElementById('ed-motivo').value,
     observacoes: document.getElementById('ed-obs').value.trim(),
     especial: document.getElementById('ed-especial').checked,

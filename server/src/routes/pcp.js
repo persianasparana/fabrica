@@ -31,6 +31,9 @@ import { avancarPedidoSilencioso, ehPedidoComercial } from '../comercial-client.
 // P0 do planejamento (06/11/2026): lista de materiais pelo Núcleo + roteiro por linha
 import { listaMateriaisDosPedidos } from '../lista-materiais.js';
 import { linhaDoSku, semEstruturaLocal } from '../nucleo-spec.js';
+import { roteiroDaLinha } from '../roteiro.js';
+// P2 do planejamento (06/11/2026): carga por setor (capacidade × fila sequenciada)
+import { carregarCarga, cargaCfg, CARGA_CFG_PADRAO } from '../carga.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -47,7 +50,7 @@ const SELECT_ITEM = `
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
          i.ambiente, i.atributos, i.comercial_item_id, i.produto_sku,
-         i.spec_nucleo, (i.spec_nucleo IS NOT NULL) AS tem_spec,
+         i.spec_nucleo, (i.spec_nucleo IS NOT NULL) AS tem_spec, i.prioridade,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pi.desenho_fabricacao, FALSE) AS desenho_fabricacao,
          COALESCE(pc.pecas, '[]'::json) AS pecas
@@ -98,6 +101,8 @@ export function validarItem(d, partial = false) {
       (typeof d.atributos !== 'object' || Array.isArray(d.atributos)))
     throw new HttpError(422, 'Campo atributos deve ser um objeto { chave: valor }');
   if (d.produto_sku != null && String(d.produto_sku).length > 64) throw new HttpError(422, 'SKU do Núcleo muito longo (máx. 64)');
+  if (d.prioridade != null && d.prioridade !== '' && ![0, 1, 2].includes(Number(d.prioridade)))
+    throw new HttpError(422, 'Prioridade inválida (0 normal · 1 alta · 2 urgente)');
   if (d.spec_nucleo !== undefined && d.spec_nucleo !== null &&
       (typeof d.spec_nucleo !== 'object' || Array.isArray(d.spec_nucleo)))
     throw new HttpError(422, 'Campo spec_nucleo deve ser um objeto');
@@ -299,6 +304,7 @@ r.put(
            cor_perfil    = COALESCE($24, cor_perfil),
            acionamento   = COALESCE($25, acionamento),
            ambiente      = COALESCE($26, ambiente),
+           prioridade    = COALESCE($27::smallint, prioridade),
            updated_at    = now()
          WHERE id = $1`,
         [
@@ -322,6 +328,7 @@ r.put(
           d.produto_sku === null,
           orNull(d.produto_sku), orNull(d.colecao), orNull(d.cor_tecido), orNull(d.cor_perfil),
           orNull(d.acionamento), orNull(d.ambiente),
+          d.prioridade != null && d.prioridade !== '' ? Number(d.prioridade) : null, // P2
         ]
       );
       if (result.rowCount === 0) throw new HttpError(404, 'Item não encontrado');
@@ -383,6 +390,57 @@ r.delete(
 // ─── Pedido (edição em massa de todos os itens/peças) ───────────────────────
 
 // GET /api/pcp/pedido?pedido=NNN -> { pedido, itens: [...] }
+// ─── P2 do planejamento — CARGA por setor ────────────────────────────────────
+// GET /carga?inicio=YYYY-MM-DD&semanas=N — calendário por setor (capacidade ×
+// programado), previsão por peça/item e alertas. Leitura: quem vê a fila vê.
+r.get(
+  '/carga',
+  requirePerm('fila', 'ver'),
+  ah(async (req, res) => {
+    res.json(await carregarCarga({ inicio: req.query.inicio, semanas: req.query.semanas }));
+  })
+);
+r.get('/carga/cfg', ah(async (req, res) => { res.json({ cfg: await cargaCfg(), padrao: CARGA_CFG_PADRAO }); }));
+r.put(
+  '/carga/cfg',
+  requireAdmin,
+  requireCsrf,
+  ah(async (req, res) => {
+    const d = req.body || {};
+    const dias = Array.isArray(d.dias_uteis) ? [...new Set(d.dias_uteis.map(Number).filter((x) => Number.isInteger(x) && x >= 0 && x <= 6))].sort() : null;
+    if (dias && !dias.length) throw new HttpError(422, 'Informe ao menos um dia útil (0 = domingo … 6 = sábado)');
+    const folga = d.folga_dias != null ? Number(d.folga_dias) : null;
+    if (folga != null && !(Number.isInteger(folga) && folga >= 0 && folga <= 30)) throw new HttpError(422, 'Folga inválida (0–30 dias)');
+    const semanas = d.semanas != null ? Number(d.semanas) : null;
+    if (semanas != null && !(Number.isInteger(semanas) && semanas >= 1 && semanas <= 8)) throw new HttpError(422, 'Semanas inválidas (1–8)');
+    const atual = await cargaCfg();
+    const novo = { dias_uteis: dias || atual.dias_uteis, folga_dias: folga != null ? folga : atual.folga_dias, semanas: semanas != null ? semanas : atual.semanas };
+    await q(`INSERT INTO pcp_config (chave, valor) VALUES ('carga_cfg', $1) ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`, [JSON.stringify(novo)]);
+    await audit(req.session.user.id, 'pcp', 'carga.cfg', { entityType: 'pcp_config', entityId: 0 });
+    res.json({ ok: true, cfg: novo });
+  })
+);
+// POST /carga/previsoes — grava a previsão calculada em pcp_itens.prev_producao
+// dos itens abertos (quem edita a fila). Idempotente (recalcula e regrava).
+r.post(
+  '/carga/previsoes',
+  requireCsrf,
+  requirePerm('fila', 'editar'),
+  ah(async (req, res) => {
+    const carga = await carregarCarga({ inicio: req.body?.inicio, semanas: req.body?.semanas });
+    let gravados = 0;
+    await emTransacao(async (exec) => {
+      for (const it of carga.itens) {
+        if (!it.previsao) continue;
+        const r2 = await exec(`UPDATE pcp_itens SET prev_producao = $2::date, updated_at = now() WHERE id = $1 AND conclusao IS NULL AND prev_producao IS DISTINCT FROM $2::date`, [it.item_id, it.previsao]);
+        gravados += r2.rowCount;
+      }
+    });
+    await audit(req.session.user.id, 'pcp', 'carga.previsoes', { entityType: 'pcp_item', entityId: 0 });
+    res.json({ ok: true, gravados, itens: carga.itens.length, sem_previsao: carga.itens.filter((i) => !i.previsao).length });
+  })
+);
+
 // P0 do planejamento — LISTA DE MATERIAIS do(s) pedido(s) pelo Núcleo (:3070,
 // /lista-materiais v14.88): sem dinheiro; por item (Ficha) e consolidada
 // (tecido por coleção × cor, perfis em barras, tubos). ?pedidos=a,b ou ?pedido=
@@ -446,6 +504,7 @@ r.put(
            observacoes   = COALESCE($10, observacoes),
            especial      = COALESCE($11, especial),
            status_id     = CASE WHEN $12 THEN NULL ELSE COALESCE($13::bigint, status_id) END,
+           prioridade    = COALESCE($14::smallint, prioridade),
            updated_at    = now()
          WHERE pedido = $1`,
         [
@@ -459,6 +518,7 @@ r.put(
           typeof d.especial === 'boolean' ? d.especial : null,
           d.status_id === null,
           d.status_id != null && d.status_id !== '' ? Number(d.status_id) : null,
+          d.prioridade != null && d.prioridade !== '' ? Number(d.prioridade) : null, // P2
         ]
       );
 
@@ -522,24 +582,6 @@ async function progressoPeca(pecaId, exec = q) {
     [pecaId]
   );
   return rows.map((r) => ({ ...r, setor_id: Number(r.setor_id) }));
-}
-
-/** Roteiro (ids de setor, sequencial) da LINHA pelo cadastro pcp_config.roteiro_linhas. */
-async function roteiroDaLinha(exec, linha) {
-  if (!linha) return [];
-  const { rows } = await exec(`SELECT valor FROM pcp_config WHERE chave = 'roteiro_linhas'`);
-  let cfg = {};
-  try { cfg = rows[0] && rows[0].valor ? JSON.parse(rows[0].valor) : {}; } catch { cfg = {}; }
-  const nomes = Array.isArray(cfg[linha]) ? cfg[linha] : [];
-  if (!nomes.length) return [];
-  const { rows: setores } = await exec('SELECT id, nome FROM pcp_setores');
-  const idDe = (nome) => {
-    const n = String(nome).trim().toLowerCase();
-    const s = setores.find((x) => String(x.nome).trim().toLowerCase() === n);
-    return s ? Number(s.id) : null;
-  };
-  const ids = nomes.map(idDe).filter((x) => x != null);
-  return ids.map((id, i) => ({ setor_id: id, depende_de: i > 0 ? [ids[i - 1]] : [] }));
 }
 
 r.post(

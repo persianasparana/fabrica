@@ -87,12 +87,19 @@ function renderManual() {
       `${b('Entrada de pedidos')}: SÓ pelo Comercial (aba Pedidos Comercial → Liberar produção) — o cadastro manual e a importação por Excel/PDF saíram do PCP (decisão de 05/11/2026); reposição, retrabalho e amostra entram como pedido no Comercial, que já traz a especificação completa da peça.`
     )}`)}
 
+  ${S('📅 Planejamento de carga', `${ul(
+      `O que é: a fila ABERTA sequenciada setor a setor, dia a dia, respeitando a ${b('capacidade')} de cada setor (peças por dia útil, cadastrada em Setores ou direto no card da tela) — por ${b('prioridade')} do item (Urgente › Alta › Normal, no "Ver" da fila ou em massa no Editar Pedido), peça especial, data prometida e chegada.`,
+      `Cada card é um setor; cada quadradinho um dia útil: ${b('verde')} cabe, ${b('âmbar')} acima de 80%, ${b('vermelho')} estourado; clique no dia para ver as peças programadas nele. "Além do horizonte" = não coube nas semanas mostradas.`,
+      `${b('Itens que vão atrasar')}: previsão de término depois de (data prometida − folga). Folga, dias úteis e horizonte padrão: botão ${b('Calendário')} (admin).`,
+      `${b('Gravar previsões')} escreve a previsão calculada em "Prev. produção" dos itens abertos (quem edita a fila). Peça sem roteiro cadastrado passa por todos os setores, com aviso — cadastre o roteiro na Estrutura do Produto.`
+    )}`)}
+
   ${S('📊 Indicadores', 'Números da produção no período: concluídos, atraso médio, distribuição por tipo/status.')}
 
   ${S('⚙️ Administração (admin)', `${ul(
       `${b('Status de Produção')}: cadastre os status; o marcado como ${b('final')} é o que dá baixa na peça no fim da bipagem.`,
       `${b('Tipos de Produção')}: tipos de entrada (Produção nova, Retrabalho…), cor e padrão.`,
-      `${b('Setores')}: cor, ordem, status associado, flag ${b('imprime ordem de corte')} e vínculo usuário↔setor.`,
+      `${b('Setores')}: cor, ordem, status associado, flag ${b('imprime ordem de corte')}, ${b('capacidade por dia')} (planejamento de carga) e vínculo usuário↔setor.`,
       `${b('Usuários')}: perfis e permissão por aba (nenhum/ver/editar) — inclui as abas Pedidos Comercial, Etiquetas e Expedição.`
     )}`)}
 
