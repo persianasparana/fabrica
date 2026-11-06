@@ -396,8 +396,22 @@ Observações sobre a ordem:
   saldo/falta por sku do Compras; **Requisitar ao Compras** (idempotente por conteúdo, `pcp_requisicoes`);
   baixa de produção na **1ª bipagem** e manual por pedido (`materiais_baixados_em` por peça). Deploy
   `aplicar-planejamento-p3.sh` (ORDEM: Compras 013 → Núcleo v14.89 → Fábrica + `.env` COMPRAS_*).
-- ⏭ **Fora desta rodada (pendências)**: Solicitações/Comunicados no hub (§3.4) e Credenciais (§3.5) —
-  módulos novos; estoque por CNPJ e histórico do Bling (decisões); a Agenda não muda.
+- ✅ **P4 — Credenciais** (`logistica/credenciais`, v5.39): módulo de login único (pessoas, papéis por
+  módulo, senha/2FA/primeiro acesso, tokens RS256 + chave pública, auditoria, importação idempotente);
+  a Logística (hub + Gerenciador + app) aceita os dois tokens e repassa o login (fora do ar → local).
+  Deploy `deploy/aplicar-v5.39-credenciais.sh`. Os demais módulos migram um por vez (conversa curta cada).
+- ✅ **P6 — Compras** (`compras`, migration 014): estoque próprio — `produtos.estoque_fonte`
+  (bling|compras por item), movimentações com motivo, inventário INV-AAAA-NNNN, abertura pelo saldo
+  do Bling ao virar, write-back ao Bling (fila por movimentação, agendador, nasce desligado), tela
+  Estoque. Deploy `aplicar-estoque-proprio.sh`. Decisões pendentes anotadas no CLAUDE.md do Compras
+  (estoque por CNPJ; histórico do Bling = só saldo de abertura, a API v3 não expõe extrato).
+- ✅ **P5 — Solicitações e comunicados** (`logistica/solicitacoes`, v5.40): módulo novo (:3080) com
+  login pelas Credenciais, 10 departamentos, ciclo completo com dono/prazo/histórico, comunicados com
+  "Li e entendi", prazos 2 h/3 dias, sino + e-mail + push, SCs do Compras espelhadas, formulário
+  OFFLINE no app do técnico (v5.40.0), card no hub. Deploy `deploy/aplicar-v5.40-solicitacoes.sh`
+  (DEPOIS da v5.39). Depois do deploy: cadastro de responsável/membros por departamento.
+- ⏭ **Pendências**: migrar os outros 7 módulos para o login único (P4, um por conversa); a Agenda não
+  muda nesta rodada.
 - ⚠ **Cadastro depois dos deploys**: capacidade por setor + roteiros (P2), de-para `nucleo_sku` no Compras
   (P3) — sem o de-para a Necessidade mostra "sem de-para" e a baixa pula o sku.
 
