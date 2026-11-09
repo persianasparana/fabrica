@@ -19,8 +19,13 @@ import { corpoDaPeca } from './nucleo-spec.js';
 import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from './produtos-client.js';
 
 /** Itens + peças dos pedidos → payload do Núcleo (1 peça por linha de pcp_pecas). */
-export async function montarPayloadPedidos(pedidos) {
+export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
   const lista = [...new Set((pedidos || []).map((p) => String(p || '').trim()).filter(Boolean))];
+  // pecaIds (Necessidade de materiais): EXATAMENTE as peças do horizonte (não cortou / não baixou) — senão o
+  // Σ ok+erro do Núcleo não bate com as peças do horizonte. Sem a lista (Ficha), todas as peças do pedido.
+  const comIds = Array.isArray(pecaIds);
+  const filtroPecas = comIds ? ' AND pp.id = ANY($2)' : '';
+  const paramsPecas = comIds ? [lista, pecaIds.map(Number)] : [lista];
   if (!lista.length) throw new HttpError(422, 'Informe o(s) pedido(s)');
   const { rows: itens } = await q(
     `SELECT i.id, i.pedido, i.produto, i.produto_id, i.produto_sku, i.qnt, i.colecao, i.cor_tecido,
@@ -33,7 +38,7 @@ export async function montarPayloadPedidos(pedidos) {
     `SELECT pp.id, pp.item_id, pp.numero, pp.largura, pp.altura, pp.medidas, pp.cod_barras,
             to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao
      FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id
-     WHERE i.pedido = ANY($1) ORDER BY pp.item_id, pp.numero`, [lista]);
+     WHERE i.pedido = ANY($1)${filtroPecas} ORDER BY pp.item_id, pp.numero`, paramsPecas);
   const itemPorId = new Map(itens.map((i) => [Number(i.id), i]));
   const payload = [];
   const semSpec = new Set();
@@ -116,8 +121,8 @@ export function mesclarRespostas(blocos) {
  * Lista de materiais dos pedidos. `{ habilitado, motivo?, pedidos, avisos,
  * data, por_item: { [item_id]: { pecas: n, materiais: [] } }, itens_sem_spec }`.
  */
-export async function listaMateriaisDosPedidos(pedidos) {
-  const m = await montarPayloadPedidos(pedidos);
+export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
+  const m = await montarPayloadPedidos(pedidos, opts);
   const out = {
     pedidos: m.pedidos, habilitado: listaMateriaisHabilitado(), motivo: null,
     itens: m.itens.length, pecas: m.pecas.length, itens_sem_spec: m.itens_sem_spec,

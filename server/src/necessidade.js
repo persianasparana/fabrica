@@ -27,7 +27,8 @@ export async function pedidosDoHorizonte({ horizonte = 'nao_cortou', ate = null,
   if (!HORIZONTES.includes(horizonte)) throw new HttpError(422, `Horizonte inválido (${HORIZONTES.join(' | ')})`);
   if (ate && !/^\d{4}-\d{2}-\d{2}$/.test(ate)) throw new HttpError(422, 'Data limite inválida (AAAA-MM-DD)');
   const params = [];
-  let filtroPeca = 'pp.conclusao IS NULL';
+  // peça cujos materiais JÁ saíram do estoque (1ª bipagem / baixa manual) não é mais necessidade
+  let filtroPeca = 'pp.conclusao IS NULL AND pp.materiais_baixados_em IS NULL';
   if (horizonte === 'nao_cortou') {
     const { rows: corte } = await q(`SELECT id FROM pcp_setores WHERE ativo = TRUE AND ordem_corte = TRUE`);
     const idsCorte = corte.map((s) => Number(s.id));
@@ -47,11 +48,13 @@ export async function pedidosDoHorizonte({ horizonte = 'nao_cortou', ate = null,
     `SELECT i.pedido, count(DISTINCT i.id) AS itens, count(pp.id) AS pecas,
             count(pp.id) FILTER (WHERE pp.conclusao IS NULL) AS pecas_abertas,
             to_char(min(i.data_cliente), 'YYYY-MM-DD') AS data_cliente,
-            max(i.prioridade) AS prioridade
+            max(i.prioridade) AS prioridade,
+            array_agg(pp.id) AS peca_ids
      FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id
      WHERE ${filtroPeca}
      GROUP BY i.pedido ORDER BY min(i.data_cliente) NULLS LAST, i.pedido`, params);
-  return rows.map((r) => ({ pedido: r.pedido, itens: Number(r.itens), pecas: Number(r.pecas), pecas_abertas: Number(r.pecas_abertas), data_cliente: r.data_cliente, prioridade: Number(r.prioridade) || 0 }));
+  // peca_ids: exatamente as peças do horizonte — o payload ao Núcleo usa a MESMA lista (Σ ok+erro == peças)
+  return rows.map((r) => ({ pedido: r.pedido, itens: Number(r.itens), pecas: Number(r.pecas), pecas_abertas: Number(r.pecas_abertas), data_cliente: r.data_cliente, prioridade: Number(r.prioridade) || 0, peca_ids: (r.peca_ids || []).map(Number) }));
 }
 
 /** acrescenta `pedidos[]` a cada linha a partir das refs "item:peca" */
@@ -73,7 +76,7 @@ export async function necessidadeMateriais(opts = {}) {
   const { rows: semPed } = await q(`SELECT count(DISTINCT i.id) AS n FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE pp.conclusao IS NULL AND btrim(COALESCE(i.pedido, '')) = ''`);
   const base = { horizonte: opts.horizonte || 'nao_cortou', ate: opts.ate || null, pedidos, totais: { pedidos: pedidos.length, itens: pedidos.reduce((a, p) => a + p.itens, 0), pecas: pedidos.reduce((a, p) => a + p.pecas, 0), pecas_ok: 0, pecas_erro: 0, itens_sem_pedido: Number(semPed[0]?.n) || 0 } };
   if (!pedidos.length) return { ...base, habilitado: true, motivo: 'Nenhum pedido no horizonte', avisos: [], tecido: [], tecido_totais: { metros: 0, bobinas: 0 }, perfis: [], perfis_totais: null, tubos: [], componentes: [], itens_sem_spec: [], por_item: {} };
-  const lm = await listaMateriaisDosPedidos(pedidos.map((p) => p.pedido));
+  const lm = await listaMateriaisDosPedidos(pedidos.map((p) => p.pedido), { pecaIds: pedidos.flatMap((p) => p.peca_ids || []) });
   if (!lm.habilitado || !lm.data) return { ...base, habilitado: false, motivo: lm.motivo, avisos: lm.avisos || [], tecido: [], tecido_totais: { metros: 0, bobinas: 0 }, perfis: [], perfis_totais: null, tubos: [], componentes: [], itens_sem_spec: lm.itens_sem_spec || [], por_item: {} };
   // item_id → pedido (para rotular as linhas com os pedidos que as puxam)
   const { rows: itens } = await q(`SELECT id, pedido FROM pcp_itens WHERE pedido = ANY($1)`, [pedidos.map((p) => p.pedido)]);
@@ -87,7 +90,12 @@ export async function necessidadeMateriais(opts = {}) {
   const comSaldo = (linha, qtdNecessaria) => {
     const s = linha.sku_compras && compras ? compras[linha.sku_compras] : undefined;
     const saldo = s ? Number(s.disponivel) : null;
-    return { ...linha, compras: s === undefined ? null : s, saldo, falta: saldo == null ? null : Math.max(0, Math.round((Number(qtdNecessaria) - saldo) * 10000) / 10000) };
+    // o que já foi requisitado/pedido (SC aberta + OC) é suprimento a caminho: desconta da falta — senão cada
+    // requisição AUMENTAVA a falta da próxima rodada e induzia compra em dobro
+    const aCaminho = s ? Number(s.a_caminho != null ? s.a_caminho : (Number(s.reservado) || 0) + (Number(s.em_oc) || 0)) : 0;
+    const unidadeDiverge = s && s.unidade && linha.un && String(s.unidade).toLowerCase() !== String(linha.un).toLowerCase();
+    return { ...linha, compras: s === undefined ? null : s, saldo, a_caminho: s ? aCaminho : null, unidade_compras: s ? s.unidade : null, unidade_diverge: !!unidadeDiverge,
+      falta: saldo == null ? null : Math.max(0, Math.round((Number(qtdNecessaria) - saldo - aCaminho) * 10000) / 10000) };
   };
   return {
     compras_habilitado: comprasHabilitado(), compras_online: compras !== null,

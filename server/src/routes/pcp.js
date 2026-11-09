@@ -495,8 +495,11 @@ export async function baixarMateriaisDaPeca(pecaId, quem) {
   const { rows } = await q(`SELECT materiais_baixados_em FROM pcp_pecas WHERE id = $1`, [Number(pecaId)]);
   if (!rows[0]) return { ok: false, motivo: 'peca_inexistente' };
   if (rows[0].materiais_baixados_em) return { ok: true, motivo: 'ja_baixada' };
-  const { rows: pend } = await q(`SELECT 1 FROM pcp_compras_pendencias WHERE chave = $1`, [`saida:peca:${pecaId}`]);
-  if (pend[0]) return { ok: false, motivo: 'pendente' };
+  const { rows: pend } = await q(`SELECT bloqueada FROM pcp_compras_pendencias WHERE chave = $1`, [`saida:peca:${pecaId}`]);
+  // pendência em retry automático: deixa o drenador cuidar; BLOQUEADA (4xx definitivo) é reenviada agora com a lista
+  // atual — foi corrigido algo (medida, de-para) e ninguém tinha como destravar
+  if (pend[0] && !pend[0].bloqueada) return { ok: false, motivo: 'pendente' };
+  if (pend[0] && pend[0].bloqueada) await q(`DELETE FROM pcp_compras_pendencias WHERE chave = $1`, [`saida:peca:${pecaId}`]);
   const m = await materiaisDaPecaParaBaixa(pecaId);
   if (!m) return { ok: false, motivo: 'sem_lista' };
   if (!m.itens.length) {
@@ -505,6 +508,9 @@ export async function baixarMateriaisDaPeca(pecaId, quem) {
   }
   const r2 = await enviarComOutbox('saida', `saida:peca:${pecaId}`, { pedido: m.pedido, plano: `peca:${pecaId}`, itens: m.itens, observacao: quem ? `bipagem por ${quem}` : 'bipagem' });
   if (r2.ok && !r2.resultado.efetiva) return { ...r2, motivo: 'sem_de_para', sem_produto: r2.resultado.sem_produto || [], sem_sku: m.sem_sku, itens: m.itens.length };
+  // baixou o que tem de-para, mas sobrou sku sem produto no Compras: a peça fica ABERTA e a próxima baixa manual
+  // reenvia a lista inteira (idempotente lá) — quando o comprador cadastrar o de-para, o resto sai do estoque
+  if (r2.ok && r2.resultado.efetiva && !r2.resultado.completa) return { ...r2, motivo: 'parcial', sem_produto: r2.resultado.sem_produto || [], sem_sku: m.sem_sku, itens: m.itens.length };
   return { ...r2, sem_sku: m.sem_sku, itens: m.itens.length };
 }
 
@@ -518,12 +524,13 @@ r.post(
     if (!comprasHabilitado()) throw new HttpError(503, 'Integração com o Compras não configurada');
     const { rows } = await q(`SELECT pp.id, pp.materiais_baixados_em FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id WHERE i.pedido = $1 ORDER BY pp.id`, [pedido]);
     if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado`);
-    const out = { pedido, pecas: rows.length, baixadas: 0, ja_baixadas: 0, pendentes: 0, sem_lista: 0, sem_de_para: 0, sem_sku: [], sem_produto: [] };
+    const out = { pedido, pecas: rows.length, baixadas: 0, ja_baixadas: 0, parciais: 0, pendentes: 0, sem_lista: 0, sem_de_para: 0, sem_sku: [], sem_produto: [] };
     for (const p of rows) {
       if (p.materiais_baixados_em) { out.ja_baixadas++; continue; }
       const r2 = await baixarMateriaisDaPeca(p.id, `${req.session.user.full_name} (manual)`);
       if (r2.ok && r2.motivo === 'ja_baixada') out.ja_baixadas++;
       else if (r2.ok && r2.motivo === 'sem_de_para') out.sem_de_para++;
+      else if (r2.ok && r2.motivo === 'parcial') out.parciais++;
       else if (r2.ok) out.baixadas++;
       else if (r2.motivo === 'sem_lista') out.sem_lista++;
       else out.pendentes++;
@@ -662,6 +669,8 @@ r.delete(
     // (senão o agendador re-tentaria avançar no Comercial um pedido excluído)
     await q('DELETE FROM pcp_pedido_info WHERE pedido = $1', [pedido]);
     await q('DELETE FROM pcp_ciclo_pendencias WHERE pedido = $1', [pedido]);
+    // outbox do Compras: pendência de peça excluída baixaria estoque de pedido que não existe mais
+    await q(`DELETE FROM pcp_compras_pendencias WHERE tipo = 'saida' AND payload->>'pedido' = $1`, [pedido]).catch(() => {});
     await audit(req.session.user.id, 'pcp', 'pedido.delete', { entityType: 'pcp_pedido' });
     res.json({ ok: true, count: result.rowCount });
   })

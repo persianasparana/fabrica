@@ -81,7 +81,7 @@ export async function registrarPendenciaCompras(tipo, chaveUnica, payload, erro)
   await q(
     `INSERT INTO pcp_compras_pendencias (tipo, chave, payload, ultimo_erro)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (chave) DO UPDATE SET payload = EXCLUDED.payload, ultimo_erro = EXCLUDED.ultimo_erro, updated_at = now()`,
+     ON CONFLICT (chave) DO UPDATE SET payload = EXCLUDED.payload, ultimo_erro = EXCLUDED.ultimo_erro, bloqueada = FALSE, tentativas = 0, updated_at = now()`,
     [tipo, String(chaveUnica), JSON.stringify(payload), String(erro || '').slice(0, 500)]
   );
 }
@@ -103,10 +103,13 @@ async function enviarPendencia(p) {
     // menos um sku — se NENHUM item tem de-para, a peça fica aberta para quando o
     // de-para for cadastrado (a baixa manual do pedido volta a tentar)
     const efetiva = r && ((r.baixadas || []).length || (r.repetidas || []).length);
-    if (efetiva && payload.plano && /^peca:\d+$/.test(payload.plano)) {
+    // marca a peça SÓ quando tudo baixou: com sku sem de-para, a peça fica aberta e a baixa manual reenvia a lista
+    // inteira depois do cadastro (o Compras é idempotente por sku — reenviar é seguro)
+    const completa = efetiva && !((r && r.sem_produto) || []).length;
+    if (completa && payload.plano && /^peca:\d+$/.test(payload.plano)) {
       await q(`UPDATE pcp_pecas SET materiais_baixados_em = now(), updated_at = now() WHERE id = $1 AND materiais_baixados_em IS NULL`, [Number(payload.plano.slice(5))]).catch(() => {});
     }
-    return { ...r, efetiva: !!efetiva };
+    return { ...r, efetiva: !!efetiva, completa: !!completa };
   }
   throw new Error(`tipo de pendência desconhecido: ${p.tipo}`);
 }
