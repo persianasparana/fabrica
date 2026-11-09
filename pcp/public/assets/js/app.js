@@ -1384,7 +1384,7 @@ async function baixarMateriaisPedido() {
   if (!confirm(`Baixar no estoque do Compras os materiais de ${st.pecas - st.baixadas} peça(s) do ${ped} ainda não baixadas (${st.baixadas} já baixadas${st.pendentes ? `, ${st.pendentes} pendente(s) de envio` : ''})?`)) return;
   try {
     const r = await api('pcp/pedido/baixa-materiais', { method: 'POST', body: { pedido: ped } });
-    toast(`${ped}: ${r.baixadas} baixada(s) agora · ${r.ja_baixadas} já estavam · ${r.pendentes} pendente(s) de envio · ${r.sem_lista} sem lista do Núcleo · ${r.sem_de_para} sem nenhum de-para no Compras${r.sem_produto.length ? ` (${r.sem_produto.slice(0, 3).join(', ')}…)` : ''}.`);
+    toast(`${ped}: ${r.baixadas} baixada(s) agora · ${r.ja_baixadas} já estavam · ${r.parciais || 0} parcial(is) (ficam abertas até o de-para dos skus que faltam) · ${r.pendentes} pendente(s) de envio · ${r.sem_lista} sem lista do Núcleo · ${r.sem_de_para} sem nenhum de-para no Compras${r.sem_produto.length ? ` (${r.sem_produto.slice(0, 3).join(', ')}…)` : ''}.`);
   } catch (e) { toast('Erro: ' + e.message); }
 }
 
