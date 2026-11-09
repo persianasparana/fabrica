@@ -125,7 +125,26 @@ pm2 list
 
 Esperado: todos 200; o checador do app diz `OK — app do técnico v5.40.0`.
 
-## 5. Como voltar atrás (se precisar)
+## 5. Revisão adversarial (09/11/2026) — o que foi fechado e o que ficou anotado
+
+Três revisores independentes leram P0–P6 pelas 5 lentes antes do deploy. Tudo de severidade ALTA e MÉDIA foi
+corrigido e está nos commits "revisão adversarial" de cada repo (Logística/Solicitações/Credenciais, Compras,
+Fábrica, Núcleo); as suítes rodaram de novo depois: Credenciais e2e 34 + Playwright 15 · Solicitações e2e 63 +
+painel 27 + app 12 · Compras P6 e2e 45 + Playwright 19 · Fábrica P0 30 · P1 20 · P2 25 · P3 31 · Núcleo paridade
+3.032 + lista de materiais. **Ficaram anotados (baixa severidade ou decisão do cliente):**
+- Credenciais: o e-mail é a chave de junção com a Logística e é editável — trocar o e-mail de alguém cria uma
+  2ª pessoa local (guardar o `sub` das Credenciais na Logística é a correção definitiva); o hash local da
+  Logística não acompanha a troca de senha nas Credenciais (vale só quando elas caem); refresh sem rotação
+  (30 dias); CORS reflete qualquer origem (tokens em localStorage, sem cookie).
+- Compras × Fábrica: a **unidade** do produto no Compras (ex.: bobina) × a do Núcleo (metros) não é convertida —
+  a Necessidade marca `unidade_diverge` e o comprador decide; a baixa por peça usa o tecido da peça SOZINHA
+  (em rolo compartilhado soma mais que o consumo real); `/estoque/saldos` corta em 500 skus.
+- Solicitações: "quem falta ler" um comunicado só conhece quem já passou pelo módulo (fail-soft documentado);
+  `lido_em` do app é aceito retroativo (offline).
+- Fábrica: a baixa de materiais de UMA peça monta o pedido inteiro (custo em pedido de 100 peças — otimizar
+  depois).
+
+## 6. Como voltar atrás (se precisar)
 
 - Núcleo/Compras/Fábrica: `git checkout <commit anterior>` + `pm2 restart` — as migrations são
   aditivas (colunas/tabelas novas) e podem ficar no banco; o pg_dump de cada script está em `/tmp`
