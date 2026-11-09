@@ -9,15 +9,16 @@
 
 | Ordem | Repo (branch) | O que | Script | Migration | Depende de |
 |---|---|---|---|---|---|
-| 1 | **produtos** (`main`) | v14.88 lista de materiais + v14.89 custo-sync por `nucleo_sku` | `deploy/aplicar-v14-89-custo-sync-nucleo-sku.sh` (cumulativo — cobre v14.88 e tudo antes) | não (as anteriores que ele cobre, sim — idempotentes) | — |
+| 1 | **produtos** (`main`) | v14.88 lista de materiais + v14.89 custo-sync por `nucleo_sku` + **v14.90 área mínima no lote** (relato dos orçamentos 0973 × 1056, 09/11) | `deploy/aplicar-v14-90-area-minima-lote.sh` (cumulativo — cobre v14.89, v14.88 e tudo antes) | não (as anteriores que ele cobre, sim — idempotentes) | — |
 | 2 | **compras** (`claude/unified-server-status-7633oz`) | P3 solicitações de compra + rotas de serviço + `nucleo_sku`; P6 estoque próprio + write-back Bling; lista de SCs para o módulo de Solicitações | `deploy/aplicar-solicitacoes-compra.sh` → `deploy/aplicar-estoque-proprio.sh` | **013** e **014** (pg_dump automático) | — |
 | 3 | **fabrica** (`claude/unified-server-status-7633oz`) | P0 spec na liberação + Ficha com materiais; P2 carga; P1 necessidade; P3 requisitar/baixa | `deploy/aplicar-planejamento-p3.sh` (cobre P0/P1/P2 — migrations no boot) | no boot | 1 e 2 |
 | 4 | **logistica** (`claude/nice-cerf-eimyzr`) | v5.39 **Credenciais** (login único) | `deploy/aplicar-v5.39-credenciais.sh` | cria `credenciais_db` | — |
 | 5 | **logistica** (idem) | v5.40 **Solicitações e comunicados** + app do técnico v5.40.0 + hub | `deploy/aplicar-v5.40-solicitacoes.sh` | cria `solicitacoes_db` | 4 (e 2 para o espelho das SCs) |
 
 Nada muda na **Agenda**, no **Financeiro**, no **Fiscal** nem no **RH** (só o PROTOCOLO nos docs).
-⚠ **Preço:** nenhum passo muda preço de peça; o custo-sync (passo 1) só muda o custo de componente
-que GANHAR de-para no Compras (cadastro do comprador, depois do deploy).
+⚠ **Preço:** a v14.90 (passo 1) baixa o preço de LOTE do mesmo ambiente que tenha peça abaixo da área
+mínima (1,5 m²) — o orçamento 2026/1056 cai ~R$ 420 no Recalcular; nenhuma peça única muda. O custo-sync
+só muda o custo de componente que GANHAR de-para no Compras (cadastro do comprador, depois do deploy).
 
 ## 1. Antes de começar — me mande uma cópia do que está no servidor (opcional, recomendado)
 
@@ -58,8 +59,8 @@ SOL_DB_PASS="$(getenv /var/www/persianas/solicitacoes/backend/.env DB_PASS)";   
 CRED_ADMIN_SENHA="Pp#$(openssl rand -hex 5)"
 setenv() { local f="$1" k="$2" v="$3"; if grep -q "^$k=" "$f"; then sed -i "s|^$k=.*|$k=$v|" "$f"; else echo "$k=$v" >> "$f"; fi; }
 
-# ---------- 1. Núcleo de Produtos v14.89 (cumulativo: cobre v14.88) ----------
-cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-89-custo-sync-nucleo-sku.sh
+# ---------- 1. Núcleo de Produtos v14.90 (cumulativo: cobre v14.89 e v14.88) ----------
+cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-90-area-minima-lote.sh
 
 # ---------- 2. Compras: migrations 013 (P3) e 014 (P6) + chaves de serviço ----------
 cd /var/www/compras && git pull --ff-only origin claude/unified-server-status-7633oz \
