@@ -48,7 +48,7 @@ anote-a. Os passos 4 e 5 pedem `sudo` (criam banco/role e mexem no Nginx com bac
 auto-revert).
 
 ```bash
-set -e
+( set -e   # subshell: uma falha encerra o BLOCO, não a sessão SSH (10/11: o set -e solto derrubou a conexão)
 # ---------- chaves e senhas (mantém as que já existem) ----------
 getenv() { grep -s "^$2=" "$1" | cut -d= -f2-; }
 gen() { openssl rand -hex 24; }
@@ -79,20 +79,24 @@ cd /var/www/fabrica && git pull --ff-only origin claude/unified-server-status-76
 && pm2 restart fabrica-server && sleep 3 && curl -fsS http://127.0.0.1:3020/healthz >/dev/null && echo "Fábrica OK"
 
 # ---------- 4. Logística v5.39 — Credenciais (login único) ----------
+# (o script vai para um arquivo: `sudo bash <(git show …)` não enxerga o /dev/fd do seu shell — falhou em 10/11)
 cd /var/www/persianas && git fetch origin claude/nice-cerf-eimyzr \
+&& git show origin/claude/nice-cerf-eimyzr:deploy/aplicar-v5.39-credenciais.sh > /tmp/aplicar-v5.39-credenciais.sh \
 && sudo CRED_DB_PASS="$CRED_DB_PASS" CRED_ADMIN_EMAIL='ti@persianasparana.com.br' CRED_ADMIN_SENHA="$CRED_ADMIN_SENHA" APP_USER="$(id -un)" \
-   bash <(git show origin/claude/nice-cerf-eimyzr:deploy/aplicar-v5.39-credenciais.sh)
+   bash /tmp/aplicar-v5.39-credenciais.sh
 
 # ---------- 5. Logística v5.40 — Solicitações e comunicados + app v5.40.0 ----------
 cd /var/www/persianas \
+&& git show origin/claude/nice-cerf-eimyzr:deploy/aplicar-v5.40-solicitacoes.sh > /tmp/aplicar-v5.40-solicitacoes.sh \
 && sudo SOL_DB_PASS="$SOL_DB_PASS" COMPRAS_SERVICE_KEY="$K_SOL_COMPRAS" APP_USER="$(id -un)" \
-   bash <(git show origin/claude/nice-cerf-eimyzr:deploy/aplicar-v5.40-solicitacoes.sh)
+   bash /tmp/aplicar-v5.40-solicitacoes.sh
 
 echo "=================================================================="
 echo " TUDO PUBLICADO."
 echo " Admin das Credenciais: ti@persianasparana.com.br  senha: $CRED_ADMIN_SENHA  (troque no 1º acesso)"
 echo " (se a pessoa já existia na importação da Logística, vale a senha que ela já usava)"
 echo "=================================================================="
+)
 ```
 
 Se um passo abortar, o script diz o motivo e o que fazer; corrigir e **rodar o bloco de novo** é o
