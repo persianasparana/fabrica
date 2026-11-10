@@ -9,15 +9,19 @@
 
 | Ordem | Repo (branch) | O que | Script | Migration | Depende de |
 |---|---|---|---|---|---|
-| 1 | **produtos** (`main`) | v14.88 lista de materiais + v14.89 custo-sync por `nucleo_sku` + **v14.90 área mínima no lote** (relato dos orçamentos 0973 × 1056, 09/11) | `deploy/aplicar-v14-90-area-minima-lote.sh` (cumulativo — cobre v14.89, v14.88 e tudo antes) | não (as anteriores que ele cobre, sim — idempotentes) | — |
+| 1 | **produtos** (`main`) | v14.88 lista de materiais + v14.89 custo-sync por `nucleo_sku` + v14.90 área mínima no lote + **v14.91 tira do bandô reto** (faixa 20 cm, dobro no sheer, Vertical pela própria lamela — decisões de 10/11) | `deploy/aplicar-v14-91-bando-tira.sh` (cumulativo — cobre v14.90, v14.89, v14.88 e tudo antes; já aplicado até a v14.90 em 10/11? ele pula o que entrou) | **052** (`parametros_json`, preserva edição do painel) | — |
 | 2 | **compras** (`claude/unified-server-status-7633oz`) | P3 solicitações de compra + rotas de serviço + `nucleo_sku`; P6 estoque próprio + write-back Bling; lista de SCs para o módulo de Solicitações | `deploy/aplicar-solicitacoes-compra.sh` → `deploy/aplicar-estoque-proprio.sh` | **013** e **014** (pg_dump automático) | — |
 | 3 | **fabrica** (`claude/unified-server-status-7633oz`) | P0 spec na liberação + Ficha com materiais; P2 carga; P1 necessidade; P3 requisitar/baixa | `deploy/aplicar-planejamento-p3.sh` (cobre P0/P1/P2 — migrations no boot) | no boot | 1 e 2 |
 | 4 | **logistica** (`claude/nice-cerf-eimyzr`) | v5.39 **Credenciais** (login único) | `deploy/aplicar-v5.39-credenciais.sh` | cria `credenciais_db` | — |
 | 5 | **logistica** (idem) | v5.40 **Solicitações e comunicados** + app do técnico v5.40.0 + hub | `deploy/aplicar-v5.40-solicitacoes.sh` | cria `solicitacoes_db` | 4 (e 2 para o espelho das SCs) |
+| 6 | **agenda-consultores** (`claude/trusting-johnson-K7jQ7`) | v2.134.0 — campo numérico não some ao digitar (parcelas) + bandô reto da Vertical "Tecido da própria peça (padrão)" | `deploy/aplicar-v2.134.0.sh` (cumulativo — cobre v2.54.0 a v2.133.0) | não | 1 (para a Vertical mostrar o padrão) |
 
-Nada muda na **Agenda**, no **Financeiro**, no **Fiscal** nem no **RH** (só o PROTOCOLO nos docs).
+Nada muda no **Financeiro**, no **Fiscal** nem no **RH** (só o PROTOCOLO nos docs).
 ⚠ **Preço:** a v14.90 (passo 1) baixa o preço de LOTE do mesmo ambiente que tenha peça abaixo da área
-mínima (1,5 m²) — o orçamento 2026/1056 cai ~R$ 420 no Recalcular; nenhuma peça única muda. O custo-sync
+mínima (1,5 m²) — o orçamento 2026/1056 cai ~R$ 420 no Recalcular; nenhuma peça única muda. A **v14.91**
+(mesmo passo) SOBE todo bandô reto de rolô (a faixa da tira passa de 10 para 20 cm; sheer 40 cm — réplica
+1,40 × 1,54 AM 3059: R$ 580,20 → 598,67; sheer 1.722 → 1.845) e a Vertical com bandô reto passa a cobrar a
+tira da própria lamela (1,50 × 1,60 PVT: R$ 468 → 497). Orçamento salvo só no Recalcular. O custo-sync
 só muda o custo de componente que GANHAR de-para no Compras (cadastro do comprador, depois do deploy).
 
 ## 1. Antes de começar — me mande uma cópia do que está no servidor (opcional, recomendado)
@@ -59,8 +63,8 @@ SOL_DB_PASS="$(getenv /var/www/persianas/solicitacoes/backend/.env DB_PASS)";   
 CRED_ADMIN_SENHA="Pp#$(openssl rand -hex 5)"
 setenv() { local f="$1" k="$2" v="$3"; if grep -q "^$k=" "$f"; then sed -i "s|^$k=.*|$k=$v|" "$f"; else echo "$k=$v" >> "$f"; fi; }
 
-# ---------- 1. Núcleo de Produtos v14.90 (cumulativo: cobre v14.89 e v14.88) ----------
-cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-90-area-minima-lote.sh
+# ---------- 1. Núcleo de Produtos v14.91 (cumulativo: cobre v14.90, v14.89 e v14.88) ----------
+cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-91-bando-tira.sh
 
 # ---------- 2. Compras: migrations 013 (P3) e 014 (P6) + chaves de serviço ----------
 cd /var/www/compras && git pull --ff-only origin claude/unified-server-status-7633oz \
@@ -90,6 +94,9 @@ cd /var/www/persianas \
 && git show origin/claude/nice-cerf-eimyzr:deploy/aplicar-v5.40-solicitacoes.sh > /tmp/aplicar-v5.40-solicitacoes.sh \
 && sudo SOL_DB_PASS="$SOL_DB_PASS" COMPRAS_SERVICE_KEY="$K_SOL_COMPRAS" APP_USER="$(id -un)" \
    bash /tmp/aplicar-v5.40-solicitacoes.sh
+
+# ---------- 6. Agenda v2.134.0 — campo de parcelas + bandô reto da Vertical (depois do Núcleo v14.91) ----------
+cd /var/www/agenda/agenda-consultores && git pull --ff-only origin claude/trusting-johnson-K7jQ7 && bash deploy/aplicar-v2.134.0.sh
 
 echo "=================================================================="
 echo " TUDO PUBLICADO."
