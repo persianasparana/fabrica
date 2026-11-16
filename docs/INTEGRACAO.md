@@ -6,6 +6,12 @@
 >
 > Repositório: `persianasparana/fabrica` · Stack: **Node + Express + PostgreSQL**,
 > atrás do **Nginx**, processo **PM2**. Tudo em português.
+>
+> **Atualizado em 16/11/2026.** A referência COMPLETA e atual das rotas é
+> [`API.md`](API.md); a §3 abaixo é um resumo mantido por compatibilidade. O contrato entre os
+> módulos da federação (quem chama quem, chaves, outboxes) é o `PROTOCOLO-FEDERACAO.md` —
+> a Fábrica aparece nas linhas **B** (Logística → Fábrica), **C** (Fábrica → Comercial),
+> **D** (Fábrica → Núcleo) e **M** (Fábrica → Compras).
 
 ---
 
@@ -39,8 +45,10 @@
 
 ## 2. Autenticação e autorização
 
-Sessão por **cookie** (`fabrica.sid`, HttpOnly) + **CSRF** por token. Não há
-API key/JWT — a integração server-to-server usa uma **conta de serviço**.
+Sessão por **cookie** (`fabrica.sid`, HttpOnly) + **CSRF** por token para tudo que a tela
+usa. Para outro sistema LER dados da fábrica existe a API de integração por **`X-API-Key`**
+(§5.0, sem sessão/CSRF — é o que a Logística usa). Para ESCREVER (não há caso hoje) seria
+uma **conta de serviço** com sessão, como abaixo.
 
 ### 2.1 Fluxo
 
@@ -65,11 +73,14 @@ CSRF=$(curl -s -c $JAR -X POST -H 'Content-Type: application/json' \
 # leitura
 curl -s -b $JAR http://127.0.0.1:3020/api/pcp/itens
 
-# escrita (cookie + CSRF)
+# escrita (cookie + CSRF) — exemplo: baixa manual de uma peça
 curl -s -b $JAR -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-  -d '{"itens":[{"pedido":"19999","produto":"ROLO SOFT LISA","data_cliente":"2026-12-31"}]}' \
-  http://127.0.0.1:3020/api/pcp/itens/lote
+  -X PUT -d '{"conclusao":"2026-12-31"}' "http://127.0.0.1:3020/api/pcp/pecas?id=123"
 ```
+
+> ⚠️ `POST /api/pcp/itens` e `POST /api/pcp/itens/lote` respondem **410** desde 06/11/2026:
+> a entrada de peças no PCP é SÓ a liberação do pedido do Comercial (`/api/comercial/pedidos/:id/liberar`).
+> Nenhum sistema deve "empurrar" pedidos para a fila por essas rotas.
 
 ### 2.3 Papéis e permissões
 
@@ -90,6 +101,10 @@ origens em env), nos moldes do app de Logística.
 ---
 
 ## 3. Referência da API
+
+> **Resumo histórico (jun/2026).** Faltam aqui as rotas de carga, necessidade, materiais,
+> ordem de corte, etiquetas, regras da Estrutura, expedição, fotos, tipos e o ciclo do pedido
+> (`/api/comercial`). A lista completa está em [`API.md`](API.md).
 
 Prefixo: `/api`. Todas exigem sessão (401 sem login). Escritas exigem
 `X-CSRF-Token`. "Perm" = permissão exigida para `role user` (admin sempre pode).
@@ -116,8 +131,8 @@ têm baixa).
 | Método | Rota | Perm | Descrição |
 |---|---|---|---|
 | GET | `/pcp/itens` | (autenticado) | Lista todos os itens (com `pecas[]`, `status_*`, `especial`) |
-| POST | `/pcp/itens` | editar novo | Cria item (`{produto, pedido, qnt, data_cliente, ...}`; `etiqueta` opcional vincula à peça 1) → `{id, item}` |
-| POST | `/pcp/itens/lote` | editar novo | `{itens:[...], substituir?}` em transação → `{ids, count}` |
+| POST | `/pcp/itens` | — | **410** (aposentada em 06/11/2026 — entrada só pelo Comercial) |
+| POST | `/pcp/itens/lote` | — | **410** (idem) |
 | PUT | `/pcp/itens?id=N` | editar fila | Atualização parcial (datas, tipo, motivo, `especial`, `status_id`, `qnt`, `conclusao`) |
 | DELETE | `/pcp/itens?id=N` | editar fila | Exclui item (cascata nas peças) |
 
@@ -234,14 +249,17 @@ Regras derivadas importantes:
    | Método | Endpoint | Descrição |
    |---|---|---|
    | GET | `/api/integracao/pedidos` | Pedidos agrupados com progresso das peças: `{ data: [{ pedido, concluido, conclusao, data_cliente, total_pecas, pecas_concluidas, itens: [{produto, qnt, tipo, conclusao}] }] }` |
-   | GET | `/api/integracao/peca?codigo=` | Uma peça pela etiqueta (cod_barras): `{ cod_barras, numero, conclusao, pedido, produto, total_pecas_pedido, pecas_concluidas_pedido }`. 404 se a etiqueta não existir. Usado pela **Expedição** da Logística ao escanear: ela só aceita a peça se `conclusao != null` (já bipada/expedida pela Embalagem). |
+   | GET | `/api/integracao/peca?codigo=` | Uma peça pela etiqueta (cod_barras): `{ cod_barras, numero, conclusao, gaveta, guardada_em, pedido, produto, total_pecas_pedido, pecas_concluidas_pedido }`. 404 se a etiqueta não existir. Usado pela **Expedição** da Logística ao escanear: ela só aceita a peça se `conclusao != null` (já bipada/expedida pela Embalagem). |
+   | GET | `/api/integracao/expedicao?pedido=` | **Fase C** — onde está cada peça do pedido nas gavetas: `{ pedido, total_pecas, embaladas, guardadas, completo_na_expedicao, pecas:[{codigo, numero, conclusao, gaveta, guardada_em, produto, cliente, ambiente}] }`. 404 se o pedido não existir na fábrica. Usado ao montar a agenda de instalação. |
 
    Query params de `/pedidos`: `?concluidos=1` (só pedidos com TODAS as peças
    concluídas), `?desde=YYYY-MM-DD` (conclusão a partir da data), `?pedido=NNN`.
    Itens sem número de pedido são ignorados. Consumidor atual: o backend da
    Logística (`persianas-api`) — o navegador nunca chama a fábrica diretamente.
-   A Logística usa `/pedidos` no painel de produção e `/peca` na bipagem da
-   expedição.
+   A Logística usa `/pedidos` no painel de produção, `/peca` na bipagem da
+   expedição e `/expedicao` na montagem da agenda. Comuns: **503** sem
+   `INTEGRACAO_API_KEY` · **401** chave inválida. ⚠ Esta é a única integração da
+   federação por `X-API-Key` (exceção ao padrão `X-Service-Key` — linha B do PROTOCOLO).
 
 1. **HTTP REST com conta de serviço** (para escrita). O outro app autentica com um
    usuário dedicado e consome/produz dados via as rotas da Seção 3. Vantagens:
@@ -258,12 +276,22 @@ Regras derivadas importantes:
    sistema (que gera as etiquetas).
 
 ### Pontos de extensão prováveis para a integração
-- Endpoint de **importação de pedidos** já existe (`POST /pcp/itens/lote`) — ideal
-  para o outro app empurrar pedidos para o PCP.
+- **Entrada de pedidos** no PCP é SÓ pelo Comercial (ciclo do pedido, linha C do PROTOCOLO):
+  um sistema novo que precise produzir algo deve criar o pedido no Comercial — `POST /pcp/itens/lote`
+  foi aposentado (410).
 - Endpoint de **leitura da fila** (`GET /pcp/itens`) e **por pedido**
-  (`GET /pcp/pedido?pedido=`) para o outro app consultar status/baixas.
+  (`GET /pcp/pedido?pedido=`) para o outro app consultar status/baixas (com sessão), ou as
+  rotas `/api/integracao/*` (com `X-API-Key`) — preferir estas, que são read-only.
 - Se precisar de filtros server-side, paginação ou "delta desde X", peça — são
-  adições simples.
+  adições simples. Rota nova para outro módulo = middleware de chave por módulo + linha no PROTOCOLO.
+
+### O que a Fábrica CONSOME dos vizinhos (para o integrador saber o que ela espera)
+- **Comercial** (`server/src/comercial-client.js`): `GET /pedidos?status=`, `GET /pedidos?codigo=`,
+  `GET /pedidos/:id`, `PATCH /pedidos/:id/status`, `GET /pedidos/:id/desenhos[/:id/arquivo]`
+  — com outbox `pcp_ciclo_pendencias`.
+- **Núcleo de Produtos** (`produtos-client.js`): BOM por SKU, `POST /plano-corte`, `POST /lista-materiais`.
+- **Compras** (`compras-client.js`): saldos, solicitação de compra, saída de produção — com
+  outbox `pcp_compras_pendencias`.
 
 ---
 
@@ -299,17 +327,21 @@ Variáveis em `server/.env` (ver `server/.env.example`): conexão PostgreSQL,
 
 ```
 server/
-  src/server.js              # app Express: helmet, sessão, mounts, estáticos
-  src/db.js                  # pool pg + schema (migração idempotente) — fonte do modelo de dados
+  src/server.js              # app Express: helmet, sessão, mounts, estáticos (aborta sem SESSION_SECRET)
+  src/db.js                  # pool pg + schema (migrations idempotentes no boot) — fonte do modelo de dados
   src/auth.js                # login, sessão, CSRF, requireAuth/requireAdmin/requirePerm
   src/routes/auth.js         # /api/auth
-  src/routes/pcp.js          # /api/pcp: itens, pedido, bip, pecas, estrutura, status
+  src/routes/pcp.js          # /api/pcp: itens, pedido, bip, pecas, estrutura, status, tipos, carga, necessidade, materiais
   src/routes/admin.js        # /api/pcp: setores, usuarios (admin)
+  src/routes/{ordem-corte,etiquetas,estrutura-regras,expedicao,fotos-ecommerce}.js
   src/routes/qualidade.js    # /api/qualidade: ncs, kpis
-  src/seed.js, bin/install.js# seeds (status, setores, estrutura, fila) + instalador
-pcp/public/                  # frontend do PCP (HTML/CSS/JS, sem build)
+  src/routes/comercial.js    # /api/comercial: ciclo do pedido (proxy autenticado)
+  src/routes/integracao.js   # /api/integracao: leitura por X-API-Key (Logística)
+  src/{comercial,produtos,compras}-client.js   # clientes dos vizinhos (+ outboxes)
+  src/seed.js, bin/install.js# seeds de TESTE (status, setores, estrutura, fila) + instalador
+pcp/public/                  # frontend do PCP (HTML/CSS/JS, sem build) + fotos/ (PWA)
 qualidade/public/            # frontend do Qualidade
-docs/                        # ARCHITECTURE, DEPLOYMENT, SERVIDOR-COMPARTILHADO, INTEGRACAO (este)
+docs/                        # README (índice), VISAO-GERAL, API, ARCHITECTURE, DEPLOYMENT, PROTOCOLO-FEDERACAO, INTEGRACAO (este)
 ```
 
 Dúvidas de arquitetura: [`ARCHITECTURE.md`](ARCHITECTURE.md). Implantação:

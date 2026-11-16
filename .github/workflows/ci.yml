@@ -58,12 +58,38 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      - name: Sintaxe do backend (node --check)
+        run: npm run check
+      - name: Teste unitário (sequenciador de carga, sem banco)
+        run: npm test
       - run: npm run install-app
       - name: Smoke test (auth + PCP itens/estrutura/bip + Qualidade)
         run: |
           node src/server.js &
           sleep 3
           B=http://127.0.0.1:8090; J=/tmp/j.txt
+          # Peças de teste entram por SQL (helper abaixo): desde o P0 do planejamento
+          # (06/11/2026) a entrada de peças é SÓ a liberação do pedido do Comercial —
+          # POST /api/pcp/itens e /itens/lote respondem 410 (conferido mais abaixo).
+          # Uso: inserir_item "<pedido>" "<produto>" <produto_id|null> <qnt> "<data_cliente>" "<etiqueta|vazio>"  → imprime o id do item
+          inserir_item() {
+            node -e '
+              const { Pool } = require("pg");
+              const [pedido, produto, pid, qnt, data, etiqueta] = process.argv.slice(1);
+              const pool = new Pool();
+              (async () => {
+                const { rows } = await pool.query(
+                  "INSERT INTO pcp_itens (pedido, produto, produto_id, qnt, data_cliente) VALUES ($1,$2,$3,$4,$5) RETURNING id",
+                  [pedido, produto, pid === "null" ? null : Number(pid), Number(qnt), data]);
+                const id = rows[0].id;
+                for (let n = 1; n <= Number(qnt); n++) {
+                  await pool.query("INSERT INTO pcp_pecas (item_id, numero, cod_barras) VALUES ($1,$2,$3)",
+                    [id, n, n === 1 && etiqueta ? etiqueta : null]);
+                }
+                console.log(id); await pool.end();
+              })().catch((e) => { console.error(e); process.exit(1); });
+            ' "$@"
+          }
           L=$(curl -s -c $J -b $J -X POST -H 'Content-Type: application/json' -d '{"username":"ci","password":"senha12345"}' $B/api/auth/login)
           CSRF=$(echo "$L" | node -e 'process.stdin.on("data",d=>{try{console.log(JSON.parse(d).csrf_token||"")}catch{}})')
           test -n "$CSRF" || { echo "login falhou: $L"; exit 1; }
@@ -89,9 +115,18 @@ jobs:
             -d "{\"nome\":\"CI Fluxo\",\"familia\":\"SOFT\",\"cortes\":[{\"nome\":\"P\",\"formula\":\"L-1\",\"dim\":\"L\",\"setor_id\":1}],\"roteiro\":[{\"setor_id\":1,\"depende_de\":[]},{\"setor_id\":$SID_EMB,\"depende_de\":[1]}]}" \
             $B/api/pcp/estrutura | grep -q '"id"' || { echo "criar produto roteiro falhou"; exit 1; }
           PID=$(curl -s -c $J -b $J $B/api/pcp/estrutura | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.find(p=>p.chave==="ci-fluxo").id))')
-          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+
+          # Entrada manual de pedidos saiu do PCP (P0): as duas rotas respondem 410
+          C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
             -d "{\"itens\":[{\"pedido\":\"99600\",\"produto\":\"CI Fluxo\",\"produto_id\":$PID,\"data_cliente\":\"2026-12-20\",\"qnt\":1,\"etiqueta\":\"CI-FLOW\"}]}" \
-            $B/api/pcp/itens/lote >/dev/null
+            $B/api/pcp/itens/lote)
+          test "$C" = "410" || { echo "POST /itens/lote deveria responder 410 (entrada só pelo Comercial), veio $C"; exit 1; }
+          C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
+            -d '{"produto":"ROMANA","pedido":"99700","data_cliente":"2026-12-05","qnt":1}' $B/api/pcp/itens)
+          test "$C" = "410" || { echo "POST /itens deveria responder 410 (entrada só pelo Comercial), veio $C"; exit 1; }
+
+          # Peça de teste com etiqueta CI-FLOW, inserida por SQL (ver helper no topo)
+          inserir_item 99600 "CI Fluxo" "$PID" 1 2026-12-20 CI-FLOW >/dev/null
           # dependência: início do final antes do Corte -> 409
           C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"codigo\":\"CI-FLOW\",\"setor_id\":$SID_EMB,\"evento\":\"inicio\"}" $B/api/pcp/bip)
           test "$C" = "409" || { echo "esperava 409 (dependência), veio $C"; exit 1; }
@@ -102,16 +137,15 @@ jobs:
           echo "$R" | grep -q '"acao":"baixa"' || { echo "baixa no fim do final falhou: $R"; exit 1; }
           echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.item.conclusao?0:1)})' || { echo "item deveria estar concluído"; exit 1; }
 
-          # Etiqueta duplicada -> 409
+          # Etiqueta duplicada -> 409 (vincular a etiqueta já usada a outro pedido)
+          inserir_item 99003 ROMANA null 1 2026-12-05 "" >/dev/null
           C=$(curl -s -o /dev/null -w '%{http_code}' -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"itens":[{"pedido":"99003","produto":"ROMANA","data_cliente":"2026-12-05","etiqueta":"CI-FLOW"}]}' \
-            $B/api/pcp/itens/lote)
+            -d '{"codigo":"CI-FLOW","pedido":"99003"}' $B/api/pcp/bip/vincular)
           test "$C" = "409" || { echo "esperava 409 para etiqueta duplicada, veio $C"; exit 1; }
 
           # Edição em massa do pedido: conclui todas as peças de uma vez
-          curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"itens":[{"pedido":"99500","produto":"ROMANA","data_cliente":"2026-12-05","qnt":2},{"pedido":"99500","produto":"BANDO","data_cliente":"2026-12-05","qnt":1}]}' \
-            $B/api/pcp/itens/lote >/dev/null
+          inserir_item 99500 ROMANA null 2 2026-12-05 "" >/dev/null
+          inserir_item 99500 BANDO  null 1 2026-12-05 "" >/dev/null
           R=$(curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"acao":"concluir"}' "$B/api/pcp/pedido?pedido=99500")
           echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.itens.every(i=>i.conclusao)?0:1)})' || { echo "concluir pedido em massa falhou"; exit 1; }
           curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d '{"tipo":"Retrabalho","especial":true}' "$B/api/pcp/pedido?pedido=99500" | grep -q '"especial":true' || { echo "editar pedido em massa falhou"; exit 1; }
@@ -127,8 +161,7 @@ jobs:
           # editar status (renomear, cor e marcar como final)
           curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"nome\":\"CI Status 2\",\"cor\":\"#222222\",\"final\":true}" "$B/api/pcp/status?id=$SID" | grep -q '"ok":true' || { echo "editar status falhou"; exit 1; }
           curl -s -c $J -b $J $B/api/pcp/status | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).data;process.exit(d.some(x=>x.final)?0:1)})' || { echo "status final não persistiu"; exit 1; }
-          IID=$(curl -s -c $J -b $J -X POST -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
-            -d '{"produto":"ROMANA","pedido":"99700","data_cliente":"2026-12-05","qnt":1}' $B/api/pcp/itens | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          IID=$(inserir_item 99700 ROMANA null 1 2026-12-05 "")
           curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"status_id\":$SID}" "$B/api/pcp/itens?id=$IID" | grep -q '"status_nome"' || { echo "status no item falhou"; exit 1; }
           R=$(curl -s -c $J -b $J -X PUT -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -d "{\"status_id\":$SID}" "$B/api/pcp/pedido?pedido=99700")
           echo "$R" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.exit(j.itens.every(i=>i.status_id)?0:1)})' || { echo "status no pedido falhou"; exit 1; }

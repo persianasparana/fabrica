@@ -129,7 +129,9 @@ r.put(
     );
     if (result.rowCount === 0) throw new HttpError(404, 'NC não encontrada');
     await audit(req.session.user.id, 'qualidade', 'nc.update', { entityType: 'nc', entityId: id });
-    res.json({ message: 'NC atualizada com sucesso' });
+    // `ok` segue o padrão das demais rotas de escrita; `message` fica (aditivo —
+    // o frontend do Qualidade mostra o próprio texto e só lê `message` em erro).
+    res.json({ ok: true, message: 'NC atualizada com sucesso' });
   })
 );
 
@@ -143,7 +145,7 @@ r.delete(
     const result = await q('DELETE FROM nao_conformidades WHERE id = $1', [id]);
     if (result.rowCount === 0) throw new HttpError(404, 'NC não encontrada');
     await audit(req.session.user.id, 'qualidade', 'nc.delete', { entityType: 'nc', entityId: id });
-    res.json({ message: 'NC excluída com sucesso' });
+    res.json({ ok: true, message: 'NC excluída com sucesso' });
   })
 );
 

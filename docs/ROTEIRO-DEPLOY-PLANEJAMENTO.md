@@ -1,5 +1,9 @@
 # Roteiro de deploy ÚNICO — Planejamento de produção P0 → P6 (06/11/2026)
 
+> **Situação em 16/11/2026:** o passo 3 (**Fábrica**, P0–P3) **já foi publicado em 10/11/2026**
+> (commit `44bde24`, `deploy/REGISTRO-DEPLOYS.md`); rodar o bloco de novo é seguro (o script pula
+> o que já entrou). Confira nos registros dos outros repos quais passos ainda faltam.
+>
 > Tudo que está nas branches de produção dos repos e ainda não foi publicado, na ORDEM em que
 > precisa entrar. Cada passo é idempotente (rodar de novo é seguro) e os scripts registram o que
 > fizeram. Espec: `ESPEC-PLANEJAMENTO-PRODUCAO.md` · contrato entre módulos:

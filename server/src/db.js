@@ -25,7 +25,27 @@ export function q(text, params) {
   return pool.query(text, params);
 }
 
-/** Cria o schema, se necessário (idempotente). */
+/**
+ * Cria/atualiza o schema (idempotente).
+ *
+ * Como as "migrations" deste módulo funcionam (diferente dos irmãos Express,
+ * que têm pasta `migrations/` numerada):
+ *  - rodam NO BOOT do fabrica-server (server.js → migrate()) e também em
+ *    `npm run migrate` / `npm run install-app`;
+ *  - são TODAS idempotentes (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT
+ *    EXISTS`, `INSERT … ON CONFLICT DO NOTHING`, `UPDATE … WHERE … IS NULL`);
+ *    rodar de novo nunca altera dado já existente nem edição feita no painel;
+ *  - NÃO existe tabela de versão/controle — a ordem dos blocos abaixo é a
+ *    ordem histórica e cada bloco precisa continuar seguro para bancos novos
+ *    E para bancos já migrados;
+ *  - nunca reescreva um bloco já aplicado em produção: acrescente um novo
+ *    (aditivo) ao final da seção correspondente;
+ *  - o DONO dos objetos é o role que roda o boot (`fabrica_user`, via PG* ou
+ *    DATABASE_URL do .env). Não há `OWNER TO` explícito porque tudo é criado
+ *    pelo próprio role — se alguém rodar este arquivo como `postgres`, as
+ *    tabelas nascem com dono errado (bug nº 2 da federação): confira com
+ *    `SELECT tableowner, count(*) FROM pg_tables WHERE schemaname='public' GROUP BY 1`.
+ */
 export async function migrate() {
   await q(`
     CREATE TABLE IF NOT EXISTS users (

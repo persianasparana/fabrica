@@ -1,8 +1,19 @@
 # Implantação — fabrica (no servidor compartilhado `aplicativos`)
 
-O servidor já roda **Logística** e **Agenda de Consultores** em produção
-(Nginx + Node/PM2 + PostgreSQL). O `fabrica` entra como **app novo isolado**,
-seguindo as regras de `docs/SERVIDOR-COMPARTILHADO.md` — **sem tocar** no que
+> ⚠️ **NUNCA dar checkout de outra branch no servidor** (incidente de 16/07/2026: um
+> `git checkout` de outra branch em `/var/www/fabrica` derrubou login e abas — versão antiga
+> no ar). A produção é um checkout git da branch **`claude/unified-server-status-7633oz`**;
+> atualizar é SEMPRE `git pull --ff-only origin claude/unified-server-status-7633oz`.
+>
+> **Deploy do dia a dia** (depois da primeira instalação descrita aqui): use os scripts
+> `deploy/aplicar-*.sh` (idempotentes, conferem o commit, reiniciam o PM2, testam o
+> `/healthz` e anexam uma linha em `deploy/REGISTRO-DEPLOYS.md`). Ordem, scripts e o que
+> está no ar: **`deploy/README.md`**. Deploy coordenado com os outros módulos (planejamento
+> P0–P6): **`docs/ROTEIRO-DEPLOY-PLANEJAMENTO.md`**.
+
+O servidor já roda **Logística**, **Agenda de Consultores** e os demais módulos da
+federação em produção (Nginx + Node/PM2 + PostgreSQL). O `fabrica` entra como **app
+isolado**, seguindo as regras de `docs/SERVIDOR-COMPARTILHADO.md` — **sem tocar** no que
 existe.
 
 Recursos próprios do fabrica:
@@ -52,8 +63,11 @@ pm2 -v
 
 ```bash
 sudo mkdir -p /var/www/fabrica && sudo chown "$USER" /var/www/fabrica
-git clone <repo> /var/www/fabrica && cd /var/www/fabrica
+git clone -b claude/unified-server-status-7633oz https://github.com/persianasparana/fabrica /var/www/fabrica \
+  && cd /var/www/fabrica && git branch --show-current   # tem de imprimir claude/unified-server-status-7633oz
 ```
+
+(`main` está parado em 09/06/2026 — **não é referência**; ver `docs/PROTOCOLO-FEDERACAO.md` §1.)
 
 ## 3. Banco isolado (não tocar nos existentes)
 
@@ -69,13 +83,15 @@ SQL
 ```bash
 cd /var/www/fabrica/server
 cp .env.example .env
-# edite: PGPASSWORD, SESSION_SECRET (aleatório), TRUST_PROXY=1, COOKIE_SECURE=auto,
-#        FABRICA_ADMIN_USER / FABRICA_ADMIN_PASSWORD, PORT=3020
+# edite: PGPASSWORD, SESSION_SECRET (aleatório — OBRIGATÓRIA, o servidor não sobe sem ela),
+#        TRUST_PROXY=1, COOKIE_SECURE=auto, FABRICA_ADMIN_USER / FABRICA_ADMIN_PASSWORD, PORT=3020
+#        e as chaves de integração (COMERCIAL_*, PRODUTOS_*, COMPRAS_*, INTEGRACAO_API_KEY)
 npm ci --omit=dev
-npm run install-app        # cria schema + admin (idempotente)
+npm run install-app        # cria schema + seeds + admin (idempotente)
 ```
 
 `SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+Todas as variáveis lidas pelo código estão comentadas em `server/.env.example`.
 
 ## 5. Frontends (estáticos — sem build)
 
@@ -141,11 +157,19 @@ banco e (subpath) uma linha de `include` no vhost.
 
 ## 9. Atualizações
 
+Preferencialmente pelo script da versão (`deploy/aplicar-*.sh` — ver `deploy/README.md`), que
+já faz a conferência, o restart, o health e o registro. À mão:
+
 ```bash
-cd /var/www/fabrica && git pull
-cd server && npm ci --omit=dev
-pm2 delete fabrica-server && pm2 start ../../deploy/ecosystem.config.js --only fabrica-server && pm2 save
+cd /var/www/fabrica && git pull --ff-only origin claude/unified-server-status-7633oz
+cd server && npm ci --omit=dev && cd ..
+pm2 delete fabrica-server && pm2 start deploy/ecosystem.config.js --only fabrica-server && pm2 save
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true}
 ```
+
+As migrations rodam sozinhas no boot (`server/src/db.js migrate()`, idempotentes) — não há
+`migrate deploy` separado. Se for um deploy que outro módulo precisa saber, anexe a linha em
+`deploy/REGISTRO-DEPLOYS.md` (formato no cabeçalho do arquivo) e dê push.
 
 ## 10. Backup
 

@@ -69,6 +69,16 @@ app.use(
 
 app.use(express.json({ limit: '1.5mb' }));
 
+// SESSION_SECRET é OBRIGATÓRIA em qualquer ambiente (revisão da federação,
+// 16/11/2026): antes havia um valor padrão no código, e um .env sem a chave
+// subia em produção assinando os cookies de sessão com um segredo público.
+// Gere com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+if (!process.env.SESSION_SECRET || !String(process.env.SESSION_SECRET).trim()) {
+  console.error('[cfg] SESSION_SECRET não definida — o fabrica-server NÃO sobe sem ela. '
+    + 'Defina SESSION_SECRET no server/.env (ver server/.env.example) e reinicie.');
+  process.exit(1);
+}
+
 const PgStore = connectPgSimple(session);
 const cookieSecure =
   process.env.COOKIE_SECURE === 'auto' ? 'auto' : process.env.COOKIE_SECURE === '1';
@@ -77,7 +87,7 @@ app.use(
   session({
     name: 'fabrica.sid',
     store: new PgStore({ pool, createTableIfMissing: true }),
-    secret: process.env.SESSION_SECRET || 'troque-este-segredo-em-producao',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     rolling: true,

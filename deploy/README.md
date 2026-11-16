@@ -1,0 +1,59 @@
+# deploy/ — como a Fábrica vai para o ar
+
+Produção = checkout git de **`claude/unified-server-status-7633oz`** em `/var/www/fabrica`,
+processo PM2 `fabrica-server` (porta 3020), banco `fabrica_db`. **Nunca** dê `git checkout` de
+outra branch no servidor (incidente 16/07/2026). Primeira instalação: `docs/DEPLOYMENT.md`.
+
+## O que está no ar (fonte da verdade: `REGISTRO-DEPLOYS.md`)
+
+| Data | Commit | O que subiu |
+|---|---|---|
+| 10/11/2026 | `44bde24` | **P3 do planejamento de produção** (cobre P0/P1/P2) — `aplicar-planejamento-p3.sh` |
+| 03/08/2026 | `a9009df` | Plano de Corte via Núcleo — `aplicar-plano-corte-nucleo.sh` |
+| 21/07/2026 | `06f5dbe` | F3 BOM+custo na OC + seleção por SKU |
+
+Pendente: `e981f14 fix(auth)` (só na branch de federação) e a revisão de 16/11/2026
+(`SESSION_SECRET` obrigatória — **confira que o `server/.env` tem a chave antes de reiniciar**).
+
+## Arquivos
+
+| Arquivo | Para quê |
+|---|---|
+| `install.sh` | Primeira instalação no servidor (pergunta admin/senhas, cria role+banco, `npm ci`, `install-app`, PM2). Idempotente. Imprime o único passo manual (include no Nginx). |
+| `ecosystem.config.js` | Definição do processo PM2 (`cwd` = `server/`, `NODE_ENV=production`, envs do `server/.env`). |
+| `aplicar-planejamento-p3.sh` | Deploy do P3 (cobre P0–P2): confere o commit (grep nos arquivos), `node --check`, roda o teste do sequenciador, avisa se `COMPRAS_SERVICE_KEY` falta ou o Compras não tem a migration 013, `pm2 restart`, health, conferência no banco, linha no REGISTRO + commit + push. |
+| `aplicar-planejamento-p0.sh` / `p1.sh` / `p2.sh` | Mesma mecânica para cada fase (já cobertas pelo p3; ficam para rollback/histórico). |
+| `aplicar-plano-corte-nucleo.sh` | Deploy do plano de corte via Núcleo (03/08/2026). |
+| `REGISTRO-DEPLOYS.md` | **Append-only**: cada deploy anexa `- AAAA-MM-DD HH:MM \| commit <hash> \| <processos> \| <o que subiu> \| <resultado>` e dá push no próprio servidor. Qualquer conversa confere aqui antes de assumir estado. |
+| `diag-servidor.sh` | Raio-X **read-only** do servidor compartilhado (PM2, portas, bancos/donos, Nginx, `/var/www`, health, disco). `sudo bash deploy/diag-servidor.sh 2>&1 \| tee /tmp/estado-servidor-$(date +%F).txt`. Morava em `docs/` até 16/11/2026. |
+
+## Como publicar uma entrega
+
+1. Confira a **ordem com os vizinhos** (regra "provedor antes do consumidor" do
+   `docs/PROTOCOLO-FEDERACAO.md`): o Núcleo e o Compras sobem ANTES da Fábrica quando ela
+   depende de rota/versão deles; a Logística/Agenda depois. Para o planejamento P0–P6 o bloco
+   único está em `docs/ROTEIRO-DEPLOY-PLANEJAMENTO.md`.
+2. No servidor:
+   ```bash
+   cd /var/www/fabrica && git pull --ff-only origin claude/unified-server-status-7633oz \
+     && bash deploy/aplicar-<entrega>.sh
+   ```
+   O script aborta com a instrução certa se o commit não está no checkout, se uma env falta ou
+   se o vizinho não tem a versão esperada; rodar de novo é seguro.
+3. Se o script não cobrir (mudança só de frontend/docs): `git pull --ff-only …`,
+   `pm2 restart fabrica-server` (se não pegar: `pm2 delete fabrica-server && pm2 start
+   deploy/ecosystem.config.js --only fabrica-server && pm2 save`), `curl -s
+   http://127.0.0.1:3020/healthz`, e anexe a linha ao `REGISTRO-DEPLOYS.md` + push.
+4. **Migrations** rodam no boot (`server/src/db.js migrate()`, idempotentes, sem tabela de
+   versão) — não há passo separado; faça `pg_dump` antes se a entrega cria/alter tabela:
+   `pg_dump -U fabrica_user -h 127.0.0.1 fabrica_db | gzip > /tmp/fabrica_$(date +%F).sql.gz`.
+5. Depois do deploy, **cadastros** que o código não faz sozinho: capacidade por setor, roteiros
+   nas estruturas, estruturas por SKU novo (`romanatetomot`, `fixa_*`), de-para no Compras.
+
+## Como escrever o script da próxima entrega
+
+Copie `aplicar-planejamento-p3.sh`: `set -euo pipefail`, `cd /var/www/fabrica`, guardas com
+`grep -q` nos arquivos que a entrega trouxe (abortam com "rode git pull antes"), `node --check`
+nos JS tocados, `node server/test/carga.test.mjs`, avisos de env/vizinho, `pm2 restart`, `sleep`,
+`curl -sf …/healthz`, conferência no banco, linha no REGISTRO com `git rev-parse --short HEAD`,
+commit e push na branch de produção. Tudo em PT-BR, idempotente, sem placeholder para editar.

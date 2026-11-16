@@ -3,8 +3,9 @@
 # Persianas Paraná — instalador do fabrica (PCP + Qualidade)
 # ----------------------------------------------------------------------------
 # Faz as partes ISOLADAS (não tocam nos outros sistemas):
-#   deps do backend, banco próprio (fabrica_db), schema + admin, build do PCP,
-#   e o processo PM2 `fabrica-server`.
+#   deps do backend, banco próprio (fabrica_db), schema + seeds + admin e o
+#   processo PM2 `fabrica-server`. Os frontends (pcp/public e qualidade/public)
+#   são estáticos — NÃO há etapa de build (ver passo 5).
 #
 # A ÚNICA etapa que mexe em arquivo compartilhado (Nginx) é MANUAL e fica
 # impressa ao final — combine com o responsável pela Logística.

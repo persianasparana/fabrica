@@ -1,7 +1,9 @@
 # Espec para decisão — Planejamento de produção no PCP reaproveitando o Núcleo, requisição de compra ao Compras e retomada das Solicitações
 
 **Status:** **decidido pelo cliente em 05/11/2026** (§6 traz as respostas; §4 a ordem de execução).
-Nada foi codificado ainda.
+**Implementado P0–P3 na Fábrica (06/11) e em produção desde 10/11/2026**; P4/P5/P6 nos outros
+repos — ver "Andamento" no §6 e `ROTEIRO-DEPLOY-PLANEJAMENTO.md`. (O diagnóstico do §1 descreve
+o estado ANTES do planejamento e foi mantido como registro.)
 **Pedido:** *"melhorar o PCP com o planejamento de produção; fizemos várias melhorias no cálculo de
 custo com base na forma de fabricação e preciso implementar essas regras no PCP, que é quem vai
 planejar a produção. No PCP não tem onde adicionar um pedido de cortina para calcular o consumo de

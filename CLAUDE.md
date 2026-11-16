@@ -27,6 +27,20 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - Coordenação entre conversas: docs no repo `compras` (`PLANO-INTEGRACAO-ERP.md`,
   `MAPA-DO-SERVIDOR.md`, `HANDOFF-CONTINUIDADE.md`, `DIRETRIZES-REVISAO-ERP.md`).
 
+## Estado atual (16/11/2026)
+- **Em produção** (`/var/www/fabrica`, branch `claude/unified-server-status-7633oz`): tudo até o
+  **P3 do planejamento de produção**, publicado em **10/11/2026** pelo `deploy/aplicar-planejamento-p3.sh`
+  (cobre P0–P2) — commit `44bde24` (linha em `deploy/REGISTRO-DEPLOYS.md`). As seções "Estado"
+  abaixo de 20/07, 07/08 e 06/11 (P0/P1/P2/P3) estão TODAS no ar.
+- **Pendente de deploy, só na branch de federação** (`claude/persianas-parana-federation-64icd0`):
+  `e981f14 fix(auth): login recusava credencial certa — caixa do usuário e bloqueio por IP`
+  (auth.js, server.js, db.js, bin/reset-senha.js). Precisa ser levado à `unified` e publicado.
+- **Revisão da federação de 16/11/2026** (working tree desta sessão): `SESSION_SECRET` passou a ser
+  obrigatória no boot; CI ajustado ao 410 do `POST /itens`; `npm test`/`npm run check`; vendor
+  pdf.js/SheetJS removidos; `docs/diag-servidor.sh` → `deploy/diag-servidor.sh`; docs padrão novos.
+- **Documentação para humanos** (leia nesta ordem): `docs/VISAO-GERAL.md` → `README.md` →
+  `docs/README.md` (índice) → `docs/API.md` (todas as rotas) → `CHANGELOG.md` → `deploy/README.md`.
+
 ## ⚠️ Servidor compartilhado
 Mesmo servidor dos outros 6 apps. **Isolado**: porta **3020**, banco **`fabrica_db`**
 (role **`fabrica_user`**), PM2 **`fabrica-server`**, dir **`/var/www/fabrica`**.
@@ -49,8 +63,13 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
   **outbox `pcp_ciclo_pendencias`** (retry do avanço de ciclo com o Comercial fora).
 - `server/src/compras-client.js` — cliente REST do Compras (X-Service-Key) + **outbox
   `pcp_compras_pendencias`** (requisição de compra e saída de produção — P3, 06/11/2026).
-- `server/bin/` — `install.js` (schema+seed+admin) e utilitários: `preencher-barras.js`,
-  `reparar-keys.js`, `preencher-medidas.js`, `preencher-componentes.js`.
+- `server/bin/` — `install.js` (schema+seed+admin), `migrate.js` (só o schema), `reset-senha.js`
+  (recuperar senha pelo servidor), `limpar-fila.js` (zera a fila, preserva cadastros) e utilitários
+  da Estrutura: `preencher-barras.js`, `reparar-keys.js`, `preencher-medidas.js`,
+  `preencher-componentes.js`, `seed-tipos.js`, `validar-cortes.js` (motor de corte × planilhas,
+  sem banco), `atualizar-horizontais.js`.
+- `server/test/carga.test.mjs` — única suíte sem banco (`npm test`); `npm run check` = `node --check`
+  nos módulos principais.
 - `pcp/public/assets/js/` — `app.js` (fila/editar pedido/estrutura), `comercial.js`
   (análise/liberação), `ordem-corte-plano.js` (FFD/desenho/CSV), `ficha-producao.js`,
   `regras-estrutura.js`, `etiquetas.js`.
@@ -95,12 +114,12 @@ digita metros ×100). A OC converte para a unidade do PRODUTO (`unidade='m'` →
 ```bash
 service postgresql start                 # cai com frequência — sempre conferir
 cd server && node bin/install.js         # schema + seed + admin (admin/Senha123)
-# mock do Comercial (detalhe do PED-2026/0002) em :3995 — scratchpad/mock-comercial.mjs
+# mock do Comercial (detalhe do PED-2026/0002) em :3995 — scratchpad/mock-comercial.mjs (não versionado; prova feita na réplica da sessão)
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
-## Estado (06/11/2026) — na branch (deploy pendente): **P3 do PLANEJAMENTO — integração com o COMPRAS**
+## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P3 do PLANEJAMENTO — integração com o COMPRAS**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d/e + §3.3; exige o Compras com a migration 013)
 - **`server/src/compras-client.js`**: `saldos(skus)` (best-effort → null com o Compras fora),
   `criarSolicitacao`/`saidaProducao` (lançam) e a **OUTBOX `pcp_compras_pendencias`**
@@ -128,14 +147,15 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   **Requisitar ao Compras** (modal: pré-marca os itens com falta, quantidade sugerida = falta, data
   de necessidade, obs) e card **Requisições feitas** (SC · situação · pendente de envio); Editar
   Pedido: **"Baixar materiais no Compras"**. Manual atualizado.
-- Provado na réplica (Compras real :3051 + Núcleo :3070): e2e `scratchpad/e2e-pcp-p3.mjs` 31
+- Provado na réplica (Compras real :3051 + Núcleo :3070): e2e `scratchpad/e2e-pcp-p3.mjs` (não
+  versionado; prova feita na réplica da sessão) 31
   (saldo por de-para, tecido:COR, requisição idempotente, reservado, Compras derrubado → 202 +
   outbox → religado → reenvio automático vira SC, 1ª bipagem baixa e marca, 2ª não repete, baixa
-  manual idempotente) · Playwright `pw-pcp-p3.js` 11. Deploy `deploy/aplicar-planejamento-p3.sh`
+  manual idempotente) · Playwright `pw-pcp-p3.js` (não versionado) 11. Deploy `deploy/aplicar-planejamento-p3.sh`
   (sem migration manual; ORDEM: Compras `aplicar-solicitacoes-compra.sh` ANTES; depois o .env
   daqui com `COMPRAS_*` + restart). ⚠ Depois: o comprador faz o DE-PARA no Compras.
 
-## Estado (06/11/2026) — na branch (deploy pendente): **P1 do PLANEJAMENTO — aba "Necessidade de materiais"**
+## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P1 do PLANEJAMENTO — aba "Necessidade de materiais"**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d; exige o Núcleo v14.88 — reaproveita o P0)
 - **`server/src/necessidade.js`**: `pedidosDoHorizonte({horizonte, ate, pedidos})` — `nao_cortou`
   (padrão: peça aberta SEM etapa iniciada no setor de CORTE = `pcp_setores.ordem_corte`; sem setor
@@ -159,14 +179,15 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   métricas, avisos (Núcleo fora com o motivo, itens sem spec, peças que não calcularam com o
   motivo, itens sem pedido, blocos), tabelas Tecido · Perfis/tubos · Componentes (filtro) · Pedidos
   (link para a Ficha). Manual atualizado.
-- Provado na réplica (Núcleo real :3070): e2e API `scratchpad/e2e-pcp-p1.mjs` 20 (422s, 0002 com
+- Provado na réplica (Núcleo real :3070): e2e API `scratchpad/e2e-pcp-p1.mjs` (não versionado;
+  prova feita na réplica da sessão) 20 (422s, 0002 com
   AM 3059 BEGE, pedidos nas linhas, sem dinheiro, horizonte de 540 peças em blocos, peça bipada no
-  Corte sai do "não cortou", filtro `ate`, CSV) · Playwright `pw-pcp-p1.js` 16. Deploy
+  Corte sai do "não cortou", filtro `ate`, CSV) · Playwright `pw-pcp-p1.js` (não versionado) 16. Deploy
   `deploy/aplicar-planejamento-p1.sh` (sem migration; Núcleo v14.88 ANTES).
   ⚠ Na réplica 536 das 540 peças do seed não calculam ("Informe largura e altura") — itens antigos
   sem spec/medida; em produção, itens liberados depois do P0 chegam completos.
 
-## Estado (06/11/2026) — na branch (deploy pendente): **P2 do PLANEJAMENTO — aba "Planejamento de carga"**
+## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P2 do PLANEJAMENTO — aba "Planejamento de carga"**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 f; sem dependência de versão do Núcleo)
 - **`server/src/carga.js`**: `sequenciar({inicio, semanas, cfg, setores, pecas})` é PURO (teste
   `server/test/carga.test.mjs`, 15 casos, sem banco): peças ABERTAS ordenadas por **prioridade**
@@ -196,13 +217,14 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   "Itens que vão atrasar". Prioridade: select no modal "Ver" (`#ed-prioridade`), em massa no
   Editar Pedido (`#ped-prioridade`, "(manter atual)"), badge ⚡/▲ na fila e `priorityOrder`
   (prioridade vence a especial). Capacidade também em Setores (coluna + editar). Manual atualizado.
-- Provado na réplica: unitário 15 · e2e API `scratchpad/e2e-pcp-p2.mjs` 25 · Playwright
-  `pw-pcp-p2.js` 21 (aba, grade 12/dia, clique no dia, capacidade inline → 20, modal/editor/fila com
+- Provado na réplica: unitário 15 (`server/test/carga.test.mjs`, versionado) · e2e API
+  `scratchpad/e2e-pcp-p2.mjs` 25 · Playwright `pw-pcp-p2.js` 21 (os dois NÃO versionados; prova
+  feita na réplica da sessão) (aba, grade 12/dia, clique no dia, capacidade inline → 20, modal/editor/fila com
   prioridade, Setores). Deploy `deploy/aplicar-planejamento-p2.sh` (sem migration manual; roda o
   teste do sequenciador; cobre o P0 se pendente). ⚠ Depois do deploy é CADASTRO: capacidade por setor
   e roteiros nas estruturas (na réplica as 34 estruturas estão com roteiro `[]`).
 
-## Estado (06/11/2026) — na branch (deploy pendente): **P0 do PLANEJAMENTO DE PRODUÇÃO**
+## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P0 do PLANEJAMENTO DE PRODUÇÃO**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md`; decisões do cliente 05/11; ordem P0 → P2 → P1 → P3)
 - **`pcp_itens.spec_nucleo`** (JSONB, migration no boot): a peça COMO FOI VENDIDA
   (`server/src/nucleo-spec.js specDoItemComercial`), gravada na liberação; `GET /pcp/pedido`
@@ -225,7 +247,9 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   `pcp_config.roteiro_linhas` (JSON `{linha: [nomes de setor em ordem]}`, semeado com
   `ON CONFLICT DO NOTHING`; sequencial — Corte → Montagem → Embalagem na cortina).
 - **Entrada manual removida**: sidebar/topo sem "Novo Pedido" e sem Importar Excel/PDF; seção,
-  modais JSON/PDF, `pdf.min.js` e o bloco de importação do `app.js` saíram; `POST /pcp/itens`
+  modais JSON/PDF, a referência ao `pdf.min.js` e o bloco de importação do `app.js` saíram (os
+  arquivos `pdf.min.js`/`pdf.worker.min.js`/`xlsx.full.min.js` de `assets/vendor/` foram apagados do
+  repo em 16/11/2026 — só o `qrcode.js` fica); `POST /pcp/itens`
   e `/itens/lote` → **410** apontando para o Comercial; `ABAS` sem `novo`. Topo ganhou
   "+ Pedido (Comercial)" (abre a aba Pedidos Comercial).
 - **DEFEITO fechado no modal "Ver" da fila**: `salvarEdicao` casava a estrutura pelo NOME
@@ -235,7 +259,8 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   o modal edita também SKU do Núcleo, coleção, cores, acionamento e ambiente (`PUT /pcp/itens`
   aceita `produto_sku`, `colecao`, `cor_tecido`, `cor_perfil`, `acionamento`, `ambiente`).
 - Prévia da aba Comercial deixa de listar ACESSÓRIO (a liberação já o pulava).
-- Provado na réplica: E2E (`scratchpad/e2e-pcp-p0.mjs`, mock do Comercial em :3995 + Núcleo
+- Provado na réplica: E2E (`scratchpad/e2e-pcp-p0.mjs` — não versionado; prova feita na réplica
+  da sessão —, mock do Comercial em :3995 + Núcleo
   real :3070 — 30 checagens: prévia, liberação com spec, idempotência, lista de materiais por
   item/cor/sem dinheiro, PUT preserva `produto_id`, 410, roteiro por linha na bipagem, pedido
   antigo sem spec só avisa) + Playwright (17 checagens: navegação, modal, badges, Ficha).
@@ -245,13 +270,13 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   preenchido o casamento por SKU só decide quando a estrutura é única); itens ANTIGOS da fila
   não têm `spec_nucleo` (a lista usa produto/coleção/medidas e avisa).
 
-## Estado (07/08/2026) — na branch (deploy pendente): **desenhos de fabricação/instalação
+## Estado (07/08/2026) — EM PRODUÇÃO desde 10/11/2026 (commit `b127d6d` entrou no deploy 44bde24 do P3; conferido no REGISTRO): **desenhos de fabricação/instalação
 ## do Comercial no PCP** — a liberação grava flags em `pcp_pedido_info` (`desenho_fabricacao`/
 ## `desenho_instalacao`), o arquivo é servido por PROXY (`/api/comercial/pedidos/:id/desenhos[...]`,
 ## CSP imgSrc 'self'); badge 📐 na fila/aba Comercial e seção "DESENHO DE FABRICAÇÃO" na
 ## Ficha de Produção (imagem inline imprimível; PDF vira link). Validado local com mock. Antes:
 
-## Estado (20/07/2026) — na branch (deploy pendente): F3 BOM+custo na OC; **seleção de
+## Estado (20/07/2026) — EM PRODUÇÃO desde 21/07/2026 (commit `06f5dbe`, linha de 2026-07-21 no REGISTRO): F3 BOM+custo na OC; **seleção de
 ## estrutura por SKU canônico** (item do pedido chega com `produtoSku` do Núcleo v2.29:
 ## regra > sku (quando 1 única estrutura tem o SKU) > nome > pendente; badge "sku" na
 ## prévia) e campo "SKU do Núcleo" no editor de Estrutura (CRUD expõe `produto_sku`).

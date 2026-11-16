@@ -1,60 +1,72 @@
 # PCP — Planejamento e Controle da Produção
 
-Sistema de PCP da **Persianas Paraná**, construído sobre o modelo de negócio
-oficial do planejamento da produção: fila de produção com prazos do cliente,
-alertas de vencimento, bipagem por código de barras, importação de ordens
-(PDF/Excel/CSV), indicadores e a **Estrutura do Produto** (catálogo oficial com
-fórmulas de corte e componentes/BOM).
+Frontend do PCP da **Persianas Paraná**: fila de produção com prazos do cliente, pedidos
+vindos do Comercial, bipagem por setor, planejamento de carga, necessidade de materiais,
+etiquetas, expedição, Ficha de Produção e plano de corte. HTML/CSS/JS **sem build**, servido
+como estático. O backend é o serviço Node unificado em [`../server`](../server) — APIs sob
+`/api/pcp`, `/api/comercial` e `/api/auth`, dados em PostgreSQL. Rotas: `../docs/API.md`.
 
-> Frontend HTML/CSS/JS (sem build), servido como estático. O backend é o
-> serviço Node unificado em [`../server`](../server) — APIs sob `/api/pcp` e
-> `/api/auth`, dados em PostgreSQL.
+> Desde o P0 do planejamento (06/11/2026) **não há "Novo Pedido" manual nem importação
+> PDF/Excel/CSV/JSON**: a entrada de peças é só a liberação do pedido do Comercial.
 
-## Funcionalidades
+## Abas (sidebar de `index.html`)
 
-| Módulo | Descrição |
+| Aba | O que faz |
 |---|---|
 | **Painel** | Métricas gerais + vencidos, atenção (≤ 3 dias) e em produção |
-| **Fila de Produção** | Tabela completa com busca, filtros por status/tipo/situação e por data (período, mês, semana, próximos N dias), ordenação e paginação |
+| **Fila de Produção** / **Arquivo (baixados)** | Tabela completa com busca, filtros (status/tipo/situação/datas), ordenação, paginação, badges de prioridade/especial/"pelo Núcleo"; modal "Ver" edita a peça (estrutura por select, SKU, coleção, cores, acionamento, ambiente, prioridade, medidas) |
 | **Alertas** | Pedidos vencidos e prestes a vencer |
-| **Buscar Pedido** | Busca por número de pedido, produto ou observações |
-| **Editar Pedido** | Edição em massa de **todos os produtos/peças de um pedido**: muda prazo, tipo, motivo, ★ especial e observações de uma vez, e **conclui ou reabre todas as peças** num clique. Também exclui o pedido inteiro |
-| **Indicadores** | % no prazo, top produtos com atraso, motivos de atraso, mix por tipo |
-| **Bipagem** | **Por setor** (Início/Fim): o operador escolhe o setor + Início/Fim e bipa a etiqueta. O Início assume o status do setor (após as dependências do roteiro estarem "fim"); o Fim do setor cujo status é **final** dá a **baixa** da peça. Os setores ofertados respeitam os do usuário |
-| **Setores** (admin) | Cadastrar setores de produção e associar cada um a um status (usado na bipagem) |
-| **Usuários** (admin) | Cadastrar usuários, permissão por aba (Sem acesso / Ver / Editar) e associação a 1+ setores |
-| **Status de Produção** (admin) | Cadastrar/excluir os status de produção (ex.: Em corte, Em montagem, Pronto). Um status pode ser marcado como **final** (dá baixa). Atribuição por item ou no pedido inteiro; badge colorido na fila e filtro próprio |
-| **Estrutura do Produto** | Catálogo oficial: fórmulas de corte (`L − 2.2`, `A + 15`…) e componentes (BOM) por família — alimenta a lista de produtos do novo pedido. Produtos podem ser criados/editados/desativados |
-| **Novo Pedido** | Em 2 etapas: dados do pedido → adição de **vários produtos**, um a um, **bipando a etiqueta** (do sistema de pedidos) na adição para vincular individualmente; **★ peça especial** por produto. Etiqueta pode ficar pendente e ser vinculada depois no detalhe do item |
-| **Importação** | PDF da ordem de produção (pdf.js local), Excel/CSV (SheetJS local) e JSON colado — com tela de revisão antes de salvar |
-| **Exportação** | CSV compatível com Excel |
+| **Planejamento de carga** (P2) | Grade de dias por setor (capacidade × programado), itens que vão atrasar, gravar previsões, calendário (admin) |
+| **Necessidade de materiais** (P1/P3) | Tecido por coleção × cor × rolo, perfis/tubos em barras, componentes do horizonte (pelo Núcleo), saldo/falta do Compras, **Requisitar ao Compras**, requisições feitas, CSV, impressão |
+| **Buscar Pedido** | Por número de pedido, produto ou observações |
+| **Editar Pedido** | Edição em massa de todas as peças de um pedido (prazo, tipo, motivo, especial, prioridade, observações), concluir/reabrir tudo, baixar materiais no Compras, excluir o pedido |
+| **Indicadores** | % no prazo, top produtos com atraso, motivos, mix por tipo |
+| **Pedidos Comercial** | Pedidos `EM_ANALISE_PCP` do Comercial: prévia da Estrutura por item, desenhos anexados, **Liberar produção** / **Devolver** |
+| **Bipagem** | Por setor (Início/Fim): o Início assume o status do setor (após as dependências do roteiro); o Fim do setor cujo status é **final** dá a baixa. Setores ofertados = os do usuário |
+| **Estrutura do Produto** | Catálogo de como fabricar: cortes por setor, componentes (BOM), roteiro, SKU do Núcleo; regras de seleção automática e categoria por coleção |
+| **Plano de Corte** | `plano-corte-nucleo.html` — plano de corte do pedido vindo do Núcleo (variante por peça, registro de impressão) |
+| **Expedição** | Gavetas: guardar/retirar peças bipando a etiqueta, mapa das gavetas, onde está cada peça do pedido |
+| **Etiquetas** | Modelos (admin: formato mm, campos, QR/código) e impressão por pedido/setor/peça (Argox iX4-250) |
+| **Status (admin)** / **Tipos de Produção** / **Setores** / **Usuários** | Cadastros: status (com "final"), tipos de entrada (com padrão), setores (status, setor de corte, capacidade/dia), usuários com permissão por aba e setores |
+| **Manual** | Manual do usuário (`assets/js/manual.js`, visível a todos os logados) |
+| **Ficha de Produção** | `ficha-producao.html?pedido=PED-…` — specs, infos do pedido, desenho de fabricação, cortes por setor, lista de materiais por item e resumo |
+| **Fotos para e-commerce** | mini-PWA `fotos/` (celular): registro da peça com a spec + fotos comprimidas; exportação CSV |
+| **Exportação** | CSV da fila compatível com Excel (gerado em JS puro) |
 
 ## Estrutura
 
 ```
 pcp/public/
-├── index.html, login.html
+├── index.html, login.html, ficha-producao.html, plano-corte-nucleo.html
+├── fotos/                    # mini-PWA (index.html, app.js, sw.js, manifest)
 └── assets/
-    ├── css/style.css        # estilo do modelo + identidade oficial
-    ├── js/{app.js, login.js}
-    ├── fonts/               # Manrope auto-hospedada
-    ├── brand/               # ativos da marca (sincronizados de shared/brand)
-    └── vendor/              # pdf.js + SheetJS (sem CDN)
+    ├── css/style.css         # estilo + identidade oficial
+    ├── js/app.js             # fila / editar pedido / estrutura / cadastros / bipagem
+    ├── js/comercial.js       # aba Pedidos Comercial (prévia, liberar, devolver)
+    ├── js/carga.js · necessidade.js        # P2 e P1/P3
+    ├── js/etiquetas.js · expedicao.js      # etiquetas e gavetas
+    ├── js/regras-estrutura.js              # regras de seleção da Estrutura
+    ├── js/ordem-corte-plano.js · plano-corte-nucleo.js · ficha-producao.js
+    ├── js/manual.js · login.js
+    ├── fonts/                # Manrope auto-hospedada
+    ├── brand/                # ativos da marca (sincronizados de shared/brand)
+    └── vendor/               # qrcode.js (sem CDN) — ver vendor/README.md
 ```
 
-## Dados (PostgreSQL — ver `../server`)
+Permissões por aba (`ABAS_PERM` em `app.js` = `ABAS` em `server/src/routes/admin.js`):
+`painel, fila, alertas, carga, necessidade, busca, pedido, indicadores, bipagem, estrutura,
+tipos, comercial, etiquetas, expedicao`. A CSP do backend não permite `<script>` inline nem
+CDN (só handlers por atributo).
 
-- `pcp_itens` — itens da fila de produção (produto, pedido, datas, tipo, motivo, ★ especial)
-- `pcp_pecas` — peças individuais de cada item (etiqueta única + baixa própria); a conclusão do item é derivada das peças
-- `pcp_produtos` — estrutura do produto (fórmulas de corte e BOM em JSONB)
-- `pcp_status` — status de produção configuráveis (admin), com flag `final`; `pcp_itens.status_id` referencia o status atual
-- `pcp_setores` — setores de produção (associados a um status); `pcp_peca_etapas` — início/fim por setor de cada peça
-- `pcp_produtos.roteiro` — setores + dependências do produto; `users.permissoes` (por aba) e `usuario_setores` (N:N)
+## Dados (PostgreSQL — ver `../docs/ARCHITECTURE.md`)
 
-O seed inicial carrega a planilha oficial de planejamento (186 itens) e o
-catálogo completo (34 produtos em 7 famílias).
+`pcp_itens` (item do pedido, com `spec_nucleo`) → `pcp_pecas` (peça com etiqueta, medidas em
+**cm**, baixa, gaveta) → `pcp_peca_etapas` (bipagem). Cadastros: `pcp_produtos`, `pcp_status`,
+`pcp_tipos`, `pcp_setores`, `pcp_gavetas`, `pcp_etiqueta_modelos`, `pcp_estrutura_regras`.
+Outboxes: `pcp_ciclo_pendencias` (Comercial), `pcp_compras_pendencias` (Compras).
+
+O seed do `install.js` (186 itens da planilha antiga, 34 estruturas) é **dado de teste**.
 
 ## Desenvolvimento
 
-Suba o backend (ver [`../server`](../server)) e acesse
-`http://localhost:3020/pcp/`.
+Suba o backend (ver [`../server`](../server)) e acesse `http://localhost:3020/pcp/`.

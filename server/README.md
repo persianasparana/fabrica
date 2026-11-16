@@ -1,62 +1,85 @@
-# server — Backend unificado (Node + PostgreSQL)
+# server — Backend unificado (Node ESM + Express + PostgreSQL)
 
-API dos dois sistemas (PCP e Qualidade) + autenticação compartilhada. Serve
-também, opcionalmente, os dois frontends estáticos.
+API dos dois sistemas (PCP e Qualidade), autenticação compartilhada (sessão + CSRF), os
+clientes HTTP dos módulos vizinhos e, opcionalmente, os dois frontends estáticos.
 
 ```
 server/
 ├── src/
-│   ├── server.js          # app Express (helmet, sessão, rotas, estáticos)
-│   ├── db.js              # pool pg + schema (migração idempotente)
-│   ├── auth.js            # sessão, bcrypt, CSRF, rate limiting em banco
-│   ├── seed.js            # seeds: estrutura do produto + fila inicial
-│   ├── util.js            # HttpError + asyncHandler
-│   └── routes/{auth,pcp,qualidade}.js
-├── data/                  # estrutura-produtos.json + seed-itens.json
-└── bin/{install.js, migrate.js}
+│   ├── server.js             # app Express (helmet, sessão em PG, mounts, estáticos, erros); aborta sem SESSION_SECRET
+│   ├── db.js                 # pool pg + migrate(): schema inteiro, idempotente, rodado no boot (26 tabelas)
+│   ├── auth.js               # login, bcrypt, rate limiting em banco, CSRF, requireAuth/requireAdmin/requirePerm, audit
+│   ├── seed.js               # seeds de TESTE (status, setores, estrutura, fila da planilha antiga)
+│   ├── util.js               # HttpError + asyncHandler (ah)
+│   ├── corte.js              # motor de fórmulas de corte (cm)
+│   ├── ordem-corte.js        # cálculo da OC por peça (legado; alimenta a Ficha)
+│   ├── ordem-corte-nucleo.js # plano de corte via Núcleo
+│   ├── estrutura-regras.js   # seleção automática da Estrutura (F3)
+│   ├── roteiro.js            # roteiro por estrutura ou por linha
+│   ├── nucleo-spec.js        # spec da venda + corpo das chamadas ao Núcleo (P0)
+│   ├── lista-materiais.js    # lista de materiais em blocos (P0/P1)
+│   ├── necessidade.js        # necessidade de materiais + requisição ao Compras (P1/P3)
+│   ├── carga.js              # sequenciador do planejamento de carga (P2, puro)
+│   ├── etiquetas.js          # geração/registro de etiquetas (F2)
+│   ├── comercial-client.js   # Comercial :3010 + outbox pcp_ciclo_pendencias
+│   ├── produtos-client.js    # Núcleo :3070 (best-effort)
+│   ├── compras-client.js     # Compras :3050 + outbox pcp_compras_pendencias
+│   └── routes/
+│       ├── auth.js           # /api/auth
+│       ├── pcp.js            # /api/pcp: itens, pedido, bip, pecas, estrutura, status, tipos, carga, necessidade, materiais
+│       ├── admin.js          # /api/pcp: setores, usuarios
+│       ├── ordem-corte.js    # /api/pcp/ordem-corte
+│       ├── etiquetas.js      # /api/pcp/etiquetas
+│       ├── estrutura-regras.js # /api/pcp/estrutura-regras
+│       ├── expedicao.js      # /api/pcp/expedicao
+│       ├── fotos-ecommerce.js# /api/pcp/fotos-ecommerce
+│       ├── qualidade.js      # /api/qualidade
+│       ├── comercial.js      # /api/comercial (ciclo do pedido)
+│       └── integracao.js     # /api/integracao (X-API-Key, só leitura)
+├── data/                     # estrutura-produtos.json + seed-itens.json (seeds de teste)
+├── test/carga.test.mjs       # única suíte sem banco (npm test)
+└── bin/
+    ├── install.js            # schema + seeds + admin (FABRICA_ADMIN_* ou interativo)
+    ├── migrate.js            # só o schema
+    ├── reset-senha.js        # recuperar senha pelo servidor
+    ├── limpar-fila.js        # zera a fila (preserva cadastros; faz backup em backups/)
+    ├── seed-tipos.js         # tipos de entrada de pedido
+    ├── validar-cortes.js     # motor de corte × planilhas (sem banco)
+    └── preencher-barras.js · reparar-keys.js · preencher-medidas.js · preencher-componentes.js · atualizar-horizontais.js
 ```
 
 ## Rotas
 
-| Método | Rota | Descrição |
-|---|---|---|
-| POST | `/api/auth/login` | Login (`{username, password}`) → `{user, csrf_token}` |
-| GET | `/api/auth/session` | Sessão atual + CSRF (401 se anônimo) |
-| POST/DELETE | `/api/auth/logout` | Encerra a sessão |
-| GET | `/api/pcp/itens` | Fila de produção completa |
-| POST/PUT/DELETE | `/api/pcp/itens` | Cria / atualiza / exclui item (CSRF) |
-| POST | `/api/pcp/itens/lote` | Importação em lote, opcional `substituir` (CSRF) |
-| GET | `/api/pcp/pedido?pedido=` | Todos os itens/peças de um pedido |
-| PUT | `/api/pcp/pedido?pedido=` | Edição em massa do pedido; `acao` concluir/reabrir todas as peças (CSRF) |
-| DELETE | `/api/pcp/pedido?pedido=` | Exclui o pedido inteiro (CSRF) |
-| POST | `/api/pcp/bip` | Bipagem por setor `{codigo, setor_id, evento}` — Início/Fim; baixa no Fim do setor final (CSRF) |
-| POST | `/api/pcp/bip/vincular` | Vincula etiqueta à próxima peça livre do pedido (CSRF) |
-| PUT | `/api/pcp/pecas?id=` | Ajustes por peça: desvincular/baixa/reabrir (CSRF) |
-| GET | `/api/pcp/status` | Status de produção ativos (qualquer usuário) |
-| POST/PUT/DELETE | `/api/pcp/status` | Cadastra/edita/exclui status — **somente admin** (CSRF) |
-| GET | `/api/pcp/estrutura` | Estrutura do produto (cortes c/ setor + BOM + roteiro) |
-| POST/PUT/DELETE | `/api/pcp/estrutura` | Mantém produtos da estrutura (CSRF) |
-| GET | `/api/pcp/setores` | Setores de produção (qualquer usuário) |
-| POST/PUT/DELETE | `/api/pcp/setores` | Mantém setores — **admin** (CSRF) |
-| GET/POST/PUT/DELETE | `/api/pcp/usuarios` | Usuários + permissões por aba + setores — **admin** (CSRF) |
-| GET | `/api/qualidade/ncs` \| `?id=` | Lista (com filtros) / lê NC |
-| POST/PUT/DELETE | `/api/qualidade/ncs` | Cria / atualiza / remove NC (CSRF) |
-| GET | `/api/qualidade/kpis` | Indicadores agregados |
-| GET | `/healthz` | Health check |
+A lista completa, com método, caminho, permissão, CSRF e erros, está em
+**[`../docs/API.md`](../docs/API.md)**. Resumo dos prefixos (montagem em `src/server.js`):
 
-Escritas exigem o header `X-CSRF-Token` (obtido em login/session).
+| Prefixo | Arquivo | Conteúdo |
+|---|---|---|
+| `GET /healthz` | `server.js` | health (`{ok:true}`) |
+| `/api/auth` | `routes/auth.js` | login / session / logout |
+| `/api/pcp` | `routes/pcp.js` + `routes/admin.js` | fila, pedido, bipagem, peças, estrutura, status, tipos, carga, necessidade, materiais; setores, usuários |
+| `/api/pcp/ordem-corte` · `/etiquetas` · `/estrutura-regras` · `/expedicao` · `/fotos-ecommerce` | arquivos homônimos | plano de corte, etiquetas, regras, gavetas, fotos |
+| `/api/qualidade` | `routes/qualidade.js` | NCs e KPIs |
+| `/api/comercial` | `routes/comercial.js` | ciclo do pedido (proxy autenticado do Comercial) |
+| `/api/integracao` | `routes/integracao.js` | leitura para a Logística (`X-API-Key`, sem sessão) |
+
+Escritas exigem sessão + header `X-CSRF-Token` (obtido em login/session). Erros `{ error: 'mensagem' }`.
+`POST /api/pcp/itens[/lote]` respondem **410** desde o P0 (entrada só pelo Comercial).
 
 ## Uso
 
 ```bash
-cp .env.example .env       # configure PG*, SESSION_SECRET, FABRICA_ADMIN_*
+cp .env.example .env       # PG*, SESSION_SECRET (obrigatória), FABRICA_ADMIN_*, chaves de integração
 npm install
-npm run install-app        # schema + usuário admin
+npm run install-app        # schema + seeds de teste + admin
 npm start                  # ou: npm run dev  (com --watch)
+npm test                   # sequenciador de carga (sem banco)
+npm run check              # node --check nos módulos principais
 ```
 
-Configuração por ambiente (ver `.env.example`): conexão PostgreSQL, `SESSION_SECRET`,
-`TRUST_PROXY`/`COOKIE_SECURE` (atrás de HTTPS), `SERVE_STATIC`, rate limiting.
+Configuração por ambiente: todas as variáveis lidas pelo código estão comentadas em
+`.env.example` (conexão, sessão, proxy/cookie, estáticos, admin inicial, rate limiting,
+`INTEGRACAO_API_KEY`, `COMERCIAL_*`, `PRODUTOS_*`, `COMPRAS_*`, `*_RETRY_MS`, `ECOMMERCE_FOTOS_DIR`).
 
 ### Recuperar senha (esqueceu a do admin)
 
@@ -67,7 +90,7 @@ node bin/reset-senha.js --listar              # ver os usuários/admins
 node bin/reset-senha.js <usuario> <novaSenha> # redefine (mín. 8 caracteres)
 ```
 
-Reativa o usuário e limpa o bloqueio por tentativas. Sem a senha no comando,
-ele pergunta. (Equivale a `npm run reset-senha -- <usuario> <novaSenha>`.)
+Reativa o usuário e limpa o bloqueio por tentativas. Sem a senha no comando, ele pergunta.
+(Equivale a `npm run reset-senha -- <usuario> <novaSenha>`.)
 
-Implantação em produção: [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md).
+Implantação em produção: [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) e [`../deploy/README.md`](../deploy/README.md).
