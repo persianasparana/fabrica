@@ -1,11 +1,15 @@
 # 🗺️ MAPA DO SERVIDOR — Persianas Paraná (documento canônico)
 
 > **FONTE DA VERDADE da infraestrutura compartilhada.** Este arquivo é **idêntico** em todos os
-> repositórios (`logistica`, `agenda-consultores`, `fabrica`, `rh`, `financeiro`, `compras`).
+> repositórios (`logistica`, `agenda-consultores`, `fabrica`, `rh`, `financeiro`, `compras`, `fiscal`,
+> `produtos`). Credenciais e Solicitações moram no repo `logistica`.
 > Ao mudar a infra, atualize aqui **e replique** nos outros repos. Não duplique a tabela de
 > portas em outros docs — aponte para este arquivo.
 >
 > **Última verificação contra o servidor real:** 2026-06-26 (via `diag-servidor.sh`, ver §8).
+> **Atualização 2026-11-16:** unificado nos 8 repos (versão do `compras`); §2/§3 ganharam Solicitações (:3080)
+> e Credenciais (:3090), a reserva `pagamentos-api` saiu. Branches de produção e matriz de integrações: ver
+> `PROTOCOLO-FEDERACAO.md` (não duplicar aqui).
 > **Atualização 2026-06-30:** Compras **deployado** (PM2 `compras-api` on-line, banco `compras_db`
 > criado, Nginx `/compras/` roteado) e **integração Fase 4 (Compras→Financeiro: NF→conta a pagar) ativa**.
 
@@ -38,10 +42,16 @@
 | **Agenda Admin** | 3011 | `0.0.0.0` ⚠️ | `agenda-admin` (Next.js) | — | — | `/agenda/` | (idem) | `/` (Next) |
 | **Fábrica** | 3020 | `127.0.0.1` ✅ | `fabrica-server` | `fabrica_db` | `fabrica_user` / `fabrica_user` | `/fabrica/` | `/var/www/fabrica` | `/healthz` |
 | **RH** | 3030 | `0.0.0.0` ⚠️ | `rh-api` | `rh_db` | `rh_user` / `rh_user` | `/rh/` | `/var/www/rh` | `/api/health` |
-| **Financeiro** | 3040 | `0.0.0.0` ⚠️ | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
+| **Financeiro** | 3040 | `127.0.0.1` ✅ (15/09/2026, `BIND_HOST`; antes `0.0.0.0`) | `financeiro-api` | `financeiro_db` | `financeiro_user` / `financeiro_user` | `/financeiro/` | `/var/www/financeiro` | `/api/health` |
 | **Compras** ✅ | 3050 | `127.0.0.1` ✅ | `compras-api` | `compras_db` | `compras_user` / `compras_user` | `/compras/` | `/var/www/compras` | `/api/health` |
 | **Fiscal** ✅ | 3060 | `127.0.0.1` ✅ | `fiscal-api` | `fiscal_db` | `fiscal_user` / `fiscal_user` | `/fiscal/` | `/var/www/fiscal` | `/api/health` |
 | **Produtos** ✅ | 3070 | `127.0.0.1` ✅ | `produtos-api` | `produtos_db` | `produtos_user` / `produtos_user` | `/produtos/` | `/var/www/produtos` | `/api/health` |
+| **Solicitações** (v5.40, 06/11/2026) | 3080 | `127.0.0.1` | `solicitacoes-api` | `solicitacoes_db` | `solicitacoes_user` | `/solicitacoes/` | `/var/www/persianas/solicitacoes` (pasta do repo `logistica`) | `/api/health` |
+| **Credenciais** (v5.39, 06/11/2026) | 3090 | `127.0.0.1` | `credenciais-api` | `credenciais_db` | `credenciais_user` | `/credenciais/` | `/var/www/persianas/credenciais` (pasta do repo `logistica`) | `/api/health` |
+
+> Solicitações e Credenciais foram publicadas pelos scripts `deploy/aplicar-v5.40-solicitacoes.sh` e
+> `deploy/aplicar-v5.39-credenciais.sh` da Logística (instalam, incluem o snippet no Nginx e ligam o `.env`).
+> Confirmar porta/diretório no servidor na próxima rodada do `diag-servidor.sh` (§8).
 
 ✅ **Compras: deployado (2026-06-30).** 6º app da federação ERP (Node/Express + PostgreSQL, mesma
 stack dos outros). PM2 `compras-api` on-line, bind `127.0.0.1`, banco `compras_db`/`compras_user`,
@@ -73,10 +83,11 @@ pagar no Financeiro; ver §7 e `docs/INTEGRACAO-FINANCEIRO-FASE4.md`).
 | **3050** | `compras-api` (Compras) | ✅ ativo (deployado 2026-06-30) |
 | **3060** | `fiscal-api` (Núcleo Fiscal) | ✅ ativo (jul/2026) |
 | **3070** | `produtos-api` (Núcleo de Produtos & Precificação) | ✅ ativo (deployado 20/07/2026) — repo próprio `persianasparana/produtos`@`main` (staging `compras/nucleo-produtos/` migrado 20/07); integrações F2/F3/F4 (flags OFF): ver `produtos/docs/INTEGRACOES-F2-F3-F4.md` |
-| **3080** | `pagamentos-api` | 📄 reservada p/ proposta de integração bancária do Financeiro (a proposta original citava 3070; remanejada) |
+| **3080** | `solicitacoes-api` (Solicitações e comunicados) | ✅ v5.40 da Logística (06/11/2026) — a antiga reserva `pagamentos-api` foi removida |
+| **3090** | `credenciais-api` (Credenciais — login único) | ✅ v5.39 da Logística (06/11/2026) |
 | 5432 | postgres | local apenas |
 | ~~3001~~ | — | **NÃO reservada.** Doc antigo da Fábrica citava 3001; nada escuta nela. |
-| 3090+ | livre | próxima porta sugerida p/ novo app |
+| 3100+ | livre | próxima porta sugerida p/ novo app |
 
 ---
 
@@ -95,6 +106,10 @@ pagar no Financeiro; ver §7 e `docs/INTEGRACAO-FINANCEIRO-FASE4.md`).
 /financeiro/            → alias /var/www/financeiro/painel/   (painel estático)
 /compras/api/           → http://127.0.0.1:3050/api/          (Compras backend)
 /compras/               → alias /var/www/compras/painel/      (painel estático)
+/fiscal/                → http://127.0.0.1:3060/              (Fiscal)
+/produtos/              → http://127.0.0.1:3070/              (Núcleo de Produtos: API + painel)
+/solicitacoes/          → http://127.0.0.1:3080/              (Solicitações — snippet nginx-solicitacoes.conf)
+/credenciais/           → http://127.0.0.1:3090/              (Credenciais — snippet nginx-credenciais.conf)
 ```
 
 > ✅ **`/compras/` roteado (2026-06-30)** via `snippets/compras.conf` (idempotente por
@@ -112,8 +127,12 @@ fabrica_db            dono: fabrica_user         tabelas: fabrica_user (15)
 rh_db                 dono: rh_user              tabelas: rh_user (15)
 financeiro_db         dono: financeiro_user      tabelas: financeiro_user (12)
 compras_db            dono: compras_user         tabelas: compras_user (19)
+fiscal_db             dono: fiscal_user          (jul/2026)
+produtos_db           dono: produtos_user        (20/07/2026)
+solicitacoes_db       dono: solicitacoes_user    (06/11/2026)
+credenciais_db        dono: credenciais_user     (06/11/2026)
 ```
-Roles com login: `persianas`, `persianas_user`, `fabrica_user`, `rh_user`, `financeiro_user`, `compras_user`, `postgres`.
+Roles com login: `persianas`, `persianas_user`, `fabrica_user`, `rh_user`, `financeiro_user`, `compras_user`, `fiscal_user`, `produtos_user`, `solicitacoes_user`, `credenciais_user`, `postgres`.
 
 > ⚠️ A **Agenda** usa o role compartilhado **`persianas`** (não há `agenda_user`). Os demais apps
 > têm role dedicado. Considerar criar `agenda_user` no futuro (migração de owner — cuidado).
@@ -149,12 +168,21 @@ instalado neste servidor.
 
 - Comunicação **HTTP REST entre backends** — **nunca** cross-database query.
 - Não há SSO: Logística (JWT+2FA), Agenda (JWT RS256), Fábrica (sessão+cookie), RH/Financeiro (JWT).
-- Auth serviço-a-serviço por header **`X-Service-Key`** (ADR-0008): mesma `SERVICE_KEY` no `.env`
-  dos dois lados. **Ativa hoje:** Compras (`:3050`) → Financeiro (`:3040`), endpoint
-  `POST /api/v1/integracao/contas-pagar` (Fase 4 — NF vira conta a pagar).
-- Integrações com escopo a definir: Logística↔Fábrica/PCP, Logística↔Agenda (clientes),
-  Fábrica/PCP↔Compras (Fase 3 — solicitação de insumo), Agenda(Pedido)↔Financeiro (contas a receber).
-- Fábrica expõe `POST /api/pcp/itens/lote` como ponto de extensão p/ importação de pedidos.
+- Auth serviço-a-serviço por header **`X-Service-Key`** (ADR-0008). Desde 15/09/2026 o padrão é
+  **uma chave por módulo consumidor** no `.env` de quem RECEBE (`SERVICE_KEY_COMPRAS`,
+  `SERVICE_KEY_COMERCIAL`…, casando com a chave que o consumidor manda — no Compras,
+  `FINANCEIRO_SERVICE_KEY`); a `SERVICE_KEY` única segue aceita como legado. **Ativas hoje:**
+  Compras (`:3050`) → Financeiro (`:3040`) `POST /api/v1/integracao/contas-pagar[/cancelar]`
+  (Fase 4 — NF/apuração vira conta a pagar) e Agenda (`:3010`) → Financeiro
+  `POST /api/v1/integracao/contas-receber[/cancelar|/entrega]` (F5a). Consumidores no mesmo
+  servidor falam pelo **loopback** (`http://127.0.0.1:3040/api/v1`), nunca pelo DDNS.
+- **A matriz completa de quem chama quem** (rotas, envs dos dois lados, comportamento sem o vizinho) está em
+  `PROTOCOLO-FEDERACAO.md` §2 — é lá que se registra integração nova. Em 16/11/2026 estão ativas, entre outras:
+  Agenda→Núcleo (preço), Fábrica→Agenda (pedidos), Fábrica→Núcleo (lista de materiais), Fábrica→Compras
+  (requisição/baixa de estoque), Compras→Financeiro, Agenda→Financeiro, Núcleo→Compras (custos),
+  Logística→Credenciais/Solicitações, Compras/Financeiro→Fiscal.
+- `POST /api/pcp/itens[/lote]` da Fábrica responde **410** desde 06/11/2026 (a entrada de peças é só pela
+  liberação do pedido do Comercial).
 
 ---
 
@@ -163,7 +191,7 @@ instalado neste servidor.
 Salvo em `diag-servidor.sh` (mesmo diretório). Não altera nada; imprime e salva em `/tmp`:
 
 ```bash
-sudo bash docs/diag-servidor.sh 2>&1 | tee /tmp/estado-servidor-$(date +%F).txt
+sudo bash deploy/diag-servidor.sh 2>&1 | tee /tmp/estado-servidor-$(date +%F).txt   # na Fábrica; nos demais repos, docs/diag-servidor.sh quando existir
 ```
 
 Confere: portas escutando, processos PM2, bancos/donos no Postgres, presença de MySQL,
@@ -173,6 +201,17 @@ mudança de infra e atualize a §2/§3 deste arquivo.
 ---
 
 ## 9. Histórico de correções de documentação
+
+**2026-11-16** — **Unificação nos 8 repos** (a versão do `compras`/`financeiro` era a mais nova; a da
+`fabrica` e a da `agenda` estavam atrás; `logistica`, `rh`, `fiscal` e `produtos` não tinham o arquivo).
+§2/§3/§4/§5: Solicitações `:3080` e Credenciais `:3090` (v5.40/v5.39 da Logística), `fiscal_db`,
+`produtos_db`; reserva `pagamentos-api` removida; próxima porta livre 3100. §7 aponta para a matriz do
+`PROTOCOLO-FEDERACAO.md`. Ainda sem rodada nova do `diag-servidor.sh` (última 2026-06-26).
+
+**2026-09-15** — **Financeiro passa ao bind `127.0.0.1`** (`BIND_HOST`, deploy
+`financeiro/deploy/aplicar-guardas-integracao-compras.sh`) e §7 registra o padrão de **chave por
+módulo** + consumo pelo loopback. Replicado em `compras` e `financeiro`; **pendente replicar** nos
+demais repos (agenda-consultores, fabrica, logistica, rh, fiscal, produtos).
 
 **2026-06-30** — **Compras deployado + integração Fase 4.** §2/§3: Compras `:3050` de "🔜 planejado"
 → **✅ ativo**. §4: `/compras/` deixou de cair no catch-all → roteado (`snippets/compras.conf`).
