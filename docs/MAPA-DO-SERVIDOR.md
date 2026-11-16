@@ -188,10 +188,10 @@ instalado neste servidor.
 
 ## 8. Como reauditar (comando read-only — rode no servidor)
 
-Salvo em `diag-servidor.sh` (mesmo diretório). Não altera nada; imprime e salva em `/tmp`:
+Salvo em **`deploy/diag-servidor.sh`** (desde 16/11/2026 nos repos `compras`, `financeiro` e `fabrica`; antes em `docs/`). Não altera nada; imprime e salva em `/tmp`:
 
 ```bash
-sudo bash deploy/diag-servidor.sh 2>&1 | tee /tmp/estado-servidor-$(date +%F).txt   # na Fábrica; nos demais repos, docs/diag-servidor.sh quando existir
+sudo bash deploy/diag-servidor.sh 2>&1 | tee /tmp/estado-servidor-$(date +%F).txt
 ```
 
 Confere: portas escutando, processos PM2, bancos/donos no Postgres, presença de MySQL,

@@ -92,7 +92,7 @@ em `/api/v1/`); erros `{ error: 'snake_case', message }`; **toda chamada serviç
 | C | **Fábrica → Comercial** | **Fase B/C do ciclo**: PCP avalia `EM_ANALISE_PCP` → `LIBERADO_PRODUCAO` (importa itens para a fila, **idempotente por PED-**) ou `DEVOLVIDO_PCP`; produção avança `EM_PRODUCAO → EMBALADO → NA_EXPEDICAO` (gavetas); baixa desenhos do pedido; grava flags em `pcp_pedido_info`. | `GET /pedidos?codigo=` · `GET /pedidos?status=EM_ANALISE_PCP` · `GET /pedidos/:id` · `PATCH /pedidos/:id/status` · `GET /pedidos/:id/desenhos[/…/arquivo]` (⚠ v1.2: o checklist `GET /pedidos/checklist/:orcamentoId` é só JWT — a Fábrica NÃO o chama) | `COMERCIAL_API_BASE`, `COMERCIAL_SERVICE_KEY`, `CICLO_RETRY_MS` (`server/src/comercial-client.js`) | `SERVICE_API_KEY_PCP` (ator `service:pcp`, só transições do PCP) ou legada | Outbox `pcp_ciclo_pendencias` + retry; fila interna do PCP soberana. **Acessório NÃO entra na fila** (pulado na liberação). |
 | D | **Fábrica → Núcleo de Produtos** | **F3**: BOM/estrutura por SKU e **plano de corte** (Ordem de Corte); **P0 do planejamento (v14.88)**: lista de materiais de produção (sem dinheiro). | `GET /api/v1/catalogo/produtos/:sku/bom?largura=&altura=[&altura_comando=]` · `POST /api/v1/plano-corte` · `GET /api/v1/plano-corte/variantes` · `POST /api/v1/lista-materiais` (entrada = a do `/relatorio-orcamento`; saída só quantidades/skus/cores/barras) | `PRODUTOS_API_BASE`, `PRODUTOS_SERVICE_KEY`, flags `PRODUTOS_BOM_ENABLED=1`, `PRODUTOS_PLANO_CORTE_ENABLED`, `PRODUTOS_LISTA_MATERIAIS_ENABLED` | `SERVICE_KEY` do Núcleo (`autenticarOuServico`) | Flags desligadas/erro → PCP usa a estrutura local; peça sem Estrutura resolvida é **pulada pela Ordem de Corte**. |
 | E | **Comercial → Núcleo de Produtos** | **F2 — preço**: cotação por peça e em lote (aproveitamento), catálogo/listas, raio-X de custo, relatório da diretoria, venda avulsa. | `POST /precificar` · `POST /cotar` · `POST /relatorio-orcamento` · `GET /catalogo/*` (colecoes, cores, produtos, produtos/:sku, avulsos[/:sku], cortina, painel, celular, afastamentos, opcoes-item…; `GET /catalogo/completo` e `POST /precificar/lote` existem e ficam expostos com `X-Service-Key`, sem consumidor em 16/11/2026) | `PRODUTOS_API_BASE` (`…:3070/api/v1`), `SERVICE_API_KEY_PRODUTOS`, `PRODUTOS_PRICING_ENABLED` (+ toggle em `empresa_config`), `PRODUTOS_COTACAO_VALIDADE_HORAS` | `SERVICE_KEY` do Núcleo | **Fail-soft**: cotação persistida com validade (7 d) vale; sem preço, motivo visível ao vendedor; travas 422 da whitelist barram o save; avisos exigem confirmação. **O eco é contrato** (`selecao`, `tubo_efetivo`, `motor_efetivo`, `avisos`, `markup_quebra`, `custo_fabrica`…): shape novo = campo NOVO, nunca renomear. |
-| F | **Comercial → Financeiro** | **F5a**: títulos do contas a receber do pedido — sinal na aprovação, saldo previsto, reancoragem na entrega, cancelamento. | `POST /api/v1/integracao/contas-receber` · `…/contas-receber/entrega` · `…/contas-receber/cancelar` | `FINANCEIRO_API_BASE`, `FINANCEIRO_SERVICE_KEY`, `FINANCEIRO_EMPRESA_ID` (fallback legado; a empresa vem do pedido) | `SERVICE_KEY_COMERCIAL`/`SERVICE_KEY_AGENDA` (`exigirServico('comercial','agenda')`) ou legada | Outbox `financeiro_pendencias` (drenada a cada 5 min); receptor **idempotente** por `(empresa_id, origem, origem_id)`; falha nunca derruba a transição do pedido. |
+| F | **Comercial → Financeiro** | **F5a**: títulos do contas a receber do pedido — sinal na aprovação, saldo previsto, reancoragem na entrega, cancelamento. | `POST /api/v1/integracao/contas-receber` · `…/contas-receber/entrega` · `…/contas-receber/cancelar` (cada conta aceita `tipo_recebimento`, `categoria_slug`, `ancora_definida`) | `FINANCEIRO_API_BASE`, `FINANCEIRO_SERVICE_KEY`, `FINANCEIRO_EMPRESA_ID` (fallback legado; a empresa vem do pedido) | `SERVICE_KEY_COMERCIAL`/`SERVICE_KEY_AGENDA` (`exigirServico('comercial','agenda')`) ou legada | Outbox `financeiro_pendencias` (drenada a cada 5 min); receptor **idempotente** por `(empresa_id, origem, origem_id)`; falha nunca derruba a transição do pedido. |
 | G | **Financeiro → Comercial** | **Fase A do ciclo**: análise financeira do pedido — aprovar (`AGUARDANDO_FINANCEIRO → EM_ANALISE_PCP`, com **empresa obrigatória** e plano de recebimento) ou reprovar; ler plano/opções. | `GET /pedidos[?…]` · `GET /pedidos/:id` (desde a **v2.135.0, 11/11/2026**, traz `empresaEmissoraId` e `financeiroEmpresaId` = empresa "indicada pelo vendedor" ao virar pedido; o Financeiro pré-marca e pode trocar) · `GET /pedidos/:id/plano-recebimento` · `PATCH /pedidos/:id/status` (`empresaId` obrigatório na aprovação) | `COMERCIAL_API_BASE`, `COMERCIAL_SERVICE_KEY` | `SERVICE_API_KEY_FINANCEIRO` (ator `service:financeiro`) ou legada | Tela do Financeiro mostra "Comercial indisponível"; nada é gravado pela metade. |
 | H | **Compras → Financeiro** | **Fase 4 / C2 / C3**: NF de entrada → conta a pagar; **previsão a pagar da OC**; cancelamento (Higienização). | `POST /api/v1/integracao/contas-pagar` · `…/contas-pagar/cancelar` | `FINANCEIRO_API_BASE`, `FINANCEIRO_SERVICE_KEY`, `FINANCEIRO_EMPRESA_ID`, `FINANCEIRO_CATEGORIA_SLUG`, `FINANCEIRO_CATEGORIA_HIGIENIZACAO`, `FINANCEIRO_SYNC_MS` | `SERVICE_KEY_COMPRAS` (`exigirServico('compras')`) ou legada | Guardas dos dois lados (15/09/2026); idempotência por `numero_documento`/origem; NF fica "pendente de conferência" no Financeiro. |
 | I | **Compras → Fiscal** e **Financeiro → Fiscal** | Documentos fiscais (consulta, XML, manifestação); **Compras** dispara a sincronização da distribuição DF-e; **Financeiro** lê o status do layout. | `GET /api/v1/documentos[/:id[/xml]]` · `POST …/manifestar` · `POST /api/v1/distribuicao/sincronizar` (Compras, `services/fiscal.js`) · `GET /api/v1/layout/status` (Financeiro, `services/fiscal.js`) | `FISCAL_API_BASE` + `FISCAL_SERVICE_KEY` (Financeiro, 16/11; a `SERVICE_KEY` legada segue como reserva) / `SERVICE_KEY` legada (Compras) | `SERVICE_KEY` do Fiscal (`autenticarOuServico`) | Fail-soft (503 `fiscal_indisponivel` com mensagem); Fiscal em evolução (F0–F6). |
@@ -281,7 +281,11 @@ faz as transições do seu setor (tabela `pedidos.service.ts`); toda transição
   provedor do Núcleo (J), da Fábrica/PCP (M) e das Solicitações (Q) — `middleware/serviceKey.js` aceita
   `SERVICE_KEY_{PRODUTOS,PCP,FINANCEIRO,AGENDA,LOGISTICA,SOLICITACOES}` (FINANCEIRO/AGENDA/LOGISTICA ficam
   reservadas: nenhuma linha da matriz as usa em 16/11/2026) e a `SERVICE_KEY` legada.
-  `POST /notas-fiscais/sincronizar-financeiro` é rota interna de serviço (reconciliação), fora da matriz. Superfície completa em
+  `POST /notas-fiscais/sincronizar-financeiro` é rota interna de serviço (reconciliação), fora da matriz.
+- Desde 16/11/2026 a autorização das rotas `/integracao/*` é **rota a rota** (`permitirServicos`: escritas e
+  detalhe só PCP; listagem de SCs PCP ou Solicitações; `GET /custos` só Núcleo; a legada passa em tudo) e o
+  rate limit só isenta chave VÁLIDA. `AGENDA_API_BASE` do `.env.example` NÃO é lida pelo código (o Compras não
+  chama o Comercial). `deploy/update.sh` está obsoleto (aborta) — deploy só pelos `aplicar-*.sh`. Superfície completa em
   `docs/GUIA-DO-INTEGRADOR.md`; decisões em `docs/adr/` (ADR-0008 = auth de serviço; ADR-0009 =
   número do pedido como chave). **`docs/DIRETRIZES-REVISAO-ERP.md` mora aqui** (norma das 5 lentes).
 
@@ -292,13 +296,26 @@ faz as transições do seu setor (tabela `pedidos.service.ts`); toda transição
 - ⚠ **Incidente 16/11/2026:** a cópia local de uma sessão estava na branch de fundação (porta 3050, sem
   `X-Service-Key`) sem nenhum commit em comum com a produção; foi realinhada ao remoto. Sempre `git fetch` e
   conferir `merge-base` com a `unified` antes de trabalhar neste repo.
+- **Chave ÚNICA** (`SERVICE_KEY`) para todos os consumidores — sem `SERVICE_KEY_<MODULO>`/ator por módulo
+  (`middleware/serviceKey.js` está pronto e sem uso; pendência). Rotas que aceitam serviço SEM consumidor na
+  matriz: `POST /nfe/{venda,devolucao,remessa,inutilizar}`, `POST /nfse`, cancelar/CCe, `GET /nfe/remessas`,
+  `GET /alertas`, `GET /documentos/:id/xml`; `POST /layout/verificar` responde 401 a serviço (só JWT).
+- **Comportamento real sem a SEFAZ:** com `SEFAZ_MODE=real` toda operação responde `503
+  sefaz_homologacao_pendente` (transporte real não implementado — não é fail-soft); nenhum consumidor tem
+  outbox para o Fiscal; idempotência da emissão por `origem_app` + `ref_externa` (migration 006). Desde a
+  v0.2.0 (16/11) o perfil `leitura` recebe 403 nas escritas e o boot exige `JWT_SECRET`/`JWT_REFRESH_SECRET`/
+  `SERVICE_KEY`.
 - Branch antiga `claude/fiscal-core-repo-vn9x4l` (fundação, 01/07) tem histórico não relacionado à
   federação — não ramificar dela.
 
 ### 5.8 RH (`rh`, :3030)
 - Isolado (nenhuma integração). Só o card no hub da Logística. Branch de produção a confirmar no
   servidor (§1). Desde 16/11/2026: migrations aplicadas por `npm run migrate` (tabela `schema_migrations`)
-  e `deploy/REGISTRO-DEPLOYS.md` (reconstruído).
+  e `deploy/REGISTRO-DEPLOYS.md` (reconstruído). O RH não chama nem é chamado por nenhum módulo (nenhuma
+  rota `X-Service-Key`); o único externo é o relógio Henry Prisma R3 (`atenas.cgi`, credencial em `reps`;
+  sem o relógio a coleta responde `502 falha_coleta_rep` e o plano B é o upload de AFD). Login próprio (JWT
+  HS256); migração para as Credenciais pendente. ⚠ a credencial do relógio esteve versionada até 16/11 —
+  trocar a senha no aparelho (pendência §8-10).
 
 ---
 
@@ -313,7 +330,7 @@ faz as transições do seu setor (tabela `pedidos.service.ts`); toda transição
 | Fluxo pedido → contas a receber (F5) | `compras/docs/REVISAO-FLUXO-PEDIDO-E-CONTAS-A-RECEBER.md` |
 | Superfície da API do Compras | `compras/docs/GUIA-DO-INTEGRADOR.md` |
 | Compras ↔ Financeiro | `compras/docs/INTEGRACAO-FINANCEIRO-FASE4.md`, `financeiro/docs/INTEGRACAO-COMPRAS.md` |
-| Núcleo: contratos F2/F3/F4 e deploy das integrações | `produtos/docs/INTEGRACOES-F2-F3-F4.md`, `produtos/docs/DEPLOY-INTEGRACOES.md`, `produtos/docs/ESPECIFICACAO-PRECIFICACAO.md` (regra viva do preço) |
+| Núcleo: contratos F2/F3/F4 e deploy das integrações | `produtos/docs/INTEGRACOES-F2-F3-F4.md`, `produtos/docs/historico/DEPLOY-INTEGRACOES.md`, `produtos/docs/ESPECIFICACAO-PRECIFICACAO.md` (regra viva do preço) |
 | Logística ↔ Fábrica | `logistica/docs/INTEGRACAO-LOGISTICA-FABRICA.md`, `logistica/docs/FABRICA-INTEGRACAO.md`, `fabrica/docs/INTEGRACAO.md` |
 | Hub + Nginx (vhost único, cards) | `logistica/docs/HUB-E-ROTEAMENTO.md`, `logistica/nginx/persianas-ssl.conf` |
 | Infra compartilhada (portas, PM2, bancos, bugs 1–7) | `logistica/docs/INFRAESTRUTURA-COMPARTILHADA.md`, `logistica/docs/MAPA-SERVIDOR-PARA-NOVOS-APPS.md`, `docs/MAPA-DO-SERVIDOR.md` (⚠ cópias divergentes — ver §8) |
@@ -361,8 +378,9 @@ faz as transições do seu setor (tabela `pedidos.service.ts`); toda transição
    aceitas; migrar cada par para `SERVICE_KEY_<MODULO>` (script de migração já entregue ao cliente
    em 17/07/2026 para a Agenda).
 6. **RH:** confirmar no servidor a branch do checkout (`/var/www/rh`).
-7. **Compras:** migration 015 (higienização: quantidade + perfil) está na branch e **não foi deployada**
-   (`aplicar-higienizacao-quantidade-perfil.sh`).
+7. **Compras:** a migration 015 (higienização) foi deployada em 11/11/2026 19:52 (registro); o `.env` de
+   produção só tem a `SERVICE_KEY` legada — as chaves por módulo (`SERVICE_KEY_PCP`, `SERVICE_KEY_PRODUTOS`,
+   `SERVICE_KEY_SOLICITACOES`) ainda não foram geradas/ligadas nos consumidores.
 8. **Logística:** os manuais HTML (Gerenciador e app do técnico) estão na v5.38 — faltam v5.39 (login pelas
    Credenciais), v5.40 (Solicitar/comunicados) e v5.41 (pedido manual/gaveta); regenerar por `docs/manual-src/`.
 9. **Comercial:** o painel compila com `ignoreBuildErrors` (next.config) — o `type-check` precisa zerar antes de
@@ -379,4 +397,4 @@ faz as transições do seu setor (tabela `pedidos.service.ts`); toda transição
 |---|---|---|
 | 1.0 | 24/09/2026 | Criação. Mapa dos 8 módulos (portas, PM2, bancos, branch de produção × federação × `main`, deploy); matriz de integração A–L com rotas, envs dos dois lados e comportamento sem o provedor; regras 1–10; checklist de mudança de contrato; regras por módulo (Logística em detalhe, por ser o próximo repo a ser alterado); índice do conhecimento; pendências 1–6. Fonte: código e branches lidos nesta data. |
 | 1.1 | 06/11/2026 | Planejamento de produção P0–P6 (linhas D e M e nota em J já entraram em 06/11; esta versão fecha o conjunto): módulos **Credenciais** (:3090) e **Solicitações** (:3080) no mapa (pasta no repo da Logística); matriz ganha N (Logística → Credenciais), O (Solicitações → Credenciais), P (Logística → Solicitações, app do técnico), Q (Solicitações → Compras, espelho das SCs), R (qualquer módulo → Solicitações); K com o write-back do estoque próprio (P6); §5.1 com os módulos e envs novos; portas reservadas 3080/3090. Replicado nos 8 repos. |
-| 1.2 | 16/11/2026 | Revisão de documentação e boas práticas dos 8 repos. Matriz corrigida pelo código: B (+`/integracao/expedicao`, `X-API-Key` como exceção), C (sem `/checklist`, +`?status=`), E (catálogo completo, `/precificar/lote`), G (empresa emissora v2.135.0), I (rotas reais do Fiscal: `distribuicao/sincronizar`, `layout/status`; `FISCAL_SERVICE_KEY`), K (sem env `BLING_WRITEBACK_ENABLED`), N (+`GET /integracao/usuarios`), nova S (APIs públicas de CEP/CNPJ do Comercial). §5 com o estado real (Fábrica P0–P3 em produção, Fiscal realinhado, Compras provedor de M/Q, RH com `migrate`). §6 com o padrão de documentação para humanos. §8 com as pendências 7–10. Cabeçalho que ainda dizia 1.0 corrigido. Replicado nos 8 repos. |
+| 1.2 | 16/11/2026 | Revisão de documentação e boas práticas dos 8 repos. Matriz corrigida pelo código: B (+`/integracao/expedicao`, `X-API-Key` como exceção), C (sem `/checklist`, +`?status=`), E (catálogo completo, `/precificar/lote`), G (empresa emissora v2.135.0), I (rotas reais do Fiscal: `distribuicao/sincronizar`, `layout/status`; `FISCAL_SERVICE_KEY`), K (sem env `BLING_WRITEBACK_ENABLED`), N (+`GET /integracao/usuarios`), nova S (APIs públicas de CEP/CNPJ do Comercial). §5 com o estado real (Fábrica P0–P3 em produção, Fiscal realinhado, Compras provedor de M/Q, RH com `migrate`). §6 com o padrão de documentação para humanos. §8 com as pendências 7–10. Cabeçalho que ainda dizia 1.0 corrigido. Depois da rodada dos corretores: linha F com os campos por conta; §5.6 (autorização rota a rota, `AGENDA_API_BASE` não lida, `update.sh` obsoleto), §5.7 (chave única, rotas sem consumidor, 503 com `SEFAZ_MODE=real`, v0.2.0), §5.8 (RH isolado, relógio); `DEPLOY-INTEGRACOES.md` em `produtos/docs/historico/`; §8-7 (015 deployada em 11/11). Replicado nos 8 repos. |
