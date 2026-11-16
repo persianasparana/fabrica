@@ -1,84 +1,104 @@
-# Fábrica — Persianas Paraná
+# Fábrica — PCP e Qualidade (Persianas Paraná)
 
-Monorepo dos sistemas de **chão de fábrica** da Persianas Paraná: planejamento e
-controle da produção (PCP) e gestão da qualidade (não conformidades).
+## O que é
 
-> Stack alinhada ao servidor de aplicativos da empresa: **Node.js + PostgreSQL +
-> Nginx**. Os dois sistemas são servidos por **um único backend Node**.
+Sistema do **chão de fábrica** da Persianas Paraná e um dos 8 módulos da federação ERP da
+empresa. É o **consumidor de produção do Pedido do Comercial**: o vendedor fecha o pedido no
+Painel Comercial, o Financeiro aprova, e ele chega aqui para o PCP conferir a estrutura, liberar
+a produção, acompanhar cada peça por setor (bipagem), imprimir a Ficha de Produção e o plano de
+corte, guardar nas gavetas da expedição e entregar à Logística. Também tem o módulo de
+**Qualidade** (não conformidades e indicadores). Tudo em um único serviço Node + PostgreSQL.
 
----
+**Abas do PCP hoje:** Painel · Fila de Produção · Arquivo (baixados) · Alertas ·
+**Planejamento de carga** · **Necessidade de materiais** (+ Requisitar ao Compras) · Buscar
+Pedido · Editar Pedido · Indicadores · **Pedidos Comercial** (análise e liberação) · Bipagem ·
+Estrutura do Produto (+ regras de seleção automática) · Plano de Corte (pelo Núcleo) ·
+Expedição (gavetas) · Etiquetas · Status / Tipos / Setores / Usuários (admin) · Manual ·
+Ficha de Produção (página própria) · **Fotos para e-commerce** (mini-PWA em `/pcp/fotos/`).
+Não existe mais entrada manual de pedidos nem importação PDF/Excel — a entrada é só a
+liberação do pedido do Comercial (decisão do cliente, 05/11/2026).
 
-## Sistemas
+## Estado atual
 
-| Sistema | Pasta | Descrição |
-|---|---|---|
-| **PCP** | [`pcp/`](pcp/) | Planejamento da produção: pedidos com várias peças, **bipagem por setor** (início/fim) com roteiro/dependências, **status de produção** configuráveis, **setores** e **usuários com permissão por aba** (admin), Estrutura do Produto (cortes por setor + BOM), importação de ordens (PDF/Excel), indicadores e edição em massa de pedido. |
-| **Qualidade** | [`qualidade/`](qualidade/) | Frontend HTML/CSS/JS: não conformidades, planos de ação, KPIs e treinamentos. |
-| **Backend** | [`server/`](server/) | Node + Express + PostgreSQL — APIs dos dois sistemas + autenticação/permissões compartilhadas. |
-| **Marca** | [`shared/brand/`](shared/brand/) | Design tokens, cores, tipografia e logotipo (fonte única). |
+| | |
+|---|---|
+| **Em produção desde** | **10/11/2026** — P3 do planejamento de produção (cobre P0–P2), commit `44bde24`, script `deploy/aplicar-planejamento-p3.sh` (linha em `deploy/REGISTRO-DEPLOYS.md`) |
+| **Branch de produção** | `claude/unified-server-status-7633oz` (checkout git em `/var/www/fabrica`). `main` está parado em 09/06/2026 — não é referência |
+| **Pendente de deploy** | `e981f14 fix(auth)` (login recusava credencial certa — caixa do usuário e bloqueio por IP), só na branch de federação; e a revisão de 16/11/2026 (este working tree: `SESSION_SECRET` obrigatória, CI, docs) |
+| **Versão** | o repo não versiona por número; o histórico é por data em `CHANGELOG.md` |
 
----
+## Como rodar localmente
 
-## Arquitetura
-
-```
-fabrica/
-├── server/            # Backend único Node + Express + PostgreSQL (APIs + auth)
-├── pcp/public/        # Frontend do PCP (HTML/CSS/JS, sem build)
-├── qualidade/public/  # Frontend estático (HTML/CSS/JS)
-├── shared/brand/      # Design tokens + logotipo (fonte única da marca)
-├── infra/             # nginx/ (server block) e systemd/ (unit)
-├── docs/              # Arquitetura e implantação
-└── .github/workflows/ # CI (sintaxe dos frontends + smoke test do backend)
-```
-
-Um processo Node serve `/pcp`, `/qualidade` e `/api/*`, atrás do Nginx, com
-PostgreSQL — o mesmo padrão dos demais apps da empresa. Detalhes em
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
----
-
-## Desenvolvimento
-
-Requer Node 20+ e um PostgreSQL local (banco `fabrica_db`).
+Requer Node 20+ e PostgreSQL (banco `fabrica_db`, role `fabrica_user`).
 
 ```bash
 cd server
-cp .env.example .env          # ajuste PG*, SESSION_SECRET, FABRICA_ADMIN_*
+cp .env.example .env            # preencha PGPASSWORD, SESSION_SECRET (obrigatória), FABRICA_ADMIN_*
 npm install
-npm run install-app           # cria schema + seeds (estrutura/fila) + admin
-npm run dev                   # serve /pcp, /qualidade e /api em http://127.0.0.1:3020
+npm run install-app             # schema (migrations no boot) + seeds de TESTE + admin
+npm run dev                     # http://127.0.0.1:3020 — /pcp/, /qualidade/, /api/*
 ```
 
-Os frontends são estáticos (sem build) — basta editar e recarregar a página.
+Os frontends são estáticos (HTML/CSS/JS, sem build) — edite e recarregue. O seed do
+`install.js` (34 estruturas, 186 itens da planilha antiga, 4 setores, 7 status) é **dado de
+teste**, não o de produção. Sem os vizinhos (Comercial :3010, Núcleo :3070, Compras :3050) o
+sistema sobe normalmente: cada integração fica desligada enquanto a chave não existe no `.env`.
 
-- PCP: http://localhost:3020/pcp/ · Qualidade: http://localhost:3020/qualidade/
+## Como testar
 
----
+```bash
+cd server
+npm test        # sequenciador do planejamento de carga (server/test/carga.test.mjs, sem banco)
+npm run check   # node --check nos módulos principais
+```
 
-## Documentação
+O CI (`.github/workflows/ci.yml`) roda os dois, mais `node --check` nos frontends e um smoke
+test completo contra um PostgreSQL de serviço (login, estrutura, bipagem, pedido, status,
+Qualidade). As provas ponta a ponta das fases P0–P3 foram feitas na réplica da sessão (scripts
+não versionados — ver `CLAUDE.md`).
 
-| Doc | Para quê |
+## Como fazer deploy
+
+Produção é um checkout git da branch acima. **Nunca** dê `checkout` de outra branch no servidor
+(incidente 16/07/2026). Cada entrega tem um script idempotente em `deploy/aplicar-*.sh` que
+confere o commit, reinicia o PM2, testa o `/healthz` e registra a linha em
+`deploy/REGISTRO-DEPLOYS.md`. Scripts, ordem com os outros módulos e o que está no ar:
+**[`deploy/README.md`](deploy/README.md)**. Primeira instalação: `docs/DEPLOYMENT.md`.
+
+## Onde está a documentação
+
+Índice para leigos e ordem de leitura: **[`docs/README.md`](docs/README.md)**. Resumo:
+
+| Documento | O que é |
 |---|---|
-| [`docs/INTEGRACAO.md`](docs/INTEGRACAO.md) | **Integrar outro sistema a este** — API completa, autenticação, modelo de dados e padrões de integração |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitetura, tabelas e decisões |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Instalar/atualizar no servidor (PM2 + Nginx + PostgreSQL) |
-| [`docs/SERVIDOR-COMPARTILHADO.md`](docs/SERVIDOR-COMPARTILHADO.md) | Regras de convivência no servidor `aplicativos` |
-| [`pcp/README.md`](pcp/) · [`server/README.md`](server/) | Detalhes do PCP e do backend |
+| [`docs/VISAO-GERAL.md`](docs/VISAO-GERAL.md) | Como funciona, em linguagem simples (fluxo, telas, tabelas, glossário) |
+| [`docs/API.md`](docs/API.md) | Todas as rotas (método, caminho, permissão, CSRF, erros) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitetura, 26 tabelas, integrações e outboxes |
+| [`docs/INTEGRACAO.md`](docs/INTEGRACAO.md) | Para quem vai integrar outro sistema a este |
+| [`docs/PROTOCOLO-FEDERACAO.md`](docs/PROTOCOLO-FEDERACAO.md) | Contrato entre os 8 módulos (quem chama quem) |
+| [`docs/ESPEC-PLANEJAMENTO-PRODUCAO.md`](docs/ESPEC-PLANEJAMENTO-PRODUCAO.md) | Espec do planejamento P0–P6 (implementado) |
+| [`docs/ROTEIRO-DEPLOY-PLANEJAMENTO.md`](docs/ROTEIRO-DEPLOY-PLANEJAMENTO.md) | Deploy coordenado do planejamento nos 4 repos |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) · [`docs/SERVIDOR-COMPARTILHADO.md`](docs/SERVIDOR-COMPARTILHADO.md) | Instalação e regras do servidor compartilhado |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico de entregas por data |
+| [`CLAUDE.md`](CLAUDE.md) | Contexto técnico detalhado (para quem vai alterar o código) |
+| [`server/README.md`](server/README.md) · [`pcp/README.md`](pcp/README.md) · [`qualidade/README.md`](qualidade/README.md) | Cada parte do monorepo |
+| Manual do usuário | Aba **Manual** do PCP (`pcp/public/assets/js/manual.js`) e `gerenciador`/app da Logística para o resto da federação |
 
----
+## Lugar na federação
 
-## Identidade visual
+| Recurso | Valor |
+|---|---|
+| Porta | **3020** (bind `127.0.0.1`) · health `GET /healthz` |
+| Banco | `fabrica_db` (role `fabrica_user`) — migrations idempotentes no boot (`server/src/db.js`) |
+| PM2 | `fabrica-server` (`deploy/ecosystem.config.js`) |
+| Nginx | `/fabrica/` → `/fabrica/pcp/`, `/fabrica/qualidade/`, `/fabrica/api/*` (snippet `infra/nginx/fabrica-subpath.conf`) |
+| Diretório | `/var/www/fabrica` |
+| **Chama** | Comercial :3010 (ciclo do pedido, Fases B/C, outbox `pcp_ciclo_pendencias`) · Núcleo de Produtos :3070 (BOM, plano de corte, lista de materiais) · Compras :3050 (saldo, solicitação de compra, saída de produção, outbox `pcp_compras_pendencias`) |
+| **É chamado por** | Logística :3000 (`/api/integracao/*`, header `X-API-Key`) |
 
-Identidade **oficial** da Persianas Paraná aplicada: preto `#1D1D1B` + branco,
-vermelho `#C1212D` (acento do Qualidade) e dourado `#C6B784` (acento do PCP),
-tipografia **Manrope** e logotipos oficiais — tudo centralizado em
-[`shared/brand/`](shared/brand/). Para ajustar, edite a pasta e rode
-`bash shared/brand/sync.sh`.
-
----
+Regras de convivência (portas reservadas, chave de serviço, contrato aditivo, outbox):
+`docs/PROTOCOLO-FEDERACAO.md`. Identidade visual: `docs/IDENTIDADE-VISUAL.md` e `shared/brand/`.
 
 ## Licença
 
-Software proprietário da **Persianas Paraná**. Uso interno restrito.
-© 2026 Persianas Paraná.
+Software proprietário da **Persianas Paraná**. Uso interno restrito. © 2026 Persianas Paraná.

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# diag-persianas.sh — Raio-X READ-ONLY do servidor compartilhado Persianas Paraná
+# deploy/diag-servidor.sh — Raio-X READ-ONLY do servidor compartilhado Persianas Paraná
+# (morava em docs/diag-servidor.sh até 16/11/2026; movido para deploy/ por ser script operacional).
 # Não altera NADA. Só lê estado (PM2, portas, Postgres/MySQL, Nginx, /var/www, health).
-# Uso: bash diag-persianas.sh   (rode como o usuário que tem o PM2; postgres/nginx pedem sudo)
+# Uso: sudo bash deploy/diag-servidor.sh 2>&1 | tee /tmp/estado-servidor-$(date +%F).txt
+#      (rode como o usuário que tem o PM2; postgres/nginx pedem sudo)
 
 set +e
 LARG=78
