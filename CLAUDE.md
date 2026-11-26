@@ -36,7 +36,7 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
   `e981f14 fix(auth): login recusava credencial certa — caixa do usuário e bloqueio por IP`
   (auth.js, server.js, db.js, bin/reset-senha.js). Precisa ser levado à `unified` e publicado.
 - **Pendente de deploy (25/11/2026): LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`
-  (seção "Estado (25/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.95 → Comercial v2.139.2 → Fábrica** (o script
+  (seção "Estado (25/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.97 → Comercial v2.140.1 → Fábrica** (o script
   sonda os dois e aborta dizendo o que aplicar).
 - **Revisão da federação de 16/11/2026** (working tree desta sessão): `SESSION_SECRET` passou a ser
   obrigatória no boot; CI ajustado ao 410 do `POST /itens`; `npm test`/`npm run check`; vendor
@@ -132,7 +132,7 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
 `peca_excede_rolo` ("peças que não calcularam").
 - **`nucleo-spec.js`** (puro; `server/test/nucleo-spec.test.mjs`, 64 verificações):
   - `specDoItemComercial` guarda **`spec.cotacao {produto, tubo_equiparado}`** quando o item do Comercial
-    traz `nucleoCotacao` (v2.139.2; a ausência da chave = Comercial anterior, diferente de `produto: null`);
+    traz `nucleoCotacao` (v2.140.1; a ausência da chave = Comercial anterior, diferente de `produto: null`);
   - `corpoDaPeca` monta o corpo **como a tela do Comercial**: PRODUTO por `cotacao.produto` (`__auto` → sem
     `produto_sku`; `__so_tecido` → `so_tecido: true`; sentinela/sku → `produto_sku`) + `tubo_equiparado`;
     TECIDO pela `colecao` (+ cor; `tecido_sku` só sem coleção). Sku FIXO como antes quando: a peça não tem
@@ -148,15 +148,18 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
   `estrutura_sku`, é resolvido no módulo puro) e devolve `itens_sem_cotacao`; `calcularBloco`;
   `por_item[id].notas[]` ("SOMENTE TECIDO (troca de tela)…", "Peça N: … lista pelos códigos gravados na
   venda") e `so_tecido`; `reservas[]`; avisos do pedido (peças pela reserva; itens liberados antes; troca
-  de tela com Núcleo anterior à v14.95). `materiaisDaPecaParaBaixa` usa a mesma decisão.
+  de tela com Núcleo anterior à v14.97). `materiaisDaPecaParaBaixa` usa a mesma decisão.
 - **Peças já na fila**: `src/completar-spec.js` + `bin/completar-spec-nucleo.js` (`--simular`, `--pedido`,
   `--concluidos`) relê o pedido no Comercial e ACRESCENTA `spec_nucleo.cotacao` só onde falta (idempotente;
   não completa se o tipo do item mudou no Comercial). `bin/conferir-lista-materiais.js` (`--sonda` |
   `--pedido`): sonda dos provedores e resumo da lista de um pedido.
 - **Ficha de Produção**: as notas do item saem acima da lista (impressas).
-- **Depende de** (provedor antes do consumidor): **Núcleo v14.95** (o `/lista-materiais` passa a devolver
+- ⚠ **Numeração dos provedores**: esta entrega foi escrita com "Núcleo v14.95" e "Comercial v2.139.2";
+  outras sessões publicaram esses números com outro conteúdo (25–26/11), então os pares daqui são a
+  **v14.97** e a **v2.140.1** — os scripts `aplicar-v14-97-troca-de-tela-lista.sh` e `aplicar-v2.140.1.sh`.
+- **Depende de** (provedor antes do consumidor): **Núcleo v14.97** (o `/lista-materiais` passa a devolver
   só o tecido para `so_tecido` — antes devolvia a receita inteira mesmo com a marca; eco
-  `pecas[].so_tecido`) e **Comercial v2.139.2** (`nucleoCotacao` em cada item do `GET /pedidos/:id`).
+  `pecas[].so_tecido`) e **Comercial v2.140.1** (`nucleoCotacao` em cada item do `GET /pedidos/:id`).
   Sem eles nada quebra: sem o Núcleo novo a troca de tela segue com a estrutura e a tela AVISA; sem o
   Comercial novo a peça segue pelo sku gravado e só o tecido passa a ir pela coleção.
 - **Provado na réplica**: unitário 64 · varredura em processo de **51.816 vendas simuladas** (todas as
@@ -164,21 +167,22 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
   (antigo → novo: 83,7% igual · 8,1% troca de tela só com o tecido · 4,2% passaram a calcular · 3,6% tubo
   da linha · 0,3% rolo) · e2e API 54 (mock do Comercial com a regra real do `nucleoCotacao` compilada +
   Núcleo real: liberação, lista, necessidade, pedido liberado antes + completar, sku trocado no PCP) ·
-  **e2e com os TRÊS módulos de verdade, 47** (26/11: backend NestJS do Comercial v2.139.2 compilado, com
-  Prisma num banco próprio → Fábrica → Núcleo v14.95; pedido de 14 itens em 4 ambientes: contrato do
-  `GET /pedidos/:id` pela chave de serviço, liberação — o Comercial passa a `LIBERADO_PRODUCAO` —, as três
-  peças do relato batendo com o que a venda cobrou, demais famílias iguais às de antes, sonda e
+  **e2e com os TRÊS módulos de verdade, 48** (26/11: backend NestJS do Comercial v2.140.1 compilado, com
+  Prisma num banco próprio → Fábrica → Núcleo v14.97 com a regra do rolo da v14.96 ligada; pedido de 14
+  itens em 4 ambientes: contrato do `GET /pedidos/:id` pela chave de serviço, liberação — o Comercial passa
+  a `LIBERADO_PRODUCAO` —, as três peças do relato batendo com o que a venda cobrou, a peça larga gravada
+  no rolo estreito saindo no rolo que a comporta, demais famílias iguais às de antes, sonda e
   completar-spec contra o Comercial real) · deploy ensaiado no `/var/www` simulado (provedor anterior →
   aborta; `PULAR_SONDAS=1`; caminho feliz; checkout sem o commit; e a cadeia inteira Núcleo → Comercial →
   Fábrica com os provedores reais). Roteiros no scratchpad da sessão (não versionados).
 - **`deploy/lib-estado.sh`** chegou à Fábrica (cópia do Núcleo): log em `deploy/logs/` e linha
   FALHOU/INTERROMPIDO no registro; `deploy/checar-guardas.py` idem.
 - ⚠ **Pendências/observações (não mexidas):**
-  (a) **rolo da peça larga** — em coleção com rolos de duas larguras e tecido que não emenda, o Núcleo
-  escolhe o rolo ESTREITO mesmo a peça não cabendo (pendência de PREÇO registrada pelo Comercial em 25/11,
-  decisão do cliente): a peça agora CALCULA, o resumo de tecido do pedido (`tecido[]`, Necessidade) já sai
-  no rolo onde ela cabe, mas a **linha de tecido da PEÇA** (Ficha por item e **baixa de estoque**) segue
-  com o sku do rolo estreito até o Núcleo corrigir a escolha;
+  (a) **rolo da peça larga — FECHADO pelo Núcleo v14.96** (a largura do rolo escolhida tem de comportar a
+  peça; decisão do cliente, em produção desde 26/11/2026 11:40): mandando a COLEÇÃO, a peça vendida antes
+  no rolo estreito CALCULA e a linha de tecido dela (Ficha por item e baixa de estoque) sai no rolo que a
+  comporta — réplica: AM 3059 2,17 × 2,26 gravada com o `t0` (2,00 m) → lista com o `t47` (2,80 m). Só com
+  a regra DESLIGADA no painel do Núcleo a linha da peça volta ao rolo estreito (o resumo `tecido[]` não);
   (b) o **Plano de Corte via Núcleo** (`ordem-corte-nucleo.js`) e a **Ordem de Corte local** não sabem da
   troca de tela nem da seleção automática (seguem pelo sku do item) — a troca de tela chega com a
   Estrutura do rolô e os cortes da peça inteira; quem avisa a bancada é o nome do item ("Somente Tecido")
@@ -187,7 +191,7 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
   vem de `ambientes[]` por `ambienteId`) — a liberação grava `ambiente` vazio, então a Ficha/etiqueta
   saem sem ambiente e o Núcleo aninha o tecido do pedido inteiro num grupo só;
   (d) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha C/D da matriz ainda não cita
-  `nucleoCotacao` nem a v14.95 — registrar na próxima versão do protocolo.
+  `nucleoCotacao` nem a v14.97 — registrar na próxima versão do protocolo.
 
 ## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P3 do PLANEJAMENTO — integração com o COMPRAS**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d/e + §3.3; exige o Compras com a migration 013)

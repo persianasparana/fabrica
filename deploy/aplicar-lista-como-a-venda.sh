@@ -31,8 +31,8 @@
 # Sem migration: nenhuma tabela/coluna nova (a chave nova mora dentro de `pcp_itens.spec_nucleo`).
 #
 # ⚠ ORDEM (provedor antes do consumidor — docs/PROTOCOLO-FEDERACAO.md, regra 2):
-#   1º NÚCLEO v14.95      cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-95-troca-de-tela-lista.sh
-#   2º COMERCIAL v2.139.2 cd /var/www/agenda/agenda-consultores && git pull --ff-only origin claude/trusting-johnson-K7jQ7 && bash deploy/aplicar-v2.139.2.sh
+#   1º NÚCLEO v14.97      cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-97-troca-de-tela-lista.sh
+#   2º COMERCIAL v2.140.1 cd /var/www/agenda/agenda-consultores && git pull --ff-only origin claude/trusting-johnson-K7jQ7 && bash deploy/aplicar-v2.140.1.sh
 #   3º este script.
 #   O script SONDA os dois e ABORTA dizendo o que aplicar antes. Para subir mesmo assim (nada
 #   quebra: sem o Núcleo novo a troca de tela segue com a estrutura e a tela AVISA; sem o Comercial
@@ -81,7 +81,7 @@ node server/test/carga.test.mjs >/dev/null && echo "== teste do sequenciador OK 
 node server/test/nucleo-spec.test.mjs | tail -1
 
 # ── sonda dos PROVEDORES (com a configuracao do proprio fabrica-server; nada e gravado)
-echo "== sonda: Nucleo v14.95 e Comercial v2.139.2 =="
+echo "== sonda: Nucleo v14.97 e Comercial v2.140.1 =="
 set +e
 ( cd server && node bin/conferir-lista-materiais.js --sonda )
 SONDA=$?
@@ -138,4 +138,4 @@ echo " 3. Item com a nota 'lista pelos codigos gravados na venda': o tipo de pec
 echo "    mudaram depois da venda — a lista segue a estrutura VENDIDA."
 echo " 4. Pedidos liberados DAQUI EM DIANTE ja chegam completos; para os antigos o script acima completou o que deu."
 
-registrar_deploy "lista como a venda" "LISTA DE MATERIAIS COMO A VENDA COTOU (25/11): nucleo-spec.js monta o corpo do /lista-materiais como a tela do Comercial (produto pelo cadastro do tipo em nucleoCotacao — selecao automatica, somente tecido, sentinela/sku, tubo equiparado — e tecido pela colecao); os codigos gravados na venda viram RESERVA (peca que nao calcula ou calcula outra estrutura volta por eles — quem calculava segue calculando); notas por item na Ficha; completar-spec-nucleo completa as pecas ja na fila relendo o pedido no Comercial; conferir-lista-materiais (sonda + resumo); lib-estado.sh na Fabrica. Corrige: tubo 47 na peca da linha tubo 53, troca de tela listada como peca inteira, peca larga de colecao com dois rolos em 'nao calcularam'. Sem migration. Exige Nucleo v14.95 e Comercial v2.139.2 ANTES (sondados)" "fabrica-server"
+registrar_deploy "lista como a venda" "LISTA DE MATERIAIS COMO A VENDA COTOU (25/11): nucleo-spec.js monta o corpo do /lista-materiais como a tela do Comercial (produto pelo cadastro do tipo em nucleoCotacao — selecao automatica, somente tecido, sentinela/sku, tubo equiparado — e tecido pela colecao); os codigos gravados na venda viram RESERVA (peca que nao calcula ou calcula outra estrutura volta por eles — quem calculava segue calculando); notas por item na Ficha; completar-spec-nucleo completa as pecas ja na fila relendo o pedido no Comercial; conferir-lista-materiais (sonda + resumo); lib-estado.sh na Fabrica. Corrige: tubo 47 na peca da linha tubo 53, troca de tela listada como peca inteira, peca larga de colecao com dois rolos em 'nao calcularam'. Sem migration. Exige Nucleo v14.97 e Comercial v2.140.1 ANTES (sondados)" "fabrica-server"

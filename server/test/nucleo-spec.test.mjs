@@ -38,7 +38,7 @@ const itemPcp = (it, over = {}) => ({
 const peca = { id: 70, numero: 1, largura: 217, altura: 226 };
 const chavesOcultas = (c) => Object.keys(JSON.parse(JSON.stringify(c))).filter((k) => k.startsWith('__'));
 
-// ═══ 1) a spec guarda como a peça foi cotada (Comercial v2.139.2) ═══════════
+// ═══ 1) a spec guarda como a peça foi cotada (Comercial v2.140.1) ═══════════
 {
   const spec = specDoItemComercial(itemComercial());
   igual(spec.cotacao, { produto: '__auto', tubo_equiparado: null }, 'spec.cotacao = { produto: "__auto", tubo_equiparado: null }');

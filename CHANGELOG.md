@@ -27,8 +27,8 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
   `spec_nucleo.cotacao` (só onde falta). `bin/conferir-lista-materiais.js` sonda os provedores.
 - Testes: `server/test/nucleo-spec.test.mjs` (64 verificações, sem banco) entra no `npm test` e no CI.
 - Deploy: `deploy/aplicar-lista-como-a-venda.sh` (com `deploy/lib-estado.sh`, trazido do Núcleo:
-  log em `deploy/logs/` + linha FALHOU/INTERROMPIDO no registro). **Ordem: Núcleo v14.95 →
-  Comercial v2.139.2 → Fábrica** (o script sonda os dois e aborta dizendo o que aplicar).
+  log em `deploy/logs/` + linha FALHOU/INTERROMPIDO no registro). **Ordem: Núcleo v14.97 →
+  Comercial v2.140.1 → Fábrica** (o script sonda os dois e aborta dizendo o que aplicar).
 - Migration: não. Muda preço? Não (o PCP não calcula preço).
 
 ## 16/11/2026 — revisão da federação (working tree; ainda sem deploy)

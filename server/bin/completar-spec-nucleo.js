@@ -1,6 +1,6 @@
 /**
  * Completa a especificação das peças JÁ NA FILA com "como a peça foi cotada"
- * (`spec_nucleo.cotacao`), relendo cada pedido no Comercial (v2.139.2+).
+ * (`spec_nucleo.cotacao`), relendo cada pedido no Comercial (v2.140.1+).
  *
  * Para que serve: a lista de materiais do PCP passou a pedir a peça ao Núcleo
  * COMO A VENDA COTOU (seleção automática, somente tecido, tubo equiparado).
@@ -30,7 +30,7 @@ const simular = args.includes('--simular');
 
 const ROTULO = {
   completado: 'completados',
-  comercial_sem_o_campo: 'o Comercial ainda não manda `nucleoCotacao` (precisa da v2.139.2 — aplique-a e rode de novo)',
+  comercial_sem_o_campo: 'o Comercial ainda não manda `nucleoCotacao` (precisa da v2.140.1 — aplique-a e rode de novo)',
   comercial_nao_respondeu: 'o Comercial não respondeu (rode de novo com ele no ar)',
   pedido_sem_id_do_comercial: 'pedido sem o id do Comercial em pcp_pedido_info (liberado antes de 20/07 ou entrada manual)',
   item_nao_esta_no_pedido: 'item não está mais no pedido do Comercial',

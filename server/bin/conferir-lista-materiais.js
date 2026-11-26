@@ -5,12 +5,12 @@
  *   node bin/conferir-lista-materiais.js --sonda
  *     Sonda os dois PROVEDORES com a configuração do próprio fabrica-server
  *     (server/.env), sem gravar nada:
- *       · Núcleo de Produtos v14.95 — pede uma troca de tela (`so_tecido`) e
+ *       · Núcleo de Produtos v14.97 — pede uma troca de tela (`so_tecido`) e
  *         confere que a lista volta SÓ com o tecido (eco `so_tecido: true`);
- *       · Comercial v2.139.2 — lê um pedido que está na fila e confere que os
+ *       · Comercial v2.140.1 — lê um pedido que está na fila e confere que os
  *         itens trazem `nucleoCotacao`.
- *     Saída: 0 = os dois prontos · 3 = Núcleo anterior à v14.95 · 4 = Comercial
- *     anterior à v2.139.2 · 5 = não deu para sondar (sem chave / fora do ar /
+ *     Saída: 0 = os dois prontos · 3 = Núcleo anterior à v14.97 · 4 = Comercial
+ *     anterior à v2.140.1 · 5 = não deu para sondar (sem chave / fora do ar /
  *     sem pedido na fila) — o texto diz qual.
  *
  *   node bin/conferir-lista-materiais.js [--pedido PED-AAAA/NNNN]
@@ -45,8 +45,8 @@ async function sondarNucleo() {
     const pc = Array.isArray(data.pecas) ? data.pecas[0] : null;
     if (!pc || pc.ok === false) continue;
     const comps = (pc.materiais || []).filter((m) => m.tipo !== 'tecido').length;
-    if (pc.so_tecido === true && comps === 0) return { rc: 0, msg: `Núcleo v14.95 OK — troca de tela de "${colecao}" volta só com o tecido` };
-    return { rc: 3, msg: `Núcleo ANTERIOR à v14.95 — a troca de tela de "${colecao}" voltou com ${comps} componente(s) da estrutura. Aplique antes, no repo produtos: cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-95-troca-de-tela-lista.sh` };
+    if (pc.so_tecido === true && comps === 0) return { rc: 0, msg: `Núcleo v14.97 OK — troca de tela de "${colecao}" volta só com o tecido` };
+    return { rc: 3, msg: `Núcleo ANTERIOR à v14.97 — a troca de tela de "${colecao}" voltou com ${comps} componente(s) da estrutura. Aplique antes, no repo produtos: cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-97-troca-de-tela-lista.sh` };
   }
   return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou uma troca de tela de 1,00 × 1,60 — não deu para sondar' };
 }
@@ -54,15 +54,15 @@ async function sondarNucleo() {
 async function sondarComercial() {
   if (!comercialConfigurado()) return { rc: 5, msg: 'Comercial: COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY ausentes em server/.env — nada a sondar' };
   const { rows } = await q(`SELECT pedido, comercial_id FROM pcp_pedido_info WHERE comercial_id IS NOT NULL ORDER BY updated_at DESC LIMIT 5`);
-  if (!rows.length) return { rc: 5, msg: 'Comercial: nenhum pedido liberado na fila (pcp_pedido_info vazia) — não deu para sondar; a 1ª liberação já traz a informação se o Comercial estiver na v2.139.2' };
+  if (!rows.length) return { rc: 5, msg: 'Comercial: nenhum pedido liberado na fila (pcp_pedido_info vazia) — não deu para sondar; a 1ª liberação já traz a informação se o Comercial estiver na v2.140.1' };
   let ultimoErro = null;
   for (const r of rows) {
     let det;
     try { det = await chamar('GET', `/pedidos/${encodeURIComponent(r.comercial_id)}`); } catch (e) { ultimoErro = e.message; continue; }
     const pecas = (Array.isArray(det && det.itens) ? det.itens : []).filter((i) => i && i.isAcessorio !== true);
     if (!pecas.length) continue;
-    if (pecas.some((i) => i.nucleoCotacao && typeof i.nucleoCotacao === 'object')) return { rc: 0, msg: `Comercial v2.139.2 OK — os itens do ${r.pedido} trazem nucleoCotacao` };
-    return { rc: 4, msg: `Comercial ANTERIOR à v2.139.2 — os itens do ${r.pedido} não trazem nucleoCotacao. Aplique antes, no repo agenda-consultores: cd /var/www/agenda/agenda-consultores && git pull --ff-only origin claude/trusting-johnson-K7jQ7 && bash deploy/aplicar-v2.139.2.sh` };
+    if (pecas.some((i) => i.nucleoCotacao && typeof i.nucleoCotacao === 'object')) return { rc: 0, msg: `Comercial v2.140.1 OK — os itens do ${r.pedido} trazem nucleoCotacao` };
+    return { rc: 4, msg: `Comercial ANTERIOR à v2.140.1 — os itens do ${r.pedido} não trazem nucleoCotacao. Aplique antes, no repo agenda-consultores: cd /var/www/agenda/agenda-consultores && git pull --ff-only origin claude/trusting-johnson-K7jQ7 && bash deploy/aplicar-v2.140.1.sh` };
   }
   return { rc: 5, msg: `Comercial: não deu para ler um pedido da fila (${ultimoErro || 'pedidos sem peças'})` };
 }

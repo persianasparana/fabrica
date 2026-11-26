@@ -187,7 +187,7 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
   // agrega por ITEM do PCP (ref = "item:peca"; cada peça é 1 unidade)
   const porItem = {};
   const corpoPorRef = new Map(m.payload.map((c) => [String(c.ref), c]));
-  let trocaSemNucleo = 0; // troca de tela que o Núcleo (anterior à v14.95) devolveu com a estrutura
+  let trocaSemNucleo = 0; // troca de tela que o Núcleo (anterior à v14.97) devolveu com a estrutura
   for (const pc of (resp.pecas || [])) {
     const [itemId] = String(pc.ref || '').split(':');
     if (!itemId) continue;
@@ -218,7 +218,7 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
     out.avisos.push(`${out.reservas.length} peça(s) listada(s) pelos códigos gravados na venda (o Núcleo de hoje não reproduz a seleção da venda — tipo de peça, coleção ou tabela de limites mudaram): veja a nota no item, na Ficha do pedido.`);
   }
   if (trocaSemNucleo) {
-    out.avisos.push(`${trocaSemNucleo} peça(s) de TROCA DE TELA (somente tecido) vieram com a estrutura na lista — o Núcleo de Produtos precisa da v14.95 (aplicar-v14-95 no repo produtos) para listar só o tecido.`);
+    out.avisos.push(`${trocaSemNucleo} peça(s) de TROCA DE TELA (somente tecido) vieram com a estrutura na lista — o Núcleo de Produtos precisa da v14.97 (aplicar-v14-97 no repo produtos) para listar só o tecido.`);
   }
   for (const [k, v] of Object.entries(porItem)) {
     if (v.so_tecido) v.notas.unshift('SOMENTE TECIDO (troca de tela) — a venda cobrou só a tela: a lista traz só o tecido.');

@@ -6,7 +6,7 @@
  * Por que existe: a lista de materiais passou a montar o corpo COMO A VENDA
  * COTOU (`nucleo-spec.js`), e quem sabe isso é o cadastro "Tipos de peça" do
  * Comercial, que chega no item do pedido em `nucleoCotacao` (Comercial
- * v2.139.2). Peça liberada ANTES disso tem a spec sem a chave: a lista dela
+ * v2.140.1). Peça liberada ANTES disso tem a spec sem a chave: a lista dela
  * segue pelo sku gravado (tubo 47 na peça da linha 53; troca de tela como peça
  * inteira). Aqui a chave é acrescentada — SÓ ela, só onde falta.
  *
@@ -14,7 +14,7 @@
  *  · leitura no Comercial (`GET /pedidos/:id`, X-Service-Key) — nada é escrito lá;
  *  · no PCP só acrescenta `spec_nucleo.cotacao` onde a chave NÃO existe
  *    (idempotente; rodar de novo não muda nada; nunca toca produto/medidas);
- *  · Comercial fora / anterior à v2.139.2 / pedido apagado → o item fica como
+ *  · Comercial fora / anterior à v2.140.1 / pedido apagado → o item fica como
  *    está e entra na contagem (rodar de novo depois resolve).
  */
 import { q } from './db.js';

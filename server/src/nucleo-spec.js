@@ -67,7 +67,7 @@ export function specDoItemComercial(it) {
   for (const k of CHAVES_NUCLEO) {
     if (it[k] !== undefined && it[k] !== null) spec[k] = it[k];
   }
-  // 25/11/2026 — COMO A PEÇA É COTADA no Motor (Comercial v2.139.2, chave
+  // 25/11/2026 — COMO A PEÇA É COTADA no Motor (Comercial v2.140.1, chave
   // `nucleoCotacao` de cada item do `GET /pedidos/:id`). Só entra quando o
   // Comercial MANDA a chave: a ausência (Comercial anterior) é diferente de
   // `produto: null` (o tipo de peça não aponta produto do motor).
@@ -116,7 +116,7 @@ const BANDO_COM_ABAS = ['reto', 'madeira'];
  * Agora o PRODUTO segue `spec.cotacao.produto` (o cadastro do tipo de peça, que
  * o Comercial manda no pedido) e o TECIDO vai pela coleção — como a tela.
  * Volta a valer o sku FIXO quando:
- *   · a peça não traz `cotacao` (liberada antes da v2.139.2 do Comercial) ou o
+ *   · a peça não traz `cotacao` (liberada antes da v2.140.1 do Comercial) ou o
  *     tipo dela não aponta produto do motor;
  *   · o PCP TROCOU o "SKU do Núcleo" do item (modal Ver) — escolha explícita;
  *   · `fixarSkus` — a RESERVA pedida por `lista-materiais.js`.

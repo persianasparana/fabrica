@@ -15,7 +15,7 @@ outra branch no servidor (incidente 16/07/2026). Primeira instalação: `docs/DE
 Pendente: `e981f14 fix(auth)` (só na branch de federação), a revisão de 16/11/2026
 (`SESSION_SECRET` obrigatória — **confira que o `server/.env` tem a chave antes de reiniciar**) e a
 **lista de materiais como a venda** (25/11/2026 — `aplicar-lista-como-a-venda.sh`; exige o Núcleo
-v14.95 e o Comercial v2.139.2 ANTES).
+v14.97 e o Comercial v2.140.1 ANTES).
 
 ## Arquivos
 
@@ -23,7 +23,7 @@ v14.95 e o Comercial v2.139.2 ANTES).
 |---|---|
 | `install.sh` | Primeira instalação no servidor (pergunta admin/senhas, cria role+banco, `npm ci`, `install-app`, PM2). Idempotente. Imprime o único passo manual (include no Nginx). |
 | `ecosystem.config.js` | Definição do processo PM2 (`cwd` = `server/`, `NODE_ENV=production`, envs do `server/.env`). |
-| `aplicar-lista-como-a-venda.sh` | Deploy da lista de materiais como a venda (25/11/2026): guardas, `node --check`, os dois testes sem banco, **sonda** do Núcleo v14.95 e do Comercial v2.139.2 (aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `bin/completar-spec-nucleo.js` (completa as peças já na fila), conferência e registro. Sem migration. |
+| `aplicar-lista-como-a-venda.sh` | Deploy da lista de materiais como a venda (25/11/2026): guardas, `node --check`, os dois testes sem banco, **sonda** do Núcleo v14.97 e do Comercial v2.140.1 (aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `bin/completar-spec-nucleo.js` (completa as peças já na fila), conferência e registro. Sem migration. |
 | `lib-estado.sh` | Preâmbulo dos scripts novos (cópia da biblioteca de Agenda/Núcleo/Compras/Financeiro): `estado_antes` diz se o deploy já foi aplicado, grava a saída em `deploy/logs/<script>-<data>.log` (fora do git) e, se o script abortar, anexa uma linha **FALHOU/INTERROMPIDO** ao registro (commit + push); `registrar_deploy` grava a linha de sucesso. |
 | `checar-guardas.py` | `python3 deploy/checar-guardas.py . deploy/<script>` — confere cada `grep -q`/`[ -f ]` do script contra o checkout (guarda com string errada bloqueia o deploy à toa). |
 | `aplicar-planejamento-p3.sh` | Deploy do P3 (cobre P0–P2): confere o commit (grep nos arquivos), `node --check`, roda o teste do sequenciador, avisa se `COMPRAS_SERVICE_KEY` falta ou o Compras não tem a migration 013, `pm2 restart`, health, conferência no banco, linha no REGISTRO + commit + push. |
