@@ -19,7 +19,8 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
   ou calcula outra estrutura que a vendida volta por eles (`corposDaPeca`, `calcularComReserva`).
   Varredura de 51.816 vendas simuladas: nenhuma peça que calculava deixou de calcular; a lista
   nova é igual à da venda em 100%; 4,2% passaram a calcular, 3,6% trocaram o tubo para o da
-  linha, 8,1% (trocas de tela) ficaram só com o tecido.
+  linha, 8,1% (trocas de tela) ficaram só com o tecido. Repetida em 26/11 com a regra do rolo do
+  Núcleo v14.96 ligada (51.881 vendas): nenhuma regressão, 100% igual à venda.
 - Ficha de Produção: nota no item ("SOMENTE TECIDO (troca de tela)…", "lista pelos códigos
   gravados na venda…"). `GET /pcp/pedido/materiais`: `por_item[].notas/so_tecido`,
   `itens_sem_cotacao`, `reservas` (aditivo). A baixa de materiais da 1ª bipagem usa a mesma decisão.

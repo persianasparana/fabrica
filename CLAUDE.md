@@ -165,7 +165,9 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
 - **Provado na réplica**: unitário 64 · varredura em processo de **51.816 vendas simuladas** (todas as
   linhas de produto; corpo antigo × novo × a tela): nenhuma regressão, lista nova = lista da venda em 100%
   (antigo → novo: 83,7% igual · 8,1% troca de tela só com o tecido · 4,2% passaram a calcular · 3,6% tubo
-  da linha · 0,3% rolo) · e2e API 54 (mock do Comercial com a regra real do `nucleoCotacao` compilada +
+  da linha · 0,3% rolo; repetida em 26/11 com a regra do rolo da v14.96 LIGADA — venda nova já grava o
+  rolo certo —: 51.881 vendas, nenhuma regressão, 100% igual à venda; 86,6% igual · 8,4% troca de tela ·
+  3,9% tubo da linha · 0,8% passaram a calcular · 0,2% rolo) · e2e API 54 (mock do Comercial com a regra real do `nucleoCotacao` compilada +
   Núcleo real: liberação, lista, necessidade, pedido liberado antes + completar, sku trocado no PCP) ·
   **e2e com os TRÊS módulos de verdade, 48** (26/11: backend NestJS do Comercial v2.140.1 compilado, com
   Prisma num banco próprio → Fábrica → Núcleo v14.97 com a regra do rolo da v14.96 ligada; pedido de 14
