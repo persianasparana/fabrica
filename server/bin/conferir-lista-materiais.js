@@ -82,7 +82,7 @@ async function sondarPlano() {
     const calculam = (Array.isArray(data.pecas) ? data.pecas : []).filter((p) => p && p.ok !== false).length;
     if (calculam < 2) continue;
     const ligada = data.parametros && data.parametros.consumo_tecido_pedido === true;
-    if (!ligada) return { rc: 0, msg: 'Núcleo v14.98 OK — mas a regra está DESLIGADA no painel do Núcleo (Regras gerais → Parâmetros → "Consumo de tecido — melhor aproveitamento do pedido"): a Ficha sai sem o plano de corte e o tecido volta a ser calculado por ambiente' };
+    if (!ligada) return { rc: 0, msg: 'Núcleo v14.98 OK — mas a regra está DESLIGADA no painel do Núcleo (Regras gerais → Parâmetros → "Consumo de tecido — melhor aproveitamento do pedido"): a Ficha sai sem o plano de corte e o tecido é calculado AMBIENTE POR AMBIENTE, sem dividir rolo entre ambientes (mais tecido do que no plano do pedido)' };
     const pl = data.plano_tecido.find((t) => t && t.pedido === 'PED-SONDA');
     const rolos = pl ? (pl.rolos || []).map((r) => `${Number(r.largura_rolo).toFixed(2)} m × ${Number(r.comprimento).toFixed(2)} m`).join(' + ') : '';
     return { rc: 0, msg: `Núcleo v14.98 OK — plano de corte de "${colecao}" (duas peças, dois ambientes): ${rolos || 'sem rolo compartilhado nesta coleção'}` };
