@@ -48,7 +48,7 @@ sistema sobe normalmente: cada integração fica desligada enquanto a chave não
 
 ```bash
 cd server
-npm test        # sequenciador do planejamento de carga (server/test/carga.test.mjs, sem banco)
+npm test        # sem banco: sequenciador de carga (test/carga.test.mjs) + corpo do Núcleo como a venda (test/nucleo-spec.test.mjs)
 npm run check   # node --check nos módulos principais
 ```
 

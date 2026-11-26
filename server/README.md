@@ -16,7 +16,8 @@ server/
 │   ├── ordem-corte-nucleo.js # plano de corte via Núcleo
 │   ├── estrutura-regras.js   # seleção automática da Estrutura (F3)
 │   ├── roteiro.js            # roteiro por estrutura ou por linha
-│   ├── nucleo-spec.js        # spec da venda + corpo das chamadas ao Núcleo (P0)
+│   ├── nucleo-spec.js        # spec da venda + corpo das chamadas ao Núcleo (P0; como a venda cotou + reserva, 25/11)
+│   ├── completar-spec.js     # completa spec_nucleo.cotacao das peças já na fila (relê o pedido no Comercial)
 │   ├── lista-materiais.js    # lista de materiais em blocos (P0/P1)
 │   ├── necessidade.js        # necessidade de materiais + requisição ao Compras (P1/P3)
 │   ├── carga.js              # sequenciador do planejamento de carga (P2, puro)
@@ -37,7 +38,8 @@ server/
 │       ├── comercial.js      # /api/comercial (ciclo do pedido)
 │       └── integracao.js     # /api/integracao (X-API-Key, só leitura)
 ├── data/                     # estrutura-produtos.json + seed-itens.json (seeds de teste)
-├── test/carga.test.mjs       # única suíte sem banco (npm test)
+├── test/carga.test.mjs       # suítes sem banco (npm test): sequenciador de carga
+├── test/nucleo-spec.test.mjs #   e o corpo que vai ao Núcleo como a venda cotou (25/11/2026)
 └── bin/
     ├── install.js            # schema + seeds + admin (FABRICA_ADMIN_* ou interativo)
     ├── migrate.js            # só o schema
@@ -73,7 +75,7 @@ cp .env.example .env       # PG*, SESSION_SECRET (obrigatória), FABRICA_ADMIN_*
 npm install
 npm run install-app        # schema + seeds de teste + admin
 npm start                  # ou: npm run dev  (com --watch)
-npm test                   # sequenciador de carga (sem banco)
+npm test                   # sem banco: sequenciador de carga + corpo do Núcleo como a venda
 npm run check              # node --check nos módulos principais
 ```
 

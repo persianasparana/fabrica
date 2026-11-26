@@ -7,6 +7,31 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
+## 25/11/2026 — lista de materiais COMO A VENDA COTOU (pendente de deploy)
+- **O que estava errado** (medido na réplica; as mesmas três diferenças que o Comercial fechou na
+  recotação dele, v2.139.1): `nucleo-spec.js corpoDaPeca` fixava os códigos efetivos gravados na
+  venda e o Núcleo trata sku fixado de outro jeito — peça manual da linha "tubo 53" listada com o
+  perfil do tubo 47; troca de tela listada como a peça inteira (15 componentes); peça larga de
+  coleção com rolos de duas larguras em "peças que não calcularam" (422 `peca_excede_rolo`).
+- **Agora**: o corpo vai como a tela do Comercial — produto pelo cadastro do tipo de peça que o
+  Comercial manda em `nucleoCotacao` (seleção automática, somente tecido, sentinela/sku, tubo
+  equiparado) e tecido pela coleção. Os códigos gravados viram **reserva**: peça que não calcula
+  ou calcula outra estrutura que a vendida volta por eles (`corposDaPeca`, `calcularComReserva`).
+  Varredura de 51.816 vendas simuladas: nenhuma peça que calculava deixou de calcular; a lista
+  nova é igual à da venda em 100%; 4,2% passaram a calcular, 3,6% trocaram o tubo para o da
+  linha, 8,1% (trocas de tela) ficaram só com o tecido. Repetida em 26/11 com a regra do rolo do
+  Núcleo v14.96 ligada (51.881 vendas): nenhuma regressão, 100% igual à venda.
+- Ficha de Produção: nota no item ("SOMENTE TECIDO (troca de tela)…", "lista pelos códigos
+  gravados na venda…"). `GET /pcp/pedido/materiais`: `por_item[].notas/so_tecido`,
+  `itens_sem_cotacao`, `reservas` (aditivo). A baixa de materiais da 1ª bipagem usa a mesma decisão.
+- Peças já na fila: `bin/completar-spec-nucleo.js` relê o pedido no Comercial e acrescenta
+  `spec_nucleo.cotacao` (só onde falta). `bin/conferir-lista-materiais.js` sonda os provedores.
+- Testes: `server/test/nucleo-spec.test.mjs` (64 verificações, sem banco) entra no `npm test` e no CI.
+- Deploy: `deploy/aplicar-lista-como-a-venda.sh` (com `deploy/lib-estado.sh`, trazido do Núcleo:
+  log em `deploy/logs/` + linha FALHOU/INTERROMPIDO no registro). **Ordem: Núcleo v14.97 →
+  Comercial v2.140.1 → Fábrica** (o script sonda os dois e aborta dizendo o que aplicar).
+- Migration: não. Muda preço? Não (o PCP não calcula preço).
+
 ## 16/11/2026 — revisão da federação (working tree; ainda sem deploy)
 - `SESSION_SECRET` passou a ser **obrigatória**: sem ela o `fabrica-server` aborta o boot com
   mensagem clara (antes havia um segredo padrão no código). Conferir o `server/.env` antes do

@@ -35,6 +35,9 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Pendente de deploy, só na branch de federação** (`claude/persianas-parana-federation-64icd0`):
   `e981f14 fix(auth): login recusava credencial certa — caixa do usuário e bloqueio por IP`
   (auth.js, server.js, db.js, bin/reset-senha.js). Precisa ser levado à `unified` e publicado.
+- **Pendente de deploy (25/11/2026): LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`
+  (seção "Estado (25/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.97 → Comercial v2.140.1 → Fábrica** (o script
+  sonda os dois e aborta dizendo o que aplicar).
 - **Revisão da federação de 16/11/2026** (working tree desta sessão): `SESSION_SECRET` passou a ser
   obrigatória no boot; CI ajustado ao 410 do `POST /itens`; `npm test`/`npm run check`; vendor
   pdf.js/SheetJS removidos; `docs/diag-servidor.sh` → `deploy/diag-servidor.sh`; docs padrão novos.
@@ -68,8 +71,8 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
   da Estrutura: `preencher-barras.js`, `reparar-keys.js`, `preencher-medidas.js`,
   `preencher-componentes.js`, `seed-tipos.js`, `validar-cortes.js` (motor de corte × planilhas,
   sem banco), `atualizar-horizontais.js`.
-- `server/test/carga.test.mjs` — única suíte sem banco (`npm test`); `npm run check` = `node --check`
-  nos módulos principais.
+- `server/test/carga.test.mjs` e `server/test/nucleo-spec.test.mjs` — as suítes sem banco (`npm test`);
+  `npm run check` = `node --check` nos módulos principais.
 - `pcp/public/assets/js/` — `app.js` (fila/editar pedido/estrutura), `comercial.js`
   (análise/liberação), `ordem-corte-plano.js` (FFD/desenho/CSV), `ficha-producao.js`,
   `regras-estrutura.js`, `etiquetas.js`.
@@ -118,6 +121,79 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (25/11/2026) — PENDENTE DE DEPLOY (`deploy/aplicar-lista-como-a-venda.sh`): **LISTA DE MATERIAIS COMO A VENDA COTOU**
+Origem: pendência registrada pelo Comercial na v2.139.1 (25/11) — *"`corpoDaPeca` é o espelho do corpo
+ANTIGO (fixa `produto_sku`/`tecido_sku` da venda) — na lista de materiais do PCP valem as mesmas três
+diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produção:**
+(a) BK COLISEU 2,17 × 2,26 manual, `produto_sku: premium47` → lista com `p47_tubo` (a venda cobrou o tubo
+53: R$ 1.316,40 × R$ 1.345,28 com o sku fixo); (b) troca de tela FILTRA SOL 5% 1,50 × 1,60 → 15 componentes
++ tecido (a venda cobrou só a tela, R$ 431,75); (c) AM 3059 2,17 × 2,26 com `tecido_sku: t0` → 422
+`peca_excede_rolo` ("peças que não calcularam").
+- **`nucleo-spec.js`** (puro; `server/test/nucleo-spec.test.mjs`, 64 verificações):
+  - `specDoItemComercial` guarda **`spec.cotacao {produto, tubo_equiparado}`** quando o item do Comercial
+    traz `nucleoCotacao` (v2.140.1; a ausência da chave = Comercial anterior, diferente de `produto: null`);
+  - `corpoDaPeca` monta o corpo **como a tela do Comercial**: PRODUTO por `cotacao.produto` (`__auto` → sem
+    `produto_sku`; `__so_tecido` → `so_tecido: true`; sentinela/sku → `produto_sku`) + `tubo_equiparado`;
+    TECIDO pela `colecao` (+ cor; `tecido_sku` só sem coleção). Sku FIXO como antes quando: a peça não tem
+    `cotacao`, o tipo não aponta produto do motor (`produto: null`), ou o PCP trocou o "SKU do Núcleo" do
+    item (modal Ver — `produto_sku` do item ≠ o da venda). `so_tecido` vai em QUALQUER modo;
+  - `corposDaPeca` → `{corpo, reserva, venda}`: a **RESERVA** é o corpo de até 25/11 (`fixarSkus`: os
+    códigos gravados na venda); `pecasParaReserva`/`decidirReserva`/`calcularComReserva(pecas, buscar)`:
+    peça que **não calcula** pelo corpo como a venda, ou calcula **OUTRA estrutura** que a vendida, é
+    pedida de novo pela reserva, que só vale se calculou (1 chamada no caso normal; 2 com reserva; 3 quando
+    o resultado é misto, para os agregados saírem de uma resposta só). **Por construção, peça que
+    calculava com o corpo antigo continua calculando.**
+- **`lista-materiais.js`**: `montarPayloadPedidos` passa o item inteiro (o sku da Estrutura do PCP,
+  `estrutura_sku`, é resolvido no módulo puro) e devolve `itens_sem_cotacao`; `calcularBloco`;
+  `por_item[id].notas[]` ("SOMENTE TECIDO (troca de tela)…", "Peça N: … lista pelos códigos gravados na
+  venda") e `so_tecido`; `reservas[]`; avisos do pedido (peças pela reserva; itens liberados antes; troca
+  de tela com Núcleo anterior à v14.97). `materiaisDaPecaParaBaixa` usa a mesma decisão.
+- **Peças já na fila**: `src/completar-spec.js` + `bin/completar-spec-nucleo.js` (`--simular`, `--pedido`,
+  `--concluidos`) relê o pedido no Comercial e ACRESCENTA `spec_nucleo.cotacao` só onde falta (idempotente;
+  não completa se o tipo do item mudou no Comercial). `bin/conferir-lista-materiais.js` (`--sonda` |
+  `--pedido`): sonda dos provedores e resumo da lista de um pedido.
+- **Ficha de Produção**: as notas do item saem acima da lista (impressas).
+- ⚠ **Numeração dos provedores**: esta entrega foi escrita com "Núcleo v14.95" e "Comercial v2.139.2";
+  outras sessões publicaram esses números com outro conteúdo (25–26/11), então os pares daqui são a
+  **v14.97** e a **v2.140.1** — os scripts `aplicar-v14-97-troca-de-tela-lista.sh` e `aplicar-v2.140.1.sh`.
+- **Depende de** (provedor antes do consumidor): **Núcleo v14.97** (o `/lista-materiais` passa a devolver
+  só o tecido para `so_tecido` — antes devolvia a receita inteira mesmo com a marca; eco
+  `pecas[].so_tecido`) e **Comercial v2.140.1** (`nucleoCotacao` em cada item do `GET /pedidos/:id`).
+  Sem eles nada quebra: sem o Núcleo novo a troca de tela segue com a estrutura e a tela AVISA; sem o
+  Comercial novo a peça segue pelo sku gravado e só o tecido passa a ir pela coleção.
+- **Provado na réplica**: unitário 64 · varredura em processo de **51.816 vendas simuladas** (todas as
+  linhas de produto; corpo antigo × novo × a tela): nenhuma regressão, lista nova = lista da venda em 100%
+  (antigo → novo: 83,7% igual · 8,1% troca de tela só com o tecido · 4,2% passaram a calcular · 3,6% tubo
+  da linha · 0,3% rolo; repetida em 26/11 com a regra do rolo da v14.96 LIGADA — venda nova já grava o
+  rolo certo —: 51.881 vendas, nenhuma regressão, 100% igual à venda; 86,6% igual · 8,4% troca de tela ·
+  3,9% tubo da linha · 0,8% passaram a calcular · 0,2% rolo) · e2e API 54 (mock do Comercial com a regra real do `nucleoCotacao` compilada +
+  Núcleo real: liberação, lista, necessidade, pedido liberado antes + completar, sku trocado no PCP) ·
+  **e2e com os TRÊS módulos de verdade, 48** (26/11: backend NestJS do Comercial v2.140.1 compilado, com
+  Prisma num banco próprio → Fábrica → Núcleo v14.97 com a regra do rolo da v14.96 ligada; pedido de 14
+  itens em 4 ambientes: contrato do `GET /pedidos/:id` pela chave de serviço, liberação — o Comercial passa
+  a `LIBERADO_PRODUCAO` —, as três peças do relato batendo com o que a venda cobrou, a peça larga gravada
+  no rolo estreito saindo no rolo que a comporta, demais famílias iguais às de antes, sonda e
+  completar-spec contra o Comercial real) · deploy ensaiado no `/var/www` simulado (provedor anterior →
+  aborta; `PULAR_SONDAS=1`; caminho feliz; checkout sem o commit; e a cadeia inteira Núcleo → Comercial →
+  Fábrica com os provedores reais). Roteiros no scratchpad da sessão (não versionados).
+- **`deploy/lib-estado.sh`** chegou à Fábrica (cópia do Núcleo): log em `deploy/logs/` e linha
+  FALHOU/INTERROMPIDO no registro; `deploy/checar-guardas.py` idem.
+- ⚠ **Pendências/observações (não mexidas):**
+  (a) **rolo da peça larga — FECHADO pelo Núcleo v14.96** (a largura do rolo escolhida tem de comportar a
+  peça; decisão do cliente, em produção desde 26/11/2026 11:40): mandando a COLEÇÃO, a peça vendida antes
+  no rolo estreito CALCULA e a linha de tecido dela (Ficha por item e baixa de estoque) sai no rolo que a
+  comporta — réplica: AM 3059 2,17 × 2,26 gravada com o `t0` (2,00 m) → lista com o `t47` (2,80 m). Só com
+  a regra DESLIGADA no painel do Núcleo a linha da peça volta ao rolo estreito (o resumo `tecido[]` não);
+  (b) o **Plano de Corte via Núcleo** (`ordem-corte-nucleo.js`) e a **Ordem de Corte local** não sabem da
+  troca de tela nem da seleção automática (seguem pelo sku do item) — a troca de tela chega com a
+  Estrutura do rolô e os cortes da peça inteira; quem avisa a bancada é o nome do item ("Somente Tecido")
+  e a nota da Ficha;
+  (c) a coluna legada `ambiente` do item do Comercial é NULA nos pedidos montados com ambientes (o nome
+  vem de `ambientes[]` por `ambienteId`) — a liberação grava `ambiente` vazio, então a Ficha/etiqueta
+  saem sem ambiente e o Núcleo aninha o tecido do pedido inteiro num grupo só;
+  (d) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha C/D da matriz ainda não cita
+  `nucleoCotacao` nem a v14.97 — registrar na próxima versão do protocolo.
 
 ## Estado (06/11/2026) — EM PRODUÇÃO desde 10/11/2026 (commit 44bde24, `aplicar-planejamento-p3.sh`, que cobre P0–P2): **P3 do PLANEJAMENTO — integração com o COMPRAS**
 ## (espec `docs/ESPEC-PLANEJAMENTO-PRODUCAO.md` §3.2 d/e + §3.3; exige o Compras com a migration 013)
@@ -231,7 +307,8 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
   e `/itens` ecoam `spec_nucleo` + `tem_spec`. **`corpoDaPeca(item, peca)`** (mesmo módulo
   puro) monta o corpo do `/lista-materiais` = espelho de `montarCorpoPrecificar` do Comercial
   (acabamento → box/bandô/guias/abas/revestimento, motorização, cortina/ph50/celular/painel,
-  afastamento); medidas da PEÇA (cm→m) vencem a spec; sem L×H vai `area_m2`.
+  afastamento); medidas da PEÇA (cm→m) vencem a spec; sem L×H vai `area_m2`. ⚠ Desde 25/11/2026
+  o produto e o tecido vão COMO A VENDA COTOU, com os códigos gravados de reserva (seção acima).
 - **`server/src/lista-materiais.js`**: `montarPayloadPedidos` (1 peça por `pcp_pecas`, ref
   `item:peca`) + `listaMateriaisDosPedidos` (chama o Núcleo via `produtos-client.buscarListaMateriais`,
   `PRODUTOS_LISTA_MATERIAIS_ENABLED=0` desliga; devolve `data` sem dinheiro + `por_item`

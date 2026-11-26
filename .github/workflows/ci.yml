@@ -60,7 +60,7 @@ jobs:
       - run: npm ci
       - name: Sintaxe do backend (node --check)
         run: npm run check
-      - name: Teste unitário (sequenciador de carga, sem banco)
+      - name: Testes unitários sem banco (sequenciador de carga + corpo do Núcleo como a venda)
         run: npm test
       - run: npm run install-app
       - name: Smoke test (auth + PCP itens/estrutura/bip + Qualidade)

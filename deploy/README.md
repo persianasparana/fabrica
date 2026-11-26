@@ -12,8 +12,10 @@ outra branch no servidor (incidente 16/07/2026). Primeira instalação: `docs/DE
 | 03/08/2026 | `a9009df` | Plano de Corte via Núcleo — `aplicar-plano-corte-nucleo.sh` |
 | 21/07/2026 | `06f5dbe` | F3 BOM+custo na OC + seleção por SKU |
 
-Pendente: `e981f14 fix(auth)` (só na branch de federação) e a revisão de 16/11/2026
-(`SESSION_SECRET` obrigatória — **confira que o `server/.env` tem a chave antes de reiniciar**).
+Pendente: `e981f14 fix(auth)` (só na branch de federação), a revisão de 16/11/2026
+(`SESSION_SECRET` obrigatória — **confira que o `server/.env` tem a chave antes de reiniciar**) e a
+**lista de materiais como a venda** (25/11/2026 — `aplicar-lista-como-a-venda.sh`; exige o Núcleo
+v14.97 e o Comercial v2.140.1 ANTES).
 
 ## Arquivos
 
@@ -21,6 +23,9 @@ Pendente: `e981f14 fix(auth)` (só na branch de federação) e a revisão de 16/
 |---|---|
 | `install.sh` | Primeira instalação no servidor (pergunta admin/senhas, cria role+banco, `npm ci`, `install-app`, PM2). Idempotente. Imprime o único passo manual (include no Nginx). |
 | `ecosystem.config.js` | Definição do processo PM2 (`cwd` = `server/`, `NODE_ENV=production`, envs do `server/.env`). |
+| `aplicar-lista-como-a-venda.sh` | Deploy da lista de materiais como a venda (25/11/2026): guardas, `node --check`, os dois testes sem banco, **sonda** do Núcleo v14.97 e do Comercial v2.140.1 (aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `bin/completar-spec-nucleo.js` (completa as peças já na fila), conferência e registro. Sem migration. |
+| `lib-estado.sh` | Preâmbulo dos scripts novos (cópia da biblioteca de Agenda/Núcleo/Compras/Financeiro): `estado_antes` diz se o deploy já foi aplicado, grava a saída em `deploy/logs/<script>-<data>.log` (fora do git) e, se o script abortar, anexa uma linha **FALHOU/INTERROMPIDO** ao registro (commit + push); `registrar_deploy` grava a linha de sucesso. |
+| `checar-guardas.py` | `python3 deploy/checar-guardas.py . deploy/<script>` — confere cada `grep -q`/`[ -f ]` do script contra o checkout (guarda com string errada bloqueia o deploy à toa). |
 | `aplicar-planejamento-p3.sh` | Deploy do P3 (cobre P0–P2): confere o commit (grep nos arquivos), `node --check`, roda o teste do sequenciador, avisa se `COMPRAS_SERVICE_KEY` falta ou o Compras não tem a migration 013, `pm2 restart`, health, conferência no banco, linha no REGISTRO + commit + push. |
 | `aplicar-planejamento-p0.sh` / `p1.sh` / `p2.sh` | Mesma mecânica para cada fase (já cobertas pelo p3; ficam para rollback/histórico). |
 | `aplicar-plano-corte-nucleo.sh` | Deploy do plano de corte via Núcleo (03/08/2026). |
@@ -52,7 +57,11 @@ Pendente: `e981f14 fix(auth)` (só na branch de federação) e a revisão de 16/
 
 ## Como escrever o script da próxima entrega
 
-Copie `aplicar-planejamento-p3.sh`: `set -euo pipefail`, `cd /var/www/fabrica`, guardas com
+Copie `aplicar-lista-como-a-venda.sh` (o padrão desde 25/11/2026: `source deploy/lib-estado.sh`,
+`estado_antes`, guardas, testes, **sonda do provedor**, restart, health, conferência,
+`registrar_deploy`) e valide as guardas com `checar-guardas.py`. Ensaiar inteiro num `/var/www`
+simulado antes de publicar (cenários: provedor anterior → aborta; `PULAR_SONDAS=1`; caminho feliz;
+checkout sem o commit). O modelo antigo, sem a biblioteca, é o `aplicar-planejamento-p3.sh`: `set -euo pipefail`, `cd /var/www/fabrica`, guardas com
 `grep -q` nos arquivos que a entrega trouxe (abortam com "rode git pull antes"), `node --check`
 nos JS tocados, `node server/test/carga.test.mjs`, avisos de env/vizinho, `pm2 restart`, `sleep`,
 `curl -sf …/healthz`, conferência no banco, linha no REGISTRO com `git rev-parse --short HEAD`,
