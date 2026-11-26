@@ -7,7 +7,7 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 25/11/2026 — lista de materiais COMO A VENDA COTOU (pendente de deploy)
+## 25/11/2026 — lista de materiais COMO A VENDA COTOU (em produção desde 26/11/2026 17:48)
 - **O que estava errado** (medido na réplica; as mesmas três diferenças que o Comercial fechou na
   recotação dele, v2.139.1): `nucleo-spec.js corpoDaPeca` fixava os códigos efetivos gravados na
   venda e o Núcleo trata sku fixado de outro jeito — peça manual da linha "tubo 53" listada com o
@@ -32,7 +32,7 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
   Comercial v2.140.1 → Fábrica** (o script sonda os dois e aborta dizendo o que aplicar).
 - Migration: não. Muda preço? Não (o PCP não calcula preço).
 
-## 16/11/2026 — revisão da federação (working tree; ainda sem deploy)
+## 16/11/2026 — revisão da federação (em produção desde 26/11/2026 17:48, no mesmo `git pull` da lista de materiais)
 - `SESSION_SECRET` passou a ser **obrigatória**: sem ela o `fabrica-server` aborta o boot com
   mensagem clara (antes havia um segredo padrão no código). Conferir o `server/.env` antes do
   próximo restart — o `deploy/install.sh` já a gera desde 10/06/2026.
