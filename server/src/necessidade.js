@@ -107,7 +107,6 @@ export async function necessidadeMateriais(opts = {}) {
     tubos: d.tubos || [],
     componentes: componentes.map((m) => comSaldo(m, m.qtd)),
     itens_sem_spec: lm.itens_sem_spec || [],
-    aninhamento: lm.aninhamento || null, // 26/11/2026 — como o tecido foi aninhado ('ambiente' | 'pedido' | 'junto')
     pecas_erro: (d.pecas || []).filter((p) => !p.ok).map((p) => ({ ref: p.ref, pedido: pedidoDoItem.get(String(p.ref || '').split(':')[0]) || null, motivo: p.motivo || p.error || null })),
     por_item: lm.por_item,
   };

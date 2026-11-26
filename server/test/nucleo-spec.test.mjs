@@ -14,10 +14,7 @@ import assert from 'node:assert/strict';
 import {
   specDoItemComercial, cotacaoDoItemComercial, corpoDaPeca, corposDaPeca,
   pecasParaReserva, decidirReserva, calcularComReserva,
-  mapaDeAmbientesComercial, ambienteDoItemComercial,
-  grupoDeAninhamento, normalizarAninhamento, ANINHAMENTO_PADRAO,
 } from '../src/nucleo-spec.js';
-import { ambienteParaCompletar } from '../src/completar-ambiente.js';
 
 let n = 0;
 const ok = (c, m) => { n++; assert.ok(c, m); console.log('✓ ' + m); };
@@ -220,60 +217,6 @@ const plano = (ref, over = {}) => ({ ref, reserva: { ref, produto_sku: 'premium4
   ok(r.chamadas === 3 && r.data && r.data.pecas.filter((p) => p.ok).length === 2, 'Núcleo fora na 3ª chamada → a resposta em que MAIS peças calcularam');
   r = await calcularComReserva([], nucleo([]));
   ok(r.data && r.data.pecas.length === 0, 'bloco vazio não lança');
-}
-
-// ═══ 10) AMBIENTE do item do pedido (26/11/2026) ═════════════════════════════
-// O orçamento montado com ambientes manda o `ambienteId` no item e o NOME em
-// `pedido.ambientes[]`; a coluna de texto `item.ambiente` vem nula. A liberação
-// lia só a coluna e gravava o ambiente vazio.
-{
-  const ambientes = [{ id: 'amb-1', nome: ' Sala ' }, { id: 'amb-2', nome: 'Quarto do casal' }, { id: 'amb-3', nome: '' }, { nome: 'sem id' }, null];
-  const mapa = mapaDeAmbientesComercial(ambientes);
-  igual([...mapa], [['amb-1', 'Sala'], ['amb-2', 'Quarto do casal'], ['amb-3', '']], 'mapa de ambientes: id → nome aparado; entrada sem id é ignorada');
-  ok(ambienteDoItemComercial({ ambienteId: 'amb-1', ambiente: null }, mapa) === 'Sala', 'item de pedido com ambientes: o nome vem do vínculo (a coluna antiga está nula)');
-  ok(ambienteDoItemComercial({ ambienteId: 'amb-2', ambiente: 'texto antigo' }, mapa) === 'Quarto do casal', 'o vínculo VENCE a coluna de texto');
-  ok(ambienteDoItemComercial({ ambienteId: null, ambiente: ' Varanda ' }, mapa) === 'Varanda', 'pedido antigo (sem ambientes): vale a coluna de texto');
-  ok(ambienteDoItemComercial({ ambienteId: 'amb-3', ambiente: 'Hall' }, mapa) === 'Hall', 'ambiente do vínculo sem nome: cai na coluna de texto');
-  ok(ambienteDoItemComercial({ ambienteId: 'nao-existe', ambiente: null }, mapa) === null, 'vínculo que não está no pedido e coluna vazia → null');
-  ok(ambienteDoItemComercial({ ambienteId: 'amb-1' }, null) === null && ambienteDoItemComercial(null, mapa) === null, 'sem mapa / sem item não lança');
-  ok(mapaDeAmbientesComercial(undefined).size === 0 && mapaDeAmbientesComercial('x').size === 0, 'pedido sem `ambientes` (Comercial antigo) → mapa vazio');
-  ok(ambienteDoItemComercial({ ambienteId: 9, ambiente: null }, mapaDeAmbientesComercial([{ id: 9, nome: 'Sala' }])) === 'Sala', 'id numérico casa com id numérico');
-  ok(ambienteDoItemComercial({ ambiente: 'x'.repeat(300) }, mapa).length === 120, 'nome cortado em 120 (o tamanho da coluna do PCP)');
-}
-
-// ═══ 11) ANINHAMENTO do tecido — o grupo que vai ao Núcleo ═══════════════════
-// Decisão do cliente (26/11): só peças do MESMO ambiente do MESMO pedido dividem o rolo.
-{
-  ok(ANINHAMENTO_PADRAO === 'ambiente', 'padrão do código: por ambiente (decisão do cliente)');
-  const sala1 = { pedido: 'PED-2026/0001', ambiente: 'Sala' };
-  const sala2 = { pedido: 'PED-2026/0002', ambiente: 'Sala' };
-  const quarto1 = { pedido: 'PED-2026/0001', ambiente: 'Quarto' };
-  ok(grupoDeAninhamento(sala1) === 'PED-2026/0001 · Sala', "por ambiente: 'PEDIDO · AMBIENTE'");
-  ok(grupoDeAninhamento(sala1) !== grupoDeAninhamento(sala2), 'a "Sala" de DOIS pedidos não divide o rolo');
-  ok(grupoDeAninhamento(sala1) !== grupoDeAninhamento(quarto1), 'dois ambientes do MESMO pedido não dividem o rolo');
-  ok(grupoDeAninhamento({ pedido: 'PED-2026/0001', ambiente: '' }) === 'PED-2026/0001', 'item sem ambiente: fica no grupo do pedido (nunca junto com outro pedido)');
-  ok(grupoDeAninhamento(sala1, 'pedido') === 'PED-2026/0001' && grupoDeAninhamento(quarto1, 'pedido') === 'PED-2026/0001', "modo 'pedido': o pedido inteiro num grupo");
-  ok(grupoDeAninhamento(sala1, 'junto') === null, "modo 'junto': sem grupo (o comportamento de até 26/11 nos pedidos com ambientes)");
-  ok(grupoDeAninhamento({ pedido: '', ambiente: '' }) === null && grupoDeAninhamento(null) === null, 'item sem pedido nem ambiente → sem grupo, sem lançar');
-  // 'junto' tem de chegar ao Núcleo SEM ambiente — não pode cair no ambiente do item
-  const itJ = itemPcp(itemComercial(), { ambiente: 'Sala' });
-  const corpoJ = corpoDaPeca(itJ, peca, { ref: '7:70', ambiente: grupoDeAninhamento(itJ, 'junto') });
-  ok(corpoJ.ambiente == null, "modo 'junto': o corpo vai SEM ambiente mesmo com o item tendo ambiente");
-  ok(normalizarAninhamento(' PEDIDO ') === 'pedido' && normalizarAninhamento('qualquer') === 'ambiente' && normalizarAninhamento(null) === 'ambiente', 'config: aceita caixa/espaço; valor estranho ou vazio = o padrão');
-  // o grupo é o que vai no corpo do Núcleo (campo `ambiente`)
-  const it = itemPcp(itemComercial(), { ambiente: 'Sala' });
-  const corpo = corpoDaPeca(it, peca, { ref: '7:70', ambiente: grupoDeAninhamento(it) });
-  ok(corpo.ambiente === 'PED-2026/0001 · Sala', 'o corpo do /lista-materiais leva o grupo no campo `ambiente`');
-}
-
-// ═══ 12) completar o ambiente das peças JÁ na fila ═══════════════════════════
-{
-  const mapa = mapaDeAmbientesComercial([{ id: 'amb-1', nome: 'Sala' }]);
-  igual(ambienteParaCompletar('', { ambienteId: 'amb-1' }, mapa), { ambiente: 'Sala' }, 'fila com o ambiente vazio + item com vínculo → preenche');
-  igual(ambienteParaCompletar(null, { ambiente: 'Varanda' }, mapa), { ambiente: 'Varanda' }, 'pedido antigo: preenche pela coluna de texto');
-  igual(ambienteParaCompletar('Sala de TV', { ambienteId: 'amb-1' }, mapa), { motivo: 'ja_tem' }, 'ambiente já preenchido (ou digitado no PCP) NUNCA é sobrescrito');
-  igual(ambienteParaCompletar('', undefined, mapa), { motivo: 'item_nao_esta_no_pedido' }, 'item que saiu do pedido no Comercial → não mexe');
-  igual(ambienteParaCompletar('  ', { ambienteId: null, ambiente: null }, mapa), { motivo: 'sem_ambiente_no_comercial' }, 'item sem ambiente no Comercial → fica vazio (é o dado do pedido)');
 }
 
 console.log(`\n${n} verificações — nucleo-spec OK`);

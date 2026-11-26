@@ -1,45 +1,44 @@
 /**
- * COMPLETA o AMBIENTE das peças JÁ NA FILA, relendo o pedido no COMERCIAL
- * (26/11/2026).
+ * COMPLETA o AMBIENTE das peças JÁ NA FILA relendo o pedido no COMERCIAL (26/11/2026).
  *
- * Por que existe: até aqui a liberação gravava `pcp_itens.ambiente` a partir da
- * coluna de texto `item.ambiente` do Comercial — que é legada e vem NULA nos
- * orçamentos montados com ambientes (o item traz `ambienteId` e o nome mora em
- * `pedido.ambientes[]`). Resultado: Ficha de Produção, etiqueta e Plano de
- * Corte saíam sem ambiente ("(sem ambiente)"). A liberação passou a resolver o
- * nome pelo vínculo (`nucleo-spec.js ambienteDoItemComercial`); aqui o mesmo é
- * feito para as peças liberadas ANTES disso.
+ * Por que existe: até 26/11 a liberação gravava a coluna de texto `ambiente` do
+ * item do Comercial — que é LEGADA e vem nula em todo pedido montado com
+ * ambientes (o nome mora em `pedido.ambientes[]`, pelo `ambienteId` do item).
+ * As peças liberadas antes ficaram sem ambiente: a Ficha e a etiqueta não o
+ * mostram e, na lista de materiais, o Núcleo (v14.98 — consumo de tecido pelo
+ * plano do pedido, UMA largura de rolo por ambiente) trata o pedido inteiro
+ * como um ambiente só — o tecido do pedido todo sai forçado da mesma largura.
  *
  * Seguro por construção:
  *  · leitura no Comercial (`GET /pedidos/:id`, X-Service-Key) — nada é escrito lá;
- *  · no PCP só preenche `ambiente` onde está VAZIO (o que foi digitado no modal
- *    "Ver" da fila nunca é sobrescrito; rodar de novo não muda nada);
+ *  · no PCP só preenche `pcp_itens.ambiente` onde ele está VAZIO (o ambiente que
+ *    alguém digitou no modal "Ver" da fila nunca é trocado; idempotente);
  *  · Comercial fora / pedido apagado / item sem ambiente lá → o item fica como
  *    está e entra na contagem (rodar de novo depois resolve).
  */
 import { q } from './db.js';
 import { chamar } from './comercial-client.js';
-import { mapaDeAmbientesComercial, ambienteDoItemComercial } from './nucleo-spec.js';
+import { ambienteDoItemComercial } from './nucleo-spec.js';
 
 /**
  * PURO — o que fazer com UM item do PCP diante do item do Comercial.
- * @returns { ambiente } para gravar, ou { motivo } quando não dá
+ * @returns { ambiente } para gravar, ou { motivo } quando não há o que fazer
  */
-export function ambienteParaCompletar(ambienteAtual, itemComercial, mapaAmbientes) {
+export function ambienteParaCompletar(ambienteAtual, itemComercial, ambientes) {
   if (String(ambienteAtual == null ? '' : ambienteAtual).trim()) return { motivo: 'ja_tem' };
   if (!itemComercial || typeof itemComercial !== 'object') return { motivo: 'item_nao_esta_no_pedido' };
-  const nome = ambienteDoItemComercial(itemComercial, mapaAmbientes);
+  const nome = ambienteDoItemComercial(itemComercial, ambientes);
   if (!nome) return { motivo: 'sem_ambiente_no_comercial' };
-  return { ambiente: nome };
+  return { ambiente: nome.slice(0, 120) };
 }
 
 /**
- * Completa os itens com o ambiente vazio. `{ pedidos?: [PED-…], incluirConcluidos?, simular? }`
- * @returns { pendentes, completados, pedidos, por_motivo: {motivo: n}, detalhes: [{pedido, item_id, acao}], erros: [{pedido, erro}] }
+ * Completa os itens sem ambiente. `{ pedidos?: [PED-…], incluirConcluidos?, simular? }`
+ * @returns { pendentes, completados, pedidos, por_motivo: {motivo: n}, detalhes: [{pedido, item_id, acao, ambiente?}], erros: [{pedido, erro}] }
  */
 export async function completarAmbiente({ pedidos = null, incluirConcluidos = false, simular = false } = {}) {
   const params = [];
-  let filtro = `btrim(COALESCE(i.ambiente, '')) = '' AND i.comercial_item_id IS NOT NULL AND btrim(COALESCE(i.pedido, '')) <> ''`;
+  let filtro = `btrim(COALESCE(i.ambiente, '')) = '' AND i.comercial_item_id IS NOT NULL`;
   if (!incluirConcluidos) filtro += ' AND i.conclusao IS NULL';
   if (Array.isArray(pedidos) && pedidos.length) filtro += ` AND i.pedido = ANY($${params.push(pedidos.map(String))})`;
   const { rows } = await q(
@@ -56,24 +55,17 @@ export async function completarAmbiente({ pedidos = null, incluirConcluidos = fa
     if (!comercialId) { for (const it of itens) { conta('pedido_sem_id_do_comercial'); out.detalhes.push({ pedido, item_id: Number(it.id), acao: 'pedido_sem_id_do_comercial' }); } continue; }
     let detalhe;
     try { detalhe = await chamar('GET', `/pedidos/${encodeURIComponent(comercialId)}`); }
-    catch (e) {
-      // 4xx do Comercial = o pedido não existe mais lá (apagado, id inválido): definitivo, não adianta
-      // tentar de novo. Rede fora / chave recusada / 5xx (502 no cliente) = tentar depois.
-      const definitivo = [400, 404, 410, 422].includes(Number(e && e.status));
-      const motivo = definitivo ? 'pedido_nao_esta_no_comercial' : 'comercial_nao_respondeu';
-      out.erros.push({ pedido, erro: e.message, definitivo });
-      for (const it of itens) { conta(motivo); out.detalhes.push({ pedido, item_id: Number(it.id), acao: motivo }); }
-      continue;
-    }
-    const mapa = mapaDeAmbientesComercial(detalhe && detalhe.ambientes);
+    catch (e) { out.erros.push({ pedido, erro: e.message }); for (const it of itens) conta('comercial_nao_respondeu'); continue; }
     const porId = new Map((Array.isArray(detalhe && detalhe.itens) ? detalhe.itens : []).map((x) => [String(x.id), x]));
+    const ambientes = Array.isArray(detalhe && detalhe.ambientes) ? detalhe.ambientes : [];
     for (const it of itens) {
-      const r = ambienteParaCompletar(it.ambiente, porId.get(String(it.comercial_item_id)), mapa);
+      const r = ambienteParaCompletar(it.ambiente, porId.get(String(it.comercial_item_id)), ambientes);
       if (!r.ambiente) { conta(r.motivo); out.detalhes.push({ pedido, item_id: Number(it.id), acao: r.motivo }); continue; }
       if (!simular) {
-        // só preenche se continua vazio (corrida com uma edição no modal "Ver" ou outra execução)
+        // só preenche, e só se continua vazio (corrida com outra execução ou com uma edição no modal Ver)
         await q(
-          `UPDATE pcp_itens SET ambiente = $2, updated_at = now() WHERE id = $1 AND btrim(COALESCE(ambiente, '')) = ''`,
+          `UPDATE pcp_itens SET ambiente = $2, updated_at = now()
+           WHERE id = $1 AND btrim(COALESCE(ambiente, '')) = ''`,
           [Number(it.id), r.ambiente]);
       }
       out.completados += 1;

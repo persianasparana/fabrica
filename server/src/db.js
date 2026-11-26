@@ -484,10 +484,6 @@ export async function migrate() {
   await q(`ALTER TABLE pcp_setores ADD COLUMN IF NOT EXISTS capacidade_dia NUMERIC(8,2)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS prioridade SMALLINT NOT NULL DEFAULT 0`);
   await q(`INSERT INTO pcp_config (chave, valor) VALUES ('carga_cfg', '{"dias_uteis":[1,2,3,4,5],"folga_dias":1,"semanas":2}') ON CONFLICT (chave) DO NOTHING`);
-  // 26/11/2026 — como o TECIDO é aninhado na lista de materiais (Ficha / Necessidade):
-  // 'ambiente' = só peças do mesmo ambiente do mesmo pedido dividem o rolo (decisão do
-  // cliente — a regra da venda) | 'pedido' | 'junto'. ON CONFLICT DO NOTHING preserva a edição.
-  await q(`INSERT INTO pcp_config (chave, valor) VALUES ('materiais_aninhar', 'ambiente') ON CONFLICT (chave) DO NOTHING`);
   // Roteiro por LINHA para as peças SEM Estrutura do Produto local (cortina,
   // cortina fixa, celular, vertical, toldo): nomes de setor em ordem. Editável
   // em pcp_config (JSON); ON CONFLICT DO NOTHING preserva a edição.

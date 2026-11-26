@@ -7,19 +7,25 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 26/11/2026 — ambiente da peça na liberação + tecido aninhado por ambiente (pendente de deploy)
-- **O que estava errado**: a liberação gravava o ambiente da peça a partir de uma coluna antiga do
-  Comercial que vem vazia nos orçamentos montados com ambientes — os itens entravam na fila sem
-  ambiente (Ficha, etiqueta, tela "Ver" da aba Comercial e Plano de Corte "(sem ambiente)").
-- **Agora**: o nome vem do cadastro de ambientes do pedido (pelo vínculo de cada item; a coluna antiga
-  vale para pedido antigo). `bin/completar-ambiente.js` preenche as peças já na fila, só onde está vazio.
-- **Tecido da lista de materiais** (Ficha e Necessidade) — decisão do cliente: aninhado **por ambiente**
-  de cada pedido (a regra da venda). Antes, com o ambiente vazio, o pedido inteiro — e até pedidos
-  diferentes no mesmo cálculo — dividia o rolo. Configurável em `pcp_config.materiais_aninhar`
-  (`ambiente` | `pedido` | `junto`). **Muda a quantidade de tecido** (um pouco mais nos pedidos com
-  vários ambientes; réplica: 65,89 m → 67,64 m num pedido de 14 peças); componentes iguais.
-- Testes: `server/test/nucleo-spec.test.mjs` passa a 90 verificações. Migration: no boot (só a chave de
-  configuração). Muda preço? Não. Deploy: `deploy/aplicar-ambiente-na-liberacao.sh`.
+## 26/11/2026 — plano de corte do tecido na Ficha + ambiente da peça (pendente de deploy)
+- **Pedido do cliente** (26/11): o consumo de tecido tem de sair do melhor aproveitamento do pedido — larguras
+  de rolo diferentes entre ambientes, nunca no mesmo ambiente. Quem calcula é o Núcleo de Produtos **v14.98**;
+  aqui é a parte do PCP.
+- **O que muda para a fábrica**: a Ficha de Produção ganhou o bloco **"Plano de corte"** do tecido (rolo → faixa →
+  peças lado a lado, com item, peça e ambiente). O tecido da lista só dá se o corte seguir o plano — cortando
+  ambiente por ambiente gasta mais. Na réplica, casa de 5 janelas: 12,68 m² pelo plano (2,00 m × 4,15 m +
+  2,50 m × 1,75 m).
+- **Ambiente da peça** (defeito antigo): em todo pedido montado com ambientes a liberação gravava o ambiente
+  VAZIO (lia a coluna de texto legada do item; o nome mora no cadastro de ambientes do pedido). A Ficha e a
+  etiqueta saíam sem o cômodo e o tecido do pedido inteiro era calculado como se fosse um ambiente só (14,50 m²
+  no mesmo exemplo). A liberação passa a gravar o nome certo; `bin/completar-ambiente.js` preenche as peças que
+  já estão na fila (só onde está vazio).
+- **Pedido grande**: um pedido não é mais partido em blocos de 250 peças na lista de materiais (até 2.000 por
+  chamada) — partido, teria dois planos e o mesmo ambiente poderia sair de duas larguras. Provado com 260 peças
+  em 26 ambientes: uma chamada, 0,8 s.
+- `bin/conferir-lista-materiais.js --sonda-plano`; testes sem banco novos (`npm test` = 19).
+- Deploy: `deploy/aplicar-plano-de-corte-do-tecido.sh` — ⚠ **Núcleo v14.98 ANTES** (o script sonda e aborta
+  dizendo o que aplicar). Migration: não. Muda preço? Não.
 
 ## 25/11/2026 — lista de materiais COMO A VENDA COTOU (em produção desde 26/11/2026 17:48)
 - **O que estava errado** (medido na réplica; as mesmas três diferenças que o Comercial fechou na

@@ -54,7 +54,7 @@ Prefixo interno `/api` (pela rede, `https://192.168.0.207/fabrica/api`).
 | GET | `/pcp/necessidade/requisicoes?atualizar=1` | fila:ver | não | Requisições feitas (SC, situação, pendente de envio) | — |
 | POST | `/pcp/pedido/baixa-materiais` `{pedido}` | fila:editar | sim | Baixa manual dos materiais das peças do pedido no Compras (idempotente por peça) | 400 · 404 · 503 |
 | GET | `/pcp/pedido/baixa-materiais?pedido=` | fila:ver | não | Estado da baixa por peça | 400 |
-| GET | `/pcp/pedido/materiais?pedido=\|pedidos=a,b` | autenticado | não | Lista de materiais do(s) pedido(s) pelo Núcleo (sem dinheiro), por item e consolidada. Desde 25/11/2026 a peça é pedida **como a venda cotou** (ver "Lista de materiais — o corpo que vai ao Núcleo"): `por_item[id]` ganhou `notas[]` (texto para a Ficha) e `so_tecido`; a resposta ganhou `itens_sem_cotacao[]` (ids de itens liberados antes de o Comercial informar como a peça foi cotada) e `reservas[]` (`{ref, pedido, motivo, nota}` — peças listadas pelos códigos gravados na venda) e, desde 26/11/2026, `aninhamento` (`ambiente` \| `pedido` \| `junto` — como o tecido foi aninhado). Chaves só acrescentadas | 400 |
+| GET | `/pcp/pedido/materiais?pedido=\|pedidos=a,b` | autenticado | não | Lista de materiais do(s) pedido(s) pelo Núcleo (sem dinheiro), por item e consolidada. Desde 25/11/2026 a peça é pedida **como a venda cotou** (ver "Lista de materiais — o corpo que vai ao Núcleo"): `por_item[id]` ganhou `notas[]` (texto para a Ficha) e `so_tecido`; a resposta ganhou `itens_sem_cotacao[]` (ids de itens liberados antes de o Comercial informar como a peça foi cotada) e `reservas[]` (`{ref, pedido, motivo, nota}` — peças listadas pelos códigos gravados na venda). Chaves só acrescentadas Desde 26/11/2026: cada peça vai ao Núcleo com o `pedido` dela, um pedido nunca é partido em blocos (até 2.000 peças) e `data.plano_tecido[]` traz o **plano de corte do tecido** de cada pedido × tecido (Núcleo v14.98: `{pedido, colecao, cor, pecas, ambientes[{ambiente, largura_rolo, pecas}], larguras[], rolos[{largura_rolo, comprimento, shelves[{comprimento, pecas[{ref, largura, altura, rotacionado, ambiente}]}]}], fora_do_rolo[]}`; lista vazia com a regra desligada no Núcleo; ausente com Núcleo anterior) | 400 |
 | GET | `/pcp/pedido?pedido=NNN` | autenticado | não | Itens/peças do pedido + `info` (cliente, vendedor, prazo, desenhos) | 400 · 404 |
 | PUT | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Edição em massa de todos os itens + `acao: 'concluir'\|'reabrir'` (todas as peças), `status_id`, `prioridade` | 400 · 404 · 422 |
 | DELETE | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Exclui o pedido inteiro (+ `pcp_pedido_info`, pendências do ciclo e saídas pendentes do Compras) | 400 · 404 |
@@ -171,7 +171,7 @@ deslogariam o usuário).
 | GET | `/comercial/pedidos/:id` | comercial:ver | não | Detalhe (itens + spec + cliente) | 404 · 502 · 503 |
 | GET | `/comercial/pedidos/:id/desenhos` | comercial:ver | não | Lista desenhos de fabricação/instalação | 502 · 503 |
 | GET | `/comercial/pedidos/:id/desenhos/:desenhoId/arquivo` | comercial:ver | não | Proxy binário do desenho (CSP `imgSrc 'self'`) | 404 · 502 |
-| GET | `/comercial/pedidos/:id/estrutura-previa` | comercial:ver | não | Por item, a estrutura que a liberação escolheria (override > regra > SKU > nome > "pelo Núcleo" > pendente) e, desde 26/11/2026, `itens[].ambiente` — o NOME do ambiente resolvido por `ambientes[]`/`ambienteId` do pedido (a coluna de texto do item vem nula nos pedidos montados com ambientes) | 502 · 503 |
+| GET | `/comercial/pedidos/:id/estrutura-previa` | comercial:ver | não | Por item, a estrutura que a liberação escolheria (override > regra > SKU > nome > "pelo Núcleo" > pendente) | 502 · 503 |
 | POST | `/comercial/pedidos/:id/devolver` `{motivo}` | comercial:editar | sim | `DEVOLVIDO_PCP` com o motivo (vendedor corrige a spec) | 422 motivo · 502 |
 | POST | `/comercial/pedidos/:id/liberar` | comercial:editar | sim | `LIBERADO_PRODUCAO` + importa itens/peças para a fila com `spec_nucleo` e `pcp_pedido_info` (**idempotente por PED-**; acessório é pulado). Desde 25/11/2026 a spec guarda `cotacao {produto, tubo_equiparado}` quando o item do Comercial traz `nucleoCotacao` (v2.140.1) | 409 · 502 |
 | POST | `/comercial/pedidos/:id/status` `{status}` | comercial:editar | sim | Avança o estado federado: só `EM_PRODUCAO`, `EMBALADO`, `NA_EXPEDICAO` | 422 status · 502 |
@@ -195,21 +195,15 @@ como a venda, ou calcula **outra estrutura** que a vendida (o cadastro mudou dep
 pedida de novo por eles — e a reserva só vale se calculou. Caso normal = 1 chamada por bloco; com
 reserva, 2 (3 quando o resultado é misto). `so_tecido` acompanha a peça também na reserva.
 
-**Aninhamento do tecido (26/11/2026).** O campo `ambiente` do corpo é o GRUPO em que o Núcleo junta as
-peças no mesmo rolo (grupo × coleção × cor). O PCP manda `"PED-… · <ambiente>"` — só peças do mesmo ambiente
-do mesmo pedido dividem o rolo (decisão do cliente; a regra da venda). `pcp_config.materiais_aninhar`:
-`ambiente` (padrão) · `pedido` (`"PED-…"`) · `junto` (sem grupo — o comportamento de até 26/11 nos pedidos
-com ambientes, que juntava até pedidos diferentes). `GET /pcp/pedido/materiais` e `GET /pcp/necessidade`
-ecoam `aninhamento`. Trocar a chave não pede restart.
-
 Utilitários (em `server/`, com o `.env` do serviço):
 
 | Comando | O que faz |
 |---|---|
 | `node bin/completar-spec-nucleo.js [--simular] [--pedido PED-…] [--concluidos]` | Acrescenta `spec_nucleo.cotacao` às peças já na fila relendo o pedido no Comercial (só onde falta; idempotente). Saída 0 = tudo completo · 2 = ficou pendência (motivo no texto) · 1 = erro |
-| `node bin/completar-ambiente.js [--simular] [--pedido PED-…] [--concluidos]` | Preenche `pcp_itens.ambiente` das peças já na fila relendo o pedido no Comercial (só onde está vazio — o que foi digitado no PCP não é sobrescrito; idempotente). Saída 0 = feito · 2 = sobrou item que depende de outra coisa (Comercial fora, pedido sem id) · 1 = erro |
 | `node bin/conferir-lista-materiais.js --sonda` | Sonda os provedores: Núcleo v14.97 (troca de tela volta só com o tecido) e Comercial v2.140.1 (itens com `nucleoCotacao`). Saída 0 · 3 Núcleo anterior · 4 Comercial anterior · 5 não deu para sondar |
-| `node bin/conferir-lista-materiais.js [--pedido PED-…]` | Resumo da lista de um pedido: peças que calculam, pela reserva, itens sem "como foi cotada", avisos |
+| `node bin/conferir-lista-materiais.js --sonda-plano` | Sonda o Núcleo v14.98 (consumo de tecido pelo plano do pedido): a resposta do `/lista-materiais` traz `plano_tecido`; diz se a regra está desligada no painel do Núcleo. Saída 0 · 3 Núcleo anterior · 5 não deu para sondar |
+| `node bin/conferir-lista-materiais.js [--pedido PED-…]` | Resumo da lista de um pedido: peças que calculam, pela reserva, itens sem "como foi cotada", os rolos do plano de corte do tecido, os ambientes das peças, avisos |
+| `node bin/completar-ambiente.js [--simular] [--pedido PED-…] [--concluidos]` | Preenche `pcp_itens.ambiente` das peças já na fila relendo o pedido no Comercial (`ambientes[]` pelo `ambienteId` do item) — só onde está vazio; idempotente. Saída 0 · 2 pendência que depende do Comercial · 1 erro |
 
 ## Integração servidor-a-servidor — `/api/integracao` (`routes/integracao.js`)
 
@@ -230,6 +224,6 @@ Comuns às três: **503** `INTEGRACAO_API_KEY` não configurada · **401** chave
 
 | Vizinho | Rotas (lado deles) | Cliente aqui | Fail-soft |
 |---|---|---|---|
-| Comercial :3010 | `GET /pedidos?status=` · `GET /pedidos?codigo=` · `GET /pedidos/:id` (cada item com **`nucleoCotacao {produto, tuboEquiparado}`** desde a v2.140.1 — chave aditiva; ausente = Comercial anterior) · `PATCH /pedidos/:id/status` · `GET /pedidos/:id/desenhos[/:id/arquivo]` | `server/src/comercial-client.js` (+ `completar-spec.js`, só leitura) | outbox `pcp_ciclo_pendencias` (`CICLO_RETRY_MS`) |
-| Núcleo de Produtos :3070 | `GET /api/v1/catalogo/produtos/:sku/bom` · `POST /api/v1/plano-corte` · `GET /api/v1/plano-corte/variantes` · `POST /api/v1/lista-materiais` (peça **como a venda cotou**; a troca de tela exige o Núcleo **v14.97** para voltar só com o tecido — eco `pecas[].so_tecido`) | `server/src/produtos-client.js` | best-effort (null/[]), flags `PRODUTOS_*` |
+| Comercial :3010 | `GET /pedidos?status=` · `GET /pedidos?codigo=` · `GET /pedidos/:id` (cada item com **`nucleoCotacao {produto, tuboEquiparado}`** desde a v2.140.1 — chave aditiva; ausente = Comercial anterior; o **ambiente** da peça é lido de `ambientes[]` pelo `ambienteId` do item — a coluna de texto `ambiente` do item é legada) · `PATCH /pedidos/:id/status` · `GET /pedidos/:id/desenhos[/:id/arquivo]` | `server/src/comercial-client.js` (+ `completar-spec.js`, só leitura) | outbox `pcp_ciclo_pendencias` (`CICLO_RETRY_MS`) |
+| Núcleo de Produtos :3070 | `GET /api/v1/catalogo/produtos/:sku/bom` · `POST /api/v1/plano-corte` · `GET /api/v1/plano-corte/variantes` · `POST /api/v1/lista-materiais` (peça **como a venda cotou**; a troca de tela exige o Núcleo **v14.97** para voltar só com o tecido — eco `pecas[].so_tecido`; desde 26/11/2026 cada peça leva o **`pedido`** e a resposta traz **`plano_tecido[]`** — Núcleo **v14.98**) | `server/src/produtos-client.js` | best-effort (null/[]), flags `PRODUTOS_*` |
 | Compras :3050 | `GET /api/v1/integracao/estoque/saldos?skus=` · `POST …/solicitacoes-compra` · `GET …/solicitacoes-compra/:numero` · `POST …/estoque/saida-producao` | `server/src/compras-client.js` | outbox `pcp_compras_pendencias` (`COMPRAS_RETRY_MS`) |

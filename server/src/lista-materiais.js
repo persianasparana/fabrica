@@ -15,20 +15,8 @@
  */
 import { q } from './db.js';
 import { HttpError } from './util.js';
-import { corposDaPeca, calcularComReserva, grupoDeAninhamento, normalizarAninhamento, ANINHAMENTO_PADRAO } from './nucleo-spec.js';
+import { corposDaPeca, calcularComReserva } from './nucleo-spec.js';
 import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from './produtos-client.js';
-
-/**
- * Como o TECIDO é aninhado na lista (26/11/2026): `pcp_config.materiais_aninhar`
- * = 'ambiente' (padrão — decisão do cliente) | 'pedido' | 'junto'. Banco fora ou
- * valor estranho → o padrão do código.
- */
-export async function modoDeAninhamento() {
-  try {
-    const { rows } = await q(`SELECT valor FROM pcp_config WHERE chave = 'materiais_aninhar'`);
-    return normalizarAninhamento(rows[0] && rows[0].valor);
-  } catch { return ANINHAMENTO_PADRAO; }
-}
 
 /** Itens + peças dos pedidos → payload do Núcleo (1 peça por linha de pcp_pecas). */
 export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
@@ -52,7 +40,6 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
      FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id
      WHERE i.pedido = ANY($1)${filtroPecas} ORDER BY pp.item_id, pp.numero`, paramsPecas);
   const itemPorId = new Map(itens.map((i) => [Number(i.id), i]));
-  const aninhar = await modoDeAninhamento();
   const payload = [];
   const semSpec = new Set();
   const semCotacao = new Set();
@@ -64,9 +51,16 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
     // Comercial, tecido pela coleção); os códigos gravados na venda ficam de
     // RESERVA (`corposDaPeca`). O sku da Estrutura do PCP (`estrutura_sku`)
     // segue valendo quando o item não tem sku próprio — agora resolvido lá.
-    // 26/11/2026 — o grupo de aninhamento do tecido (por ambiente do pedido, por pedido ou tudo junto)
-    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: grupoDeAninhamento(item, aninhar) });
+    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: item.ambiente || undefined });
     if (item.spec_nucleo && !venda.tem_cotacao) semCotacao.add(Number(item.id));
+    // 26/11/2026 (Núcleo v14.98) — o PEDIDO vai na peça, nos dois corpos: o consumo de tecido é
+    // planejado no pedido inteiro (peças de ambientes diferentes dividem o rolo, uma largura por
+    // ambiente) e nunca entre pedidos diferentes — "Sala" de dois pedidos não é o mesmo ambiente.
+    // Núcleo anterior à v14.98 ignora o campo.
+    if (item.pedido) {
+      corpo.pedido = String(item.pedido);
+      if (reserva) reserva.pedido = String(item.pedido);
+    }
     // não enumeráveis: não vão ao Núcleo (JSON) — pedido (blocos), reserva e venda (conferência)
     Object.defineProperty(corpo, '__pedido', { value: item.pedido, enumerable: false });
     Object.defineProperty(corpo, '__reserva', { value: reserva, enumerable: false });
@@ -74,7 +68,7 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
     Object.defineProperty(corpo, '__numero', { value: peca.numero, enumerable: false });
     payload.push(corpo);
   }
-  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec], itens_sem_cotacao: [...semCotacao], aninhamento: aninhar };
+  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec], itens_sem_cotacao: [...semCotacao] };
 }
 
 /**
@@ -94,34 +88,44 @@ export async function calcularBloco(bloco) {
 /** chave de agregação de uma linha de material (a mesma do Núcleo) */
 const chave = (m) => `${m.tipo}::${m.sku || String(m.descricao || '').toLowerCase()}`;
 
-// O Núcleo aceita até 300 peças por lote (`lote_grande`). A P1 (necessidade do
-// horizonte) passa disso com folga → blocos de até LOTE_MAX peças, fechados na
-// FRONTEIRA DO PEDIDO (um pedido só se divide quando sozinho excede o bloco), e
-// os blocos são MESCLADOS: materiais por chave (qtd/peças somadas, refs e
-// origens unidas), tecido por coleção × cor × rolo, perfis por componente,
-// tubos por Ø — metros/bobinas/barras/sobras SOMADOS por bloco (o aninhamento
+// O Núcleo limita as peças por chamada (`lote_grande`: 300 até a v14.94; 2.000 desde a
+// v14.95). A P1 (necessidade do horizonte) junta muitos pedidos → blocos de até LOTE_MAX
+// peças, fechados na FRONTEIRA DO PEDIDO, e os blocos são MESCLADOS: materiais por chave
+// (qtd/peças somadas, refs e origens unidas), tecido por coleção × cor × rolo, perfis por
+// componente, tubos por Ø — metros/bobinas/barras/sobras SOMADOS por bloco (o aninhamento
 // e o encaixe de barras não cruzam blocos: pode sobrar 1 bobina/barra a mais).
+//
+// 26/11/2026 — o PEDIDO NUNCA É PARTIDO (até o teto do Núcleo, LOTE_PEDIDO_MAX): o consumo de
+// tecido é planejado no pedido inteiro, com UMA largura de rolo por ambiente (Núcleo v14.98) —
+// um pedido de 300 peças partido em dois blocos teria dois planos e o mesmo ambiente poderia
+// sair de larguras diferentes. Pedido maior que LOTE_MAX vai sozinho no seu bloco; só acima de
+// LOTE_PEDIDO_MAX ele se divide (aí o aviso do lote em blocos vale para ele).
 export const LOTE_MAX = 250;
-export function dividirEmBlocos(payload, max = LOTE_MAX) {
+export const LOTE_PEDIDO_MAX = 2000;
+export function dividirEmBlocos(payload, max = LOTE_MAX, maxPedido = LOTE_PEDIDO_MAX) {
+  // agrupa por pedido (na ordem em que cada pedido aparece) — as peças vêm por item, e itens de
+  // duas liberações simultâneas podem se intercalar
+  const porPedido = new Map();
+  for (const pc of payload) {
+    const ped = String(pc.__pedido || '');
+    if (!porPedido.has(ped)) porPedido.set(ped, []);
+    porPedido.get(ped).push(pc);
+  }
   const blocos = [];
   let atual = [];
-  let pedidoAtual = null;
-  const pedidoDe = (pc) => String(pc.__pedido || '');
-  for (const pc of payload) {
-    const ped = pedidoDe(pc);
-    if (atual.length && (atual.length >= max || (ped !== pedidoAtual && atual.length + contarPedido(payload, ped) > max && contarPedido(payload, ped) <= max))) {
-      blocos.push(atual); atual = [];
+  const fechar = () => { if (atual.length) { blocos.push(atual); atual = []; } };
+  for (const pecas of porPedido.values()) {
+    if (pecas.length > maxPedido) {               // passa do teto do Núcleo: só aí o pedido se divide
+      fechar();
+      for (let k = 0; k < pecas.length; k += maxPedido) blocos.push(pecas.slice(k, k + maxPedido));
+      continue;
     }
-    atual.push(pc); pedidoAtual = ped;
+    if (atual.length && atual.length + pecas.length > max) fechar();   // o pedido não cabe inteiro neste bloco
+    atual.push(...pecas);
+    if (atual.length >= max) fechar();            // pedido grande (ou bloco cheio) segue sozinho
   }
-  if (atual.length) blocos.push(atual);
+  fechar();
   return blocos;
-}
-const contarPedidoCache = new WeakMap();
-function contarPedido(payload, ped) {
-  let m = contarPedidoCache.get(payload);
-  if (!m) { m = new Map(); for (const pc of payload) { const k = String(pc.__pedido || ''); m.set(k, (m.get(k) || 0) + 1); } contarPedidoCache.set(payload, m); }
-  return m.get(ped) || 0;
 }
 const r4 = (v) => Math.round((Number(v) || 0) * 10000) / 10000;
 function somar(mapa, k, linha, campos, listas) {
@@ -150,7 +154,9 @@ export function mesclarRespostas(blocos) {
   out.perfis = [...perf.values()];
   out.perfis_totais = { barras: out.perfis.reduce((s, x) => s + (Number(x.barras) || 0), 0), metros: r4(out.perfis.reduce((s, x) => s + (Number(x.metros) || 0), 0)) };
   out.tubos = [...tub.values()];
-  out.avisos.push(`Lote de ${out.totais.pecas} peças calculado em ${blocos.length} blocos de até ${LOTE_MAX} (limite do Núcleo): bobinas e barras somadas por bloco — pode sobrar uma a mais do que num cálculo único.`);
+  // Núcleo v14.98 — plano de corte do tecido: um por pedido × tecido (os blocos fecham na fronteira do pedido)
+  out.plano_tecido = blocos.flatMap((d) => d.plano_tecido || []);
+  out.avisos.push(`Lote de ${out.totais.pecas} peças calculado em ${blocos.length} blocos (cada pedido inteiro num bloco): bobinas e barras somadas por bloco — pode sobrar uma a mais do que num cálculo único.`);
   return out;
 }
 
@@ -164,7 +170,6 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
     pedidos: m.pedidos, habilitado: listaMateriaisHabilitado(), motivo: null,
     itens: m.itens.length, pecas: m.pecas.length, itens_sem_spec: m.itens_sem_spec,
     itens_sem_cotacao: m.itens_sem_cotacao, reservas: [],
-    aninhamento: m.aninhamento, // 26/11/2026 — como o tecido foi aninhado: 'ambiente' | 'pedido' | 'junto'
     avisos: [], data: null, por_item: {},
   };
   if (!out.habilitado) {

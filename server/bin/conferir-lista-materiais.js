@@ -13,6 +13,14 @@
  *     anterior à v2.140.1 · 5 = não deu para sondar (sem chave / fora do ar /
  *     sem pedido na fila) — o texto diz qual.
  *
+ *   node bin/conferir-lista-materiais.js --sonda-plano
+ *     Sonda o Núcleo de Produtos v14.98 (26/11/2026 — consumo de tecido pelo
+ *     melhor aproveitamento do PEDIDO, uma largura de rolo por ambiente): pede
+ *     duas peças de rolô de ambientes diferentes do mesmo pedido e confere que a
+ *     resposta traz `plano_tecido`. Diz também se a regra está ligada no painel
+ *     do Núcleo. Saída: 0 = pronto · 3 = Núcleo anterior à v14.98 · 5 = não deu
+ *     para sondar.
+ *
  *   node bin/conferir-lista-materiais.js [--pedido PED-AAAA/NNNN]
  *     Resumo da lista de um pedido (padrão: o pedido aberto mais recente com a
  *     especificação da venda): peças que calculam, peças pela reserva, itens
@@ -51,6 +59,37 @@ async function sondarNucleo() {
   return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou uma troca de tela de 1,00 × 1,60 — não deu para sondar' };
 }
 
+async function sondarPlano() {
+  if (!listaMateriaisHabilitado()) return { rc: 5, msg: 'Núcleo: PRODUTOS_SERVICE_KEY ausente (ou PRODUTOS_LISTA_MATERIAIS_ENABLED=0) em server/.env — a lista de materiais está desligada; nada a sondar' };
+  const base = (process.env.PRODUTOS_API_BASE || 'http://127.0.0.1:3070/api/v1').replace(/\/+$/, '');
+  let colecoes = [];
+  try {
+    const r = await fetch(`${base}/catalogo/colecoes?produto_sku=__auto`, { headers: { 'X-Service-Key': process.env.PRODUTOS_SERVICE_KEY || '' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { rc: 5, msg: `Núcleo: /catalogo/colecoes respondeu HTTP ${r.status} — confira a chave (PRODUTOS_SERVICE_KEY) e o produtos-api` };
+    const j = await r.json();
+    colecoes = (Array.isArray(j && j.data) ? j.data : []).map((c) => c && c.colecao).filter(Boolean);
+  } catch (e) { return { rc: 5, msg: `Núcleo inacessível em ${base} (${e.message})` }; }
+  if (!colecoes.length) return { rc: 5, msg: 'Núcleo: nenhuma coleção de rolô no catálogo — não deu para sondar o plano de corte' };
+  const ANTES = 'cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-98-consumo-tecido-pedido.sh';
+  // a 1ª coleção em que duas peças de rolô (ambientes diferentes, mesmo pedido) calculam
+  for (const colecao of colecoes.slice(0, 12)) {
+    const data = await buscarListaMateriais([
+      { ref: 'sonda:1', pedido: 'PED-SONDA', ambiente: 'Sala', qtd: 1, largura: 1.2, altura: 1.6, colecao },
+      { ref: 'sonda:2', pedido: 'PED-SONDA', ambiente: 'Quarto', qtd: 1, largura: 0.8, altura: 1.6, colecao },
+    ]);
+    if (!data) return { rc: 5, msg: `Núcleo não respondeu o /lista-materiais (${erroListaMateriais() || 'sem detalhe'})` };
+    if (!Array.isArray(data.plano_tecido)) return { rc: 3, msg: `Núcleo ANTERIOR à v14.98 — o /lista-materiais não devolve o plano de corte do tecido (plano_tecido). Aplique antes, no repo produtos: ${ANTES}` };
+    const calculam = (Array.isArray(data.pecas) ? data.pecas : []).filter((p) => p && p.ok !== false).length;
+    if (calculam < 2) continue;
+    const ligada = data.parametros && data.parametros.consumo_tecido_pedido === true;
+    if (!ligada) return { rc: 0, msg: 'Núcleo v14.98 OK — mas a regra está DESLIGADA no painel do Núcleo (Regras gerais → Parâmetros → "Consumo de tecido — melhor aproveitamento do pedido"): a Ficha sai sem o plano de corte e o tecido volta a ser calculado por ambiente' };
+    const pl = data.plano_tecido.find((t) => t && t.pedido === 'PED-SONDA');
+    const rolos = pl ? (pl.rolos || []).map((r) => `${Number(r.largura_rolo).toFixed(2)} m × ${Number(r.comprimento).toFixed(2)} m`).join(' + ') : '';
+    return { rc: 0, msg: `Núcleo v14.98 OK — plano de corte de "${colecao}" (duas peças, dois ambientes): ${rolos || 'sem rolo compartilhado nesta coleção'}` };
+  }
+  return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou as duas peças da sonda — não deu para conferir o plano de corte' };
+}
+
 async function sondarComercial() {
   if (!comercialConfigurado()) return { rc: 5, msg: 'Comercial: COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY ausentes em server/.env — nada a sondar' };
   const { rows } = await q(`SELECT pedido, comercial_id FROM pcp_pedido_info WHERE comercial_id IS NOT NULL ORDER BY updated_at DESC LIMIT 5`);
@@ -69,7 +108,11 @@ async function sondarComercial() {
 
 let rc = 0;
 try {
-  if (args.includes('--sonda')) {
+  if (args.includes('--sonda-plano')) {
+    const n = await sondarPlano();
+    console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
+    rc = n.rc;
+  } else if (args.includes('--sonda')) {
     const n = await sondarNucleo();
     const c = await sondarComercial();
     console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
@@ -89,6 +132,14 @@ try {
         const t = lm.data.totais || {};
         const trocas = Object.values(lm.por_item).filter((x) => x.so_tecido).length;
         console.log(`  ${pedido}: ${lm.itens} item(ns), ${lm.pecas} peça(s) — calculam ${t.pecas_ok}, não calculam ${t.pecas_erro}; pela reserva (códigos gravados na venda) ${lm.reservas.length}; itens sem "como foi cotada" ${lm.itens_sem_cotacao.length}; trocas de tela ${trocas}`);
+        // 26/11/2026 — plano de corte do tecido (Núcleo v14.98) e ambientes das peças
+        const planos = Array.isArray(lm.data.plano_tecido) ? lm.data.plano_tecido : null;
+        const ambs = new Set((lm.data.pecas || []).map((p) => String(p.ambiente || '').trim()).filter(Boolean));
+        const m2 = (v) => Number(v || 0).toFixed(2).replace('.', ',');
+        if (planos === null) console.log('    · plano de corte do tecido: o Núcleo é anterior à v14.98 (sem plano_tecido)');
+        else if (!planos.length) console.log('    · plano de corte do tecido: nenhum (regra desligada no painel do Núcleo, ou o pedido não tem peça de rolô que aninha)');
+        else for (const t of planos) console.log(`    ✂ ${t.colecao}${t.cor ? ' · ' + t.cor : ''}: ${(t.rolos || []).map((r) => `rolo ${m2(r.largura_rolo)} m × ${m2(r.comprimento)} m`).join(' + ')} — ${(t.ambientes || []).length} ambiente(s)`);
+        console.log(`    · ambientes nas peças: ${ambs.size ? [...ambs].slice(0, 8).join(', ') + (ambs.size > 8 ? '…' : '') : 'NENHUM (as peças estão sem ambiente — rode: node bin/completar-ambiente.js)'}`);
         for (const pc of (lm.data.pecas || []).filter((p) => p.ok === false).slice(0, 5)) console.log(`    ✗ peça ${pc.ref}: ${pc.motivo || pc.error}`);
         for (const a of lm.avisos.slice(0, 6)) console.log(`    · ${a}`);
       }
