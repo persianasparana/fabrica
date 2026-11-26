@@ -27,7 +27,7 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - Coordenação entre conversas: docs no repo `compras` (`PLANO-INTEGRACAO-ERP.md`,
   `MAPA-DO-SERVIDOR.md`, `HANDOFF-CONTINUIDADE.md`, `DIRETRIZES-REVISAO-ERP.md`).
 
-## Estado atual (16/11/2026)
+## Estado atual (26/11/2026)
 - **Em produção** (`/var/www/fabrica`, branch `claude/unified-server-status-7633oz`): tudo até o
   **P3 do planejamento de produção**, publicado em **10/11/2026** pelo `deploy/aplicar-planejamento-p3.sh`
   (cobre P0–P2) — commit `44bde24` (linha em `deploy/REGISTRO-DEPLOYS.md`). As seções "Estado"
@@ -35,10 +35,12 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Pendente de deploy, só na branch de federação** (`claude/persianas-parana-federation-64icd0`):
   `e981f14 fix(auth): login recusava credencial certa — caixa do usuário e bloqueio por IP`
   (auth.js, server.js, db.js, bin/reset-senha.js). Precisa ser levado à `unified` e publicado.
-- **Pendente de deploy (25/11/2026): LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`
-  (seção "Estado (25/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.97 → Comercial v2.140.1 → Fábrica** (o script
-  sonda os dois e aborta dizendo o que aplicar).
-- **Revisão da federação de 16/11/2026** (working tree desta sessão): `SESSION_SECRET` passou a ser
+- **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
+  commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
+  provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
+- **Revisão da federação de 16/11/2026** (commit `5f82e5b`) — **em produção desde 26/11/2026 17:48**: estava
+  na branch sem deploy e entrou no mesmo `git pull` da lista de materiais como a venda (o serviço subiu com
+  health OK — o `server/.env` de produção tem a `SESSION_SECRET`). `SESSION_SECRET` passou a ser
   obrigatória no boot; CI ajustado ao 410 do `POST /itens`; `npm test`/`npm run check`; vendor
   pdf.js/SheetJS removidos; `docs/diag-servidor.sh` → `deploy/diag-servidor.sh`; docs padrão novos.
 - **Documentação para humanos** (leia nesta ordem): `docs/VISAO-GERAL.md` → `README.md` →
@@ -122,7 +124,7 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
-## Estado (25/11/2026) — PENDENTE DE DEPLOY (`deploy/aplicar-lista-como-a-venda.sh`): **LISTA DE MATERIAIS COMO A VENDA COTOU**
+## Estado (25/11/2026) — EM PRODUÇÃO desde 26/11/2026 17:48 (commit 48f66c6, `aplicar-lista-como-a-venda.sh`): **LISTA DE MATERIAIS COMO A VENDA COTOU**
 Origem: pendência registrada pelo Comercial na v2.139.1 (25/11) — *"`corpoDaPeca` é o espelho do corpo
 ANTIGO (fixa `produto_sku`/`tecido_sku` da venda) — na lista de materiais do PCP valem as mesmas três
 diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produção:**
