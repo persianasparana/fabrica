@@ -24,7 +24,7 @@ import { regrasAtivas, selecionarEstrutura, contextoDeSpec, categoriasPorColecao
 // Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
 import { chamar, baixarBinario } from '../comercial-client.js';
 // P0 do planejamento (06/11/2026): a peça do PCP guarda a spec COMO FOI VENDIDA
-import { specDoItemComercial, semEstruturaLocal, linhaDoSku } from '../nucleo-spec.js';
+import { specDoItemComercial, semEstruturaLocal, linhaDoSku, ambienteDoItemComercial } from '../nucleo-spec.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -262,7 +262,7 @@ r.get(
       if (ctPrev) a.cor_trilho = ctPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
-        cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+        cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: ambienteDoItemComercial(it, detalhe.ambientes),
         atributos: a, largura: it.larguraCm, altura: it.alturaCm, qnt: it.quantidade,
       }, categorias), regras);
       let produtoId = regra ? Number(regra.produto_id) : null;
@@ -368,7 +368,7 @@ r.post(
         if (Number.isFinite(manual) && manual > 0 && idsValidos.has(manual)) return manual;
         const regra = selecionarEstrutura(contextoDeSpec({
           produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
-          cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+          cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: ambienteDoItemComercial(it, detalhe.ambientes),
           atributos: atributosDe(it), largura: it.larguraCm, altura: it.alturaCm,
           qnt: it.quantidade,
         }, categorias), regras);
@@ -390,7 +390,11 @@ r.post(
             cor_tecido: s120(it.corTecido),
             cor_perfil: s120(it.corPerfil),
             acionamento: s120(it.acionamento),
-            ambiente: s120(it.ambiente),
+            // 26/11/2026 — o ambiente vem de `pedido.ambientes[]` pelo `ambienteId` (a coluna de
+            // texto do item é legada e nula nos pedidos montados com ambientes): sem ele a Ficha e
+            // a etiqueta saíam sem ambiente e o plano de corte do tecido (Núcleo v14.98 — uma
+            // largura de rolo por ambiente) tratava o pedido inteiro como um ambiente só
+            ambiente: s120(ambienteDoItemComercial(it, detalhe.ambientes)),
             atributos: atributosDe(it),
             comercial_item_id: it.id != null ? String(it.id).slice(0, 64) : null,
             // SKU canônico do MOTOR (Núcleo :3070) — alimenta o Plano de Corte

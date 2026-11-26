@@ -38,6 +38,9 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
+- **Pendente de deploy (26/11/2026): PLANO DE CORTE DO TECIDO NA FICHA + AMBIENTE DA PEÇA** —
+  `deploy/aplicar-plano-de-corte-do-tecido.sh` (seção "Estado (26/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.98 →
+  Fábrica** (o script sonda o Núcleo e aborta dizendo o que aplicar).
 - **Revisão da federação de 16/11/2026** (commit `5f82e5b`) — **em produção desde 26/11/2026 17:48**: estava
   na branch sem deploy e entrou no mesmo `git pull` da lista de materiais como a venda (o serviço subiu com
   health OK — o `server/.env` de produção tem a `SESSION_SECRET`). `SESSION_SECRET` passou a ser
@@ -69,11 +72,14 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
 - `server/src/compras-client.js` — cliente REST do Compras (X-Service-Key) + **outbox
   `pcp_compras_pendencias`** (requisição de compra e saída de produção — P3, 06/11/2026).
 - `server/bin/` — `install.js` (schema+seed+admin), `migrate.js` (só o schema), `reset-senha.js`
-  (recuperar senha pelo servidor), `limpar-fila.js` (zera a fila, preserva cadastros) e utilitários
+  (recuperar senha pelo servidor), `limpar-fila.js` (zera a fila, preserva cadastros), `completar-spec-nucleo.js` e
+  `completar-ambiente.js` (completam as peças JÁ NA FILA relendo o pedido no Comercial), `conferir-lista-materiais.js`
+  (sondas dos provedores + resumo da lista de um pedido) e utilitários
   da Estrutura: `preencher-barras.js`, `reparar-keys.js`, `preencher-medidas.js`,
   `preencher-componentes.js`, `seed-tipos.js`, `validar-cortes.js` (motor de corte × planilhas,
   sem banco), `atualizar-horizontais.js`.
-- `server/test/carga.test.mjs` e `server/test/nucleo-spec.test.mjs` — as suítes sem banco (`npm test`);
+- `server/test/carga.test.mjs`, `nucleo-spec.test.mjs`, `lista-materiais.test.mjs` e `ambiente.test.mjs` — as
+  suítes sem banco (`npm test`);
   `npm run check` = `node --check` nos módulos principais.
 - `pcp/public/assets/js/` — `app.js` (fila/editar pedido/estrutura), `comercial.js`
   (análise/liberação), `ordem-corte-plano.js` (FFD/desenho/CSV), `ficha-producao.js`,
@@ -123,6 +129,63 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (26/11/2026) — PENDENTE DE DEPLOY (`deploy/aplicar-plano-de-corte-do-tecido.sh`): **PLANO DE CORTE DO TECIDO + AMBIENTE DA PEÇA**
+Pedido do cliente (26/11): *"Para o cálculo de consumo de tecido eu preciso do melhor aproveitamento de tecido
+economizando o máximo que pudermos mesmo que usemos larguras diferentes do mesmo tecido, só não pode usar larguras
+diferentes do mesmo tecido no mesmo ambiente"*. Quem calcula é o **Núcleo v14.98** (`consumo-tecido.js`: cada tecido
+do pedido é planejado no PEDIDO inteiro — peças de ambientes diferentes dividem o rolo, o pedido pode usar larguras
+diferentes, cada AMBIENTE sai de UMA largura; chave `consumoTecidoPedido` no painel do Núcleo). A parte do PCP:
+- **O pedido vai na peça** (`lista-materiais.js montarPayloadPedidos`: `corpo.pedido`, também na reserva): o tecido
+  nunca é planejado entre pedidos diferentes e "Sala" de dois pedidos não é o mesmo ambiente. Núcleo anterior ignora.
+- **O pedido NUNCA é partido em blocos** (`dividirEmBlocos`): agrupa por pedido e só divide acima de
+  `LOTE_PEDIDO_MAX` = 2.000 peças (teto do Núcleo desde a v14.95); `LOTE_MAX` = 250 segue sendo o alvo quando o lote
+  junta vários pedidos (Necessidade). Antes um pedido de 300 peças virava dois blocos = dois planos, e o mesmo
+  ambiente poderia sair de duas larguras. `mesclarRespostas` leva `plano_tecido` de cada bloco.
+- **Ficha de Produção**: bloco **"✂ Plano de corte — coleção · cor"** logo abaixo da tabela de tecido do pedido
+  (`ficha-producao.js blocoPlanoTecido`): rolo (largura e metros) → faixa (comprimento) → peças lado a lado
+  ("Item N · peça #M", ambiente, largura de corte × altura de fábrica, "(deitada)") + o aviso **"Corte o tecido
+  seguindo o plano acima"**. Os metros de tecido da lista só valem se a fábrica cortar ASSIM — cortando ambiente por
+  ambiente gasta mais do que o separado/comprado. Núcleo anterior ou regra desligada = bloco não aparece.
+- **AMBIENTE da peça** (defeito antigo, era a pendência (c) da entrega de 25/11): a liberação gravava `it.ambiente`,
+  a coluna de TEXTO do item do Comercial — legada e **nula em todo pedido montado com ambientes** (o nome mora em
+  `pedido.ambientes[]`, pelo `ambienteId`). A Ficha e a etiqueta saíam sem ambiente e o Núcleo tratava o pedido
+  inteiro como UM ambiente: réplica, casa de 5 janelas FILTRA SOL 5% — **14,50 m²** numa largura só, contra
+  **12,68 m²** com os ambientes certos (o número do Relatório de custo do Comercial). Agora
+  `nucleo-spec.js ambienteDoItemComercial(it, ambientes)` (a MESMA regra do Comercial, `nomeDoAmbiente` v2.87.0: o
+  ambiente do pedido pelo id vence o texto da peça; texto só quando o id não resolve) é usada na liberação, na prévia
+  (contexto das regras de estrutura) e na aba Comercial (`comercial.js ambienteDe`).
+- **Peças já na fila**: `src/completar-ambiente.js` + `bin/completar-ambiente.js` (`--simular`, `--pedido`,
+  `--concluidos`) relê o pedido no Comercial e preenche `pcp_itens.ambiente` SÓ onde está vazio (o que alguém digitou
+  no modal "Ver" fica; idempotente). Saída 2 = pendência que depende do Comercial (fora do ar / pedido sem id).
+- **`bin/conferir-lista-materiais.js`**: `--sonda-plano` (Núcleo v14.98: a resposta traz `plano_tecido`; diz se a
+  regra está desligada no painel; saída 3 = Núcleo anterior) e, no resumo `--pedido`, os rolos do plano e os
+  ambientes das peças ("NENHUM" = rode o completar-ambiente).
+- Testes sem banco (no `npm test`, 19): `test/lista-materiais.test.mjs` (blocos: pedido inteiro, teto, pedidos
+  intercalados, nada perdido; mescla com o plano) e `test/ambiente.test.mjs` (regra do ambiente e do completar).
+- **Depende de**: **Núcleo v14.98** ANTES (o script sonda e aborta; `PULAR_SONDAS=1` sobe assim mesmo — nada
+  quebra: o Núcleo anterior ignora o `pedido`, a Ficha sai sem o plano e o ambiente já passa a valer). O Comercial
+  v2.141.0 (Relatório de custo explica o plano) é independente. Sem migration; não muda preço.
+- **Provado na réplica** (Núcleo v14.98 real + Comercial simulado devolvendo o pedido como a produção — `ambientes[]`
+  + `ambienteId`, texto nulo): e2e API **30** (liberação grava os 5 ambientes; plano 2,00 m × 4,15 m + 2,50 m ×
+  1,75 m = 12,68 m², uma largura por ambiente; sem ambiente 14,50 m²; completar-ambiente com `--simular`, item
+  digitado preservado, 2ª execução sem mudança; **pedido de 260 peças em 26 ambientes numa chamada só — 0,8 s, um
+  plano, nenhum ambiente em duas larguras, conferido prateleira a prateleira**; Necessidade dos dois pedidos = soma
+  dos planos; sondas) · Playwright da Ficha **11** (bloco do plano, rolos e metros, peça/ambiente, ambiente no item,
+  Ficha do pedido grande) · Fábrica nova × Núcleo ANTERIOR (v14.97): sonda acusa (saída 3) e a lista segue · deploy
+  ensaiado inteiro no `/var/www` simulado. Roteiros no scratchpad da sessão (não versionados).
+- ⚠ **Pendências/observações (não mexidas):**
+  (a) a **baixa de estoque** da 1ª bipagem (`materiaisDaPecaParaBaixa`) pede a peça SOZINHA ao Núcleo — rolo e metros
+  individuais; com o plano do pedido a peça pode sair de OUTRA largura de rolo (o sku do tecido muda) e a soma das
+  baixas passa do tecido cortado. Já era assim com o aninhamento por ambiente; só importa com o estoque de tecido
+  controlado pelo Compras (de-para por cor). Caminho: baixar pela linha da peça na lista do PEDIDO;
+  (b) a linha de tecido POR ITEM (Ficha) diz o rolo do plano e o comprimento de corte da própria peça — a soma dos
+  itens não é o consumo do pedido (peças lado a lado dividem a faixa); o consumo é o da tabela de tecido do pedido;
+  (c) etiqueta JÁ impressa não muda com o completar-ambiente (reimprimir se precisar do ambiente);
+  (d) a Necessidade de materiais soma o plano de CADA pedido — não corta tecido entre pedidos (decisão em aberto com
+  o cliente; juntar pedidos pediria a fábrica cortar pedidos diferentes na mesma faixa);
+  (e) peças FORA do aproveitamento (Romana, painel, cortina, peça com emenda) seguem cada uma no seu rolo — o
+  Núcleo avisa quando o mesmo tecido fica em duas larguras no ambiente por causa delas.
 
 ## Estado (25/11/2026) — EM PRODUÇÃO desde 26/11/2026 17:48 (commit 48f66c6, `aplicar-lista-como-a-venda.sh`): **LISTA DE MATERIAIS COMO A VENDA COTOU**
 Origem: pendência registrada pelo Comercial na v2.139.1 (25/11) — *"`corpoDaPeca` é o espelho do corpo
@@ -191,9 +254,10 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
   troca de tela nem da seleção automática (seguem pelo sku do item) — a troca de tela chega com a
   Estrutura do rolô e os cortes da peça inteira; quem avisa a bancada é o nome do item ("Somente Tecido")
   e a nota da Ficha;
-  (c) a coluna legada `ambiente` do item do Comercial é NULA nos pedidos montados com ambientes (o nome
-  vem de `ambientes[]` por `ambienteId`) — a liberação grava `ambiente` vazio, então a Ficha/etiqueta
-  saem sem ambiente e o Núcleo aninha o tecido do pedido inteiro num grupo só;
+  (c) **ambiente da peça — FECHADO em 26/11/2026** (seção "Estado (26/11/2026)" acima): a coluna legada
+  `ambiente` do item do Comercial é NULA nos pedidos montados com ambientes (o nome vem de `ambientes[]`
+  por `ambienteId`) — a liberação gravava `ambiente` vazio, a Ficha/etiqueta saíam sem ambiente e o
+  Núcleo aninhava o tecido do pedido inteiro num grupo só;
   (d) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha C/D da matriz ainda não cita
   `nucleoCotacao` nem a v14.97 — registrar na próxima versão do protocolo.
 
