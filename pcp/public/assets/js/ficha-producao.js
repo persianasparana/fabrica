@@ -146,6 +146,35 @@
     </div>`;
   }
 
+  // PLANO DE CORTE DO TECIDO (Núcleo v14.98 — consumo pelo melhor aproveitamento do
+  // pedido): de qual rolo sai cada peça e quais dividem a mesma faixa. O tecido da
+  // lista acima foi calculado com as peças cortadas ASSIM — cortar ambiente por
+  // ambiente gasta mais tecido do que o separado/comprado. Núcleo antigo ou regra
+  // desligada: `plano_tecido` vazio e o bloco não aparece.
+  function blocoPlanoTecido(d) {
+    const planos = (d.plano_tecido || []).filter((t) => t && Array.isArray(t.rolos) && t.rolos.length);
+    if (!planos.length) return '';
+    const m = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rotulo = (pc) => {
+      const quem = estado.refRotulo.get(String(pc.ref)) || '';
+      const onde = [pc.ambiente, pc.janela].filter(Boolean).join(' · ');
+      return `<b>${esc(quem || onde || 'peça')}</b>${quem && onde ? ' <small style="color:var(--text3)">' + esc(onde) + '</small>' : ''} ${m(pc.largura)} × ${m(pc.altura)} m${pc.rotacionado ? ' <small>(deitada)</small>' : ''}`;
+    };
+    return planos.map((t) => {
+      const linhas = t.rolos.map((ro) => ro.shelves.map((sh, i) => `<tr>
+          ${i === 0 ? `<td rowspan="${ro.shelves.length}" style="font-weight:800;vertical-align:top">Rolo ${m(ro.largura_rolo)} m<br><small style="font-weight:400;color:var(--text3)">${m(ro.comprimento)} m de rolo</small></td>` : ''}
+          <td style="text-align:right;white-space:nowrap">${i + 1} — ${m(sh.comprimento)} m</td>
+          <td>${sh.pecas.map(rotulo).join(' &nbsp;+&nbsp; ')}</td>
+        </tr>`).join('')).join('');
+      const fora = (t.fora_do_rolo || []).length
+        ? `<div class="alerta">⚠ ${t.fora_do_rolo.length} peça(s) fora do plano (não cabem em nenhuma largura de rolo — corte próprio/emenda): ${t.fora_do_rolo.map(rotulo).join('; ')}</div>` : '';
+      return `<table class="pecas" style="margin-top:8px;page-break-inside:avoid">
+        <thead><tr><th style="width:130px">✂ Plano de corte — ${esc(t.colecao || '')}${t.cor ? ' · ' + esc(t.cor) : ''}</th><th style="width:110px;text-align:right">Faixa (comprimento)</th><th>Peças lado a lado na faixa (largura de corte × altura de fábrica)</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>${fora}`;
+    }).join('') + `<div class="alerta" style="background:#F3F7FF;border-color:#8FB1E6">✂ <b>Corte o tecido seguindo o plano acima</b>: os metros de tecido deste pedido foram calculados com as peças de ambientes diferentes dividindo o rolo (cada ambiente numa largura de rolo só). Cortar ambiente por ambiente gasta mais tecido do que o separado.</div>`;
+  }
+
   // Resumo de materiais do PEDIDO inteiro (tecido por coleção × cor × rolo com
   // bobinas, perfis em barras, tubos, componentes consolidados)
   function blocoResumoMateriais() {
@@ -166,12 +195,13 @@
       <h2 style="font-size:13px;letter-spacing:.04em;border-bottom:2px solid var(--gold);padding-bottom:4px">📦 MATERIAIS DO PEDIDO — separação (pelo Núcleo de Produtos)</h2>
       ${avisos}
       ${tecido ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Tecido — coleção</th><th>Cor</th><th>Rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Bobinas</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${tecido}</tbody></table>` : ''}
+      ${blocoPlanoTecido(d)}
       ${perfis || tubos ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Perfis / tubos (barras)</th><th style="text-align:right">Cortes</th><th style="text-align:right">Metros</th><th style="text-align:right">Barras</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${perfis}${tubos}</tbody></table>` : ''}
       ${comps ? `<table class="pecas" style="margin-top:8px"><thead><tr><th style="width:150px">SKU</th><th>Componentes (consolidado)</th><th style="text-align:right">Qtd</th><th style="width:44px">Un</th><th style="width:120px">Origem</th></tr></thead><tbody>${comps}</tbody></table>` : ''}
     </div>`;
   }
 
-  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map(), desenhosFab: [], comercialId: null, materiais: null };
+  const estado = { setorFiltro: '', setores: [], cortesPorPeca: new Map(), desenhosFab: [], comercialId: null, materiais: null, refRotulo: new Map() };
 
   // Desenho de fabricação anexado no Comercial — servido pelo proxy do PCP
   // (mesma sessão). Imagens saem inline na impressão; PDF vira link (não sai).
@@ -193,6 +223,9 @@
   function render(pedido, dados, estruturaPorId) {
     const itens = dados.itens || [];
     const info = dados.info || null;
+    // rótulo de cada peça no plano de corte do tecido: "Item 2 · peça #1" (ref do Núcleo = item:peca)
+    estado.refRotulo = new Map();
+    itens.forEach((it, ix) => (it.pecas || []).forEach((p) => estado.refRotulo.set(`${it.id}:${p.id}`, `Item ${ix + 1} · peça #${p.numero}`)));
     const emitida = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     const cliente = (info && info.cliente) || itens.map((i) => i.cliente).find(Boolean) || '—';
     const dataCliente = itens.map((i) => i.data_cliente).find(Boolean) || null;

@@ -94,6 +94,34 @@ export function cotacaoDoItemComercial(it) {
   return { produto, tubo_equiparado: Number.isFinite(te) && te > 0 ? te : null };
 }
 
+/**
+ * AMBIENTE da peça do Comercial (26/11/2026) — a MESMA regra do Comercial
+ * (`nomeDoAmbiente`, v2.87.0): nos pedidos montados com ambientes o nome vem de
+ * `pedido.ambientes[]` pelo `ambienteId` do item; a coluna de texto `ambiente`
+ * do item é LEGADA (nula nesses pedidos) e só vale quando o item não aponta um
+ * ambiente que exista. Sem nome → null.
+ *
+ * Por que importa: a liberação gravava `it.ambiente` cru — vazio em todo pedido
+ * montado com ambientes. A Ficha e a etiqueta saíam sem o ambiente e, na lista
+ * de materiais, o Núcleo tratava o pedido inteiro como UM ambiente: o plano de
+ * corte do tecido (Núcleo v14.98 — uma largura de rolo por ambiente) forçava o
+ * tecido do pedido todo para a mesma largura.
+ *
+ * @param it         item do `GET /pedidos/:id` do Comercial
+ * @param ambientes  `pedido.ambientes` do mesmo detalhe ([{ id, nome }])
+ */
+export function ambienteDoItemComercial(it, ambientes) {
+  if (!it || typeof it !== 'object') return null;
+  const id = it.ambienteId != null ? String(it.ambienteId) : '';
+  if (id && Array.isArray(ambientes)) {
+    const a = ambientes.find((x) => x && String(x.id) === id);
+    const nome = a && typeof a.nome === 'string' ? a.nome.trim() : '';
+    if (nome) return nome;
+  }
+  const texto = typeof it.ambiente === 'string' ? it.ambiente.trim() : '';
+  return texto || null;
+}
+
 /** cm → m (2 casas de cm = 4 de m), null quando inválido */
 const cmParaM = (cm) => {
   const n = Number(cm);
