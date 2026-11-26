@@ -32,9 +32,11 @@
 # ⚠ ORDEM (provedor antes do consumidor — docs/PROTOCOLO-FEDERACAO.md, regra 2):
 #   1º NÚCLEO v14.98  cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-98-consumo-tecido-pedido.sh
 #   2º este script.
-#   O script SONDA o Núcleo e ABORTA dizendo o que aplicar antes. Para subir mesmo assim (nada
-#   quebra: o Núcleo anterior ignora o pedido da peça e a Ficha sai sem o plano de corte; o
-#   ambiente das peças já passa a valer):
+#   O script SONDA o Núcleo e ABORTA dizendo o que aplicar antes. A ordem IMPORTA: com o ambiente
+#   das peças preenchido, o Núcleo ANTERIOR (ou a regra desligada no painel dele) calcula o tecido
+#   AMBIENTE POR AMBIENTE, sem dividir rolo entre ambientes — a lista pede MAIS tecido do que hoje,
+#   quando o pedido inteiro vai como um ambiente só (réplica, a mesma casa: 14,50 m² hoje → 18,00 m²
+#   com o Núcleo anterior → 12,68 m² com o Núcleo v14.98). Nada quebra, mas só suba assim sabendo:
 #     PULAR_SONDAS=1 bash deploy/aplicar-plano-de-corte-do-tecido.sh
 #   O Comercial (v2.141.0 — o Relatório de custo passa a explicar o plano) é independente deste.
 #
@@ -98,8 +100,9 @@ case "$SONDA" in
      echo "       cd /var/www/fabrica/server && node bin/conferir-lista-materiais.js --sonda-plano" ;;
   3)
      if [ "${PULAR_SONDAS:-0}" = "1" ]; then
-       echo "AVISO: PULAR_SONDAS=1 — subindo com o Nucleo ANTERIOR (acima). A lista funciona como hoje e a Ficha sai SEM o"
-       echo "       plano de corte ate o Nucleo v14.98 entrar; o ambiente das pecas ja passa a valer."
+       echo "AVISO: PULAR_SONDAS=1 — subindo com o Nucleo ANTERIOR (acima). A Ficha sai SEM o plano de corte e, com o"
+       echo "       ambiente das pecas preenchido, o Nucleo anterior calcula o tecido AMBIENTE POR AMBIENTE (sem dividir"
+       echo "       rolo entre ambientes): a lista pode pedir MAIS tecido do que hoje ate o Nucleo v14.98 entrar."
      else
        echo "ERRO: Nucleo anterior a v14.98 (acima) — aplique-o ANTES e rode este script de novo."
        echo "      (para subir assim mesmo: PULAR_SONDAS=1 bash deploy/aplicar-plano-de-corte-do-tecido.sh)"

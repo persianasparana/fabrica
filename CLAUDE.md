@@ -163,9 +163,13 @@ diferentes, cada AMBIENTE sai de UMA largura; chave `consumoTecidoPedido` no pai
   ambientes das peças ("NENHUM" = rode o completar-ambiente).
 - Testes sem banco (no `npm test`, 19): `test/lista-materiais.test.mjs` (blocos: pedido inteiro, teto, pedidos
   intercalados, nada perdido; mescla com o plano) e `test/ambiente.test.mjs` (regra do ambiente e do completar).
-- **Depende de**: **Núcleo v14.98** ANTES (o script sonda e aborta; `PULAR_SONDAS=1` sobe assim mesmo — nada
-  quebra: o Núcleo anterior ignora o `pedido`, a Ficha sai sem o plano e o ambiente já passa a valer). O Comercial
-  v2.141.0 (Relatório de custo explica o plano) é independente. Sem migration; não muda preço.
+- **Depende de**: **Núcleo v14.98** ANTES (o script sonda e aborta; `PULAR_SONDAS=1` sobe assim mesmo). ⚠ **A ordem
+  importa:** com o ambiente das peças preenchido, o Núcleo ANTERIOR (ou a regra desligada no painel dele) calcula o
+  tecido AMBIENTE POR AMBIENTE, sem dividir rolo entre ambientes — a lista do PCP pede MAIS tecido do que pedia
+  quando o pedido inteiro ia como um ambiente só. Medido na réplica, a mesma casa de 5 janelas: **14,50 m²** (PCP de
+  até hoje, peças sem ambiente) → **18,00 m²** (ambientes certos + Núcleo v14.97) → **12,68 m²** (ambientes certos +
+  Núcleo v14.98). O Comercial v2.141.0 (Relatório de custo explica o plano) é independente. Sem migration; não muda
+  preço.
 - **Provado na réplica** (Núcleo v14.98 real + Comercial simulado devolvendo o pedido como a produção — `ambientes[]`
   + `ambienteId`, texto nulo): e2e API **30** (liberação grava os 5 ambientes; plano 2,00 m × 4,15 m + 2,50 m ×
   1,75 m = 12,68 m², uma largura por ambiente; sem ambiente 14,50 m²; completar-ambiente com `--simular`, item
