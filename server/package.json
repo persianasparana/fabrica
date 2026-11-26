@@ -13,8 +13,8 @@
     "install-app": "node bin/install.js",
     "migrate": "node bin/migrate.js",
     "reset-senha": "node bin/reset-senha.js",
-    "test": "node --test test/carga.test.mjs",
-    "check": "node --check src/server.js && node --check src/db.js && node --check src/auth.js && node --check src/carga.js && node --check src/necessidade.js && node --check src/lista-materiais.js && node --check src/nucleo-spec.js && node --check src/comercial-client.js && node --check src/compras-client.js && node --check src/produtos-client.js && node --check src/routes/pcp.js && node --check src/routes/comercial.js && node --check src/routes/integracao.js"
+    "test": "node --test test/carga.test.mjs test/nucleo-spec.test.mjs",
+    "check": "node --check src/server.js && node --check src/db.js && node --check src/auth.js && node --check src/carga.js && node --check src/necessidade.js && node --check src/lista-materiais.js && node --check src/nucleo-spec.js && node --check src/completar-spec.js && node --check bin/completar-spec-nucleo.js && node --check bin/conferir-lista-materiais.js && node --check src/comercial-client.js && node --check src/compras-client.js && node --check src/produtos-client.js && node --check src/routes/pcp.js && node --check src/routes/comercial.js && node --check src/routes/integracao.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

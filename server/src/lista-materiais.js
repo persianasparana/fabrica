@@ -15,7 +15,7 @@
  */
 import { q } from './db.js';
 import { HttpError } from './util.js';
-import { corpoDaPeca } from './nucleo-spec.js';
+import { corposDaPeca, calcularComReserva } from './nucleo-spec.js';
 import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from './produtos-client.js';
 
 /** Itens + peças dos pedidos → payload do Núcleo (1 peça por linha de pcp_pecas). */
@@ -42,16 +42,39 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
   const itemPorId = new Map(itens.map((i) => [Number(i.id), i]));
   const payload = [];
   const semSpec = new Set();
+  const semCotacao = new Set();
   for (const peca of pecas) {
     const item = itemPorId.get(Number(peca.item_id));
     if (!item) continue;
-    const base = { ...item, produto_sku: item.produto_sku || item.estrutura_sku || null };
     if (!item.spec_nucleo) semSpec.add(Number(item.id));
-    const corpo = corpoDaPeca(base, peca, { ref: `${item.id}:${peca.id}`, ambiente: item.ambiente || undefined });
-    Object.defineProperty(corpo, '__pedido', { value: item.pedido, enumerable: false }); // só para dividir em blocos (não vai ao Núcleo)
+    // 25/11/2026 — o corpo vai COMO A VENDA COTOU (produto pelo tipo de peça do
+    // Comercial, tecido pela coleção); os códigos gravados na venda ficam de
+    // RESERVA (`corposDaPeca`). O sku da Estrutura do PCP (`estrutura_sku`)
+    // segue valendo quando o item não tem sku próprio — agora resolvido lá.
+    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: item.ambiente || undefined });
+    if (item.spec_nucleo && !venda.tem_cotacao) semCotacao.add(Number(item.id));
+    // não enumeráveis: não vão ao Núcleo (JSON) — pedido (blocos), reserva e venda (conferência)
+    Object.defineProperty(corpo, '__pedido', { value: item.pedido, enumerable: false });
+    Object.defineProperty(corpo, '__reserva', { value: reserva, enumerable: false });
+    Object.defineProperty(corpo, '__venda', { value: venda, enumerable: false });
+    Object.defineProperty(corpo, '__numero', { value: peca.numero, enumerable: false });
     payload.push(corpo);
   }
-  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec] };
+  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec], itens_sem_cotacao: [...semCotacao] };
+}
+
+/**
+ * UM bloco no Núcleo com a CONFERÊNCIA contra a venda (25/11/2026 — a regra
+ * mora em `nucleo-spec.js calcularComReserva`): 1ª chamada como a venda; peça
+ * que não calculou, ou calculou OUTRA estrutura que a vendida, volta pela
+ * RESERVA (os códigos gravados na venda). No caso normal é uma chamada só.
+ * @returns { data, decisoes: Map ref → { usar, motivo, nota } } — `data` null = Núcleo não respondeu
+ */
+export async function calcularBloco(bloco) {
+  return calcularComReserva(
+    bloco.map((c) => ({ corpo: c, reserva: c.__reserva || null, venda: c.__venda || null })),
+    buscarListaMateriais,
+  );
 }
 
 /** chave de agregação de uma linha de material (a mesma do Núcleo) */
@@ -126,6 +149,7 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
   const out = {
     pedidos: m.pedidos, habilitado: listaMateriaisHabilitado(), motivo: null,
     itens: m.itens.length, pecas: m.pecas.length, itens_sem_spec: m.itens_sem_spec,
+    itens_sem_cotacao: m.itens_sem_cotacao, reservas: [],
     avisos: [], data: null, por_item: {},
   };
   if (!out.habilitado) {
@@ -136,13 +160,19 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
   if (m.itens_sem_spec.length) {
     out.avisos.push(`${m.itens_sem_spec.length} item(ns) sem a especificação do Comercial (pedido anterior ao planejamento ou entrada manual) — a lista usa só produto/coleção/medidas desses itens.`);
   }
+  if (m.itens_sem_cotacao.length) {
+    out.avisos.push(`${m.itens_sem_cotacao.length} item(ns) liberados antes de o Comercial informar como a peça foi cotada (seleção automática / somente tecido) — a lista desses itens usa a estrutura gravada na venda. Complete com: node bin/completar-spec-nucleo.js`);
+  }
   // blocos em PARALELO (até 3 por vez — o Núcleo é Express, aguenta; o tempo de
   // parede cai a ~1/3 num horizonte de 500+ peças)
   const blocos = dividirEmBlocos(m.payload);
   const respostas = new Array(blocos.length).fill(null);
+  const decisoes = new Map(); // ref → { usar, motivo, nota } (25/11/2026 — conferência contra a venda)
   for (let i = 0; i < blocos.length; i += 3) {
     const fatia = blocos.slice(i, i + 3);
-    const rs = await Promise.all(fatia.map((b) => buscarListaMateriais(b)));
+    const cs = await Promise.all(fatia.map((b) => calcularBloco(b)));
+    const rs = cs.map((c) => c.data);
+    for (const c of cs) for (const [ref, d] of c.decisoes) decisoes.set(ref, d);
     rs.forEach((r, j) => { respostas[i + j] = r; });
     const falhou = rs.findIndex((r) => !r);
     if (falhou >= 0) {
@@ -156,12 +186,26 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
   out.avisos.push(...(resp.avisos || []));
   // agrega por ITEM do PCP (ref = "item:peca"; cada peça é 1 unidade)
   const porItem = {};
+  const corpoPorRef = new Map(m.payload.map((c) => [String(c.ref), c]));
+  let trocaSemNucleo = 0; // troca de tela que o Núcleo (anterior à v14.95) devolveu com a estrutura
   for (const pc of (resp.pecas || [])) {
     const [itemId] = String(pc.ref || '').split(':');
     if (!itemId) continue;
-    if (!porItem[itemId]) porItem[itemId] = { pecas: 0, pecas_erro: 0, erros: [], materiais: new Map(), avisos: [] };
+    if (!porItem[itemId]) porItem[itemId] = { pecas: 0, pecas_erro: 0, erros: [], materiais: new Map(), avisos: [], notas: [], so_tecido: false };
     const agg = porItem[itemId];
     agg.pecas += 1;
+    // 25/11/2026 — o que a conferência contra a venda decidiu para esta peça
+    const corpo = corpoPorRef.get(String(pc.ref));
+    const dec = decisoes.get(String(pc.ref));
+    if (dec && dec.nota) {
+      const nota = `Peça ${corpo && corpo.__numero != null ? corpo.__numero : '?'}: ${dec.nota}`;
+      if (!agg.notas.includes(nota)) agg.notas.push(nota);
+      if (dec.usar === 'reserva') out.reservas.push({ ref: String(pc.ref), pedido: corpo ? corpo.__pedido : null, motivo: dec.motivo, nota });
+    }
+    if (corpo && corpo.__venda && corpo.__venda.so_tecido) {
+      agg.so_tecido = true;
+      if (pc.ok && pc.so_tecido !== true && (pc.materiais || []).some((x) => x.tipo !== 'tecido')) trocaSemNucleo += 1;
+    }
     if (!pc.ok) { agg.pecas_erro += 1; if (pc.motivo && !agg.erros.includes(pc.motivo)) agg.erros.push(pc.motivo); continue; }
     for (const a of (pc.avisos || [])) if (!agg.avisos.includes(a)) agg.avisos.push(a);
     for (const mat of (pc.materiais || [])) {
@@ -170,9 +214,16 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
       agg.materiais.get(k).qtd += Number(mat.qtd) || 0;
     }
   }
+  if (out.reservas.length) {
+    out.avisos.push(`${out.reservas.length} peça(s) listada(s) pelos códigos gravados na venda (o Núcleo de hoje não reproduz a seleção da venda — tipo de peça, coleção ou tabela de limites mudaram): veja a nota no item, na Ficha do pedido.`);
+  }
+  if (trocaSemNucleo) {
+    out.avisos.push(`${trocaSemNucleo} peça(s) de TROCA DE TELA (somente tecido) vieram com a estrutura na lista — o Núcleo de Produtos precisa da v14.95 (aplicar-v14-95 no repo produtos) para listar só o tecido.`);
+  }
   for (const [k, v] of Object.entries(porItem)) {
+    if (v.so_tecido) v.notas.unshift('SOMENTE TECIDO (troca de tela) — a venda cobrou só a tela: a lista traz só o tecido.');
     out.por_item[k] = {
-      pecas: v.pecas, pecas_erro: v.pecas_erro, erros: v.erros, avisos: v.avisos,
+      pecas: v.pecas, pecas_erro: v.pecas_erro, erros: v.erros, avisos: v.avisos, notas: v.notas, so_tecido: v.so_tecido,
       materiais: [...v.materiais.values()]
         .map((x) => ({ ...x, qtd: Math.round(x.qtd * 10000) / 10000 }))
         .sort((a, b) => (a.tipo === b.tipo ? b.qtd - a.qtd : String(a.tipo).localeCompare(String(b.tipo)))),
@@ -205,7 +256,8 @@ export async function materiaisDaPecaParaBaixa(pecaId) {
   const ref = `${m.pecas.find((p) => Number(p.id) === Number(pecaId))?.item_id}:${pecaId}`;
   const corpo = m.payload.find((pc) => pc.ref === ref);
   if (!corpo) return null;
-  const resp = await buscarListaMateriais([corpo]);
+  // a MESMA conferência da lista (como a venda › reserva): a baixa sai do que a Ficha mostrou
+  const { data: resp } = await calcularBloco([corpo]);
   const pc = resp && Array.isArray(resp.pecas) ? resp.pecas[0] : null;
   if (!pc || !pc.ok) return null;
   const agg = new Map(); const semSku = [];

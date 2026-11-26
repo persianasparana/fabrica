@@ -54,7 +54,7 @@ Prefixo interno `/api` (pela rede, `https://192.168.0.207/fabrica/api`).
 | GET | `/pcp/necessidade/requisicoes?atualizar=1` | fila:ver | não | Requisições feitas (SC, situação, pendente de envio) | — |
 | POST | `/pcp/pedido/baixa-materiais` `{pedido}` | fila:editar | sim | Baixa manual dos materiais das peças do pedido no Compras (idempotente por peça) | 400 · 404 · 503 |
 | GET | `/pcp/pedido/baixa-materiais?pedido=` | fila:ver | não | Estado da baixa por peça | 400 |
-| GET | `/pcp/pedido/materiais?pedido=\|pedidos=a,b` | autenticado | não | Lista de materiais do(s) pedido(s) pelo Núcleo (sem dinheiro), por item e consolidada | 400 |
+| GET | `/pcp/pedido/materiais?pedido=\|pedidos=a,b` | autenticado | não | Lista de materiais do(s) pedido(s) pelo Núcleo (sem dinheiro), por item e consolidada. Desde 25/11/2026 a peça é pedida **como a venda cotou** (ver "Lista de materiais — o corpo que vai ao Núcleo"): `por_item[id]` ganhou `notas[]` (texto para a Ficha) e `so_tecido`; a resposta ganhou `itens_sem_cotacao[]` (ids de itens liberados antes de o Comercial informar como a peça foi cotada) e `reservas[]` (`{ref, pedido, motivo, nota}` — peças listadas pelos códigos gravados na venda). Chaves só acrescentadas | 400 |
 | GET | `/pcp/pedido?pedido=NNN` | autenticado | não | Itens/peças do pedido + `info` (cliente, vendedor, prazo, desenhos) | 400 · 404 |
 | PUT | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Edição em massa de todos os itens + `acao: 'concluir'\|'reabrir'` (todas as peças), `status_id`, `prioridade` | 400 · 404 · 422 |
 | DELETE | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Exclui o pedido inteiro (+ `pcp_pedido_info`, pendências do ciclo e saídas pendentes do Compras) | 400 · 404 |
@@ -173,8 +173,35 @@ deslogariam o usuário).
 | GET | `/comercial/pedidos/:id/desenhos/:desenhoId/arquivo` | comercial:ver | não | Proxy binário do desenho (CSP `imgSrc 'self'`) | 404 · 502 |
 | GET | `/comercial/pedidos/:id/estrutura-previa` | comercial:ver | não | Por item, a estrutura que a liberação escolheria (override > regra > SKU > nome > "pelo Núcleo" > pendente) | 502 · 503 |
 | POST | `/comercial/pedidos/:id/devolver` `{motivo}` | comercial:editar | sim | `DEVOLVIDO_PCP` com o motivo (vendedor corrige a spec) | 422 motivo · 502 |
-| POST | `/comercial/pedidos/:id/liberar` | comercial:editar | sim | `LIBERADO_PRODUCAO` + importa itens/peças para a fila com `spec_nucleo` e `pcp_pedido_info` (**idempotente por PED-**; acessório é pulado) | 409 · 502 |
+| POST | `/comercial/pedidos/:id/liberar` | comercial:editar | sim | `LIBERADO_PRODUCAO` + importa itens/peças para a fila com `spec_nucleo` e `pcp_pedido_info` (**idempotente por PED-**; acessório é pulado). Desde 25/11/2026 a spec guarda `cotacao {produto, tubo_equiparado}` quando o item do Comercial traz `nucleoCotacao` (v2.139.2) | 409 · 502 |
 | POST | `/comercial/pedidos/:id/status` `{status}` | comercial:editar | sim | Avança o estado federado: só `EM_PRODUCAO`, `EMBALADO`, `NA_EXPEDICAO` | 422 status · 502 |
+
+## Lista de materiais — o corpo que vai ao Núcleo (25/11/2026)
+
+`server/src/nucleo-spec.js` (puro, teste `server/test/nucleo-spec.test.mjs`) monta, por peça, o
+corpo do `POST /lista-materiais` **como a venda cotou** — o mesmo que a tela do Comercial manda ao
+`/precificar` (Comercial v2.139.1):
+
+| Parte | Regra | De onde vem |
+|---|---|---|
+| Produto | `spec_nucleo.cotacao.produto`: `__auto` → sem `produto_sku` (o Núcleo escolhe estrutura e tubo pela coleção + medidas); `__so_tecido` → `so_tecido: true`; sentinela (`__ph50`, `__painel`) ou sku → `produto_sku` | `nucleoCotacao.produto` do item do pedido (cadastro "Tipos de peça" do Comercial) |
+| Tubo equiparado | `tubo_equiparado` junto da seleção automática | `nucleoCotacao.tuboEquiparado` (regra do Comercial, já resolvida) |
+| Tecido | `colecao` (+ `cor`); `tecido_sku` só sem coleção escrita | colunas do item do PCP › spec |
+| Sku FIXO (como antes) | peça sem `cotacao` (liberada antes), tipo que não aponta produto do motor, ou "SKU do Núcleo" trocado no PCP | `pcp_itens.produto_sku` › sku da Estrutura › sku da venda |
+
+**Reserva** (`corposDaPeca` → `calcularComReserva`): os códigos efetivos gravados na venda
+(`produto_sku` + `tecido_sku`) formam o corpo de até 25/11. A peça que **não calcula** pelo corpo
+como a venda, ou calcula **outra estrutura** que a vendida (o cadastro mudou depois da venda), é
+pedida de novo por eles — e a reserva só vale se calculou. Caso normal = 1 chamada por bloco; com
+reserva, 2 (3 quando o resultado é misto). `so_tecido` acompanha a peça também na reserva.
+
+Utilitários (em `server/`, com o `.env` do serviço):
+
+| Comando | O que faz |
+|---|---|
+| `node bin/completar-spec-nucleo.js [--simular] [--pedido PED-…] [--concluidos]` | Acrescenta `spec_nucleo.cotacao` às peças já na fila relendo o pedido no Comercial (só onde falta; idempotente). Saída 0 = tudo completo · 2 = ficou pendência (motivo no texto) · 1 = erro |
+| `node bin/conferir-lista-materiais.js --sonda` | Sonda os provedores: Núcleo v14.95 (troca de tela volta só com o tecido) e Comercial v2.139.2 (itens com `nucleoCotacao`). Saída 0 · 3 Núcleo anterior · 4 Comercial anterior · 5 não deu para sondar |
+| `node bin/conferir-lista-materiais.js [--pedido PED-…]` | Resumo da lista de um pedido: peças que calculam, pela reserva, itens sem "como foi cotada", avisos |
 
 ## Integração servidor-a-servidor — `/api/integracao` (`routes/integracao.js`)
 
@@ -195,6 +222,6 @@ Comuns às três: **503** `INTEGRACAO_API_KEY` não configurada · **401** chave
 
 | Vizinho | Rotas (lado deles) | Cliente aqui | Fail-soft |
 |---|---|---|---|
-| Comercial :3010 | `GET /pedidos?status=` · `GET /pedidos?codigo=` · `GET /pedidos/:id` · `PATCH /pedidos/:id/status` · `GET /pedidos/:id/desenhos[/:id/arquivo]` | `server/src/comercial-client.js` | outbox `pcp_ciclo_pendencias` (`CICLO_RETRY_MS`) |
-| Núcleo de Produtos :3070 | `GET /api/v1/catalogo/produtos/:sku/bom` · `POST /api/v1/plano-corte` · `GET /api/v1/plano-corte/variantes` · `POST /api/v1/lista-materiais` | `server/src/produtos-client.js` | best-effort (null/[]), flags `PRODUTOS_*` |
+| Comercial :3010 | `GET /pedidos?status=` · `GET /pedidos?codigo=` · `GET /pedidos/:id` (cada item com **`nucleoCotacao {produto, tuboEquiparado}`** desde a v2.139.2 — chave aditiva; ausente = Comercial anterior) · `PATCH /pedidos/:id/status` · `GET /pedidos/:id/desenhos[/:id/arquivo]` | `server/src/comercial-client.js` (+ `completar-spec.js`, só leitura) | outbox `pcp_ciclo_pendencias` (`CICLO_RETRY_MS`) |
+| Núcleo de Produtos :3070 | `GET /api/v1/catalogo/produtos/:sku/bom` · `POST /api/v1/plano-corte` · `GET /api/v1/plano-corte/variantes` · `POST /api/v1/lista-materiais` (peça **como a venda cotou**; a troca de tela exige o Núcleo **v14.95** para voltar só com o tecido — eco `pecas[].so_tecido`) | `server/src/produtos-client.js` | best-effort (null/[]), flags `PRODUTOS_*` |
 | Compras :3050 | `GET /api/v1/integracao/estoque/saldos?skus=` · `POST …/solicitacoes-compra` · `GET …/solicitacoes-compra/:numero` · `POST …/estoque/saida-producao` | `server/src/compras-client.js` | outbox `pcp_compras_pendencias` (`COMPRAS_RETRY_MS`) |

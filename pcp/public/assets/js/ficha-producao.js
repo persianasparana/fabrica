@@ -73,7 +73,11 @@
     const agg = porItem && porItem[String(item.id)];
     if (!agg) return '';
     const mats = agg.materiais || [];
-    if (!mats.length && !agg.erros.length) return '';
+    // 25/11/2026 — notas da conferência contra a venda (troca de tela = só o
+    // tecido; peça listada pelos códigos gravados na venda…): saem na ficha
+    // impressa, é o que a bancada precisa saber antes de separar.
+    const notas = Array.isArray(agg.notas) ? agg.notas : [];
+    if (!mats.length && !agg.erros.length && !notas.length) return '';
     const linhas = mats.map((m) => `<tr>
         <td style="font-family:monospace;font-size:11px">${esc(m.sku || '—')}</td>
         <td>${esc(m.descricao || '')}${m.tipo === 'tecido' && m.colecao ? ` <small style="color:var(--text3)">${esc(m.colecao)}${m.cor ? ' · ' + esc(m.cor) : ''}${m.largura_rolo ? ' · rolo ' + fmtQtd(m.largura_rolo) + ' m' : ''}</small>` : ''}</td>
@@ -83,7 +87,7 @@
       </tr>`).join('');
     return `<table class="pecas" style="border-top:2px solid var(--gold)">
       <thead><tr><th style="width:150px">SKU</th><th>📦 Lista de materiais (${agg.pecas} peça${agg.pecas > 1 ? 's' : ''}, pelo Núcleo)</th><th style="width:80px;text-align:right">Qtd</th><th style="width:44px">Un</th><th style="width:90px">Origem</th></tr></thead>
-      <tbody>${linhas}${agg.erros.length ? `<tr><td colspan="5" style="color:var(--red)">⚠ ${esc(agg.erros.join(' · '))}</td></tr>` : ''}</tbody>
+      <tbody>${notas.map((t) => `<tr><td colspan="5" style="font-weight:700;background:#fff8e1">ℹ ${esc(t)}</td></tr>`).join('')}${linhas}${agg.erros.length ? `<tr><td colspan="5" style="color:var(--red)">⚠ ${esc(agg.erros.join(' · '))}</td></tr>` : ''}</tbody>
     </table>`;
   }
 
