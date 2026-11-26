@@ -24,7 +24,10 @@ import { regrasAtivas, selecionarEstrutura, contextoDeSpec, categoriasPorColecao
 // Cliente HTTP compartilhado (também usado pelos avanços automáticos do ciclo)
 import { chamar, baixarBinario } from '../comercial-client.js';
 // P0 do planejamento (06/11/2026): a peça do PCP guarda a spec COMO FOI VENDIDA
-import { specDoItemComercial, semEstruturaLocal, linhaDoSku } from '../nucleo-spec.js';
+import {
+  specDoItemComercial, semEstruturaLocal, linhaDoSku,
+  mapaDeAmbientesComercial, ambienteDoItemComercial,
+} from '../nucleo-spec.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -240,6 +243,8 @@ r.get(
     const categorias = await categoriasPorColecao();
     const produtos = await produtosAtivos();
     const porId = new Map(produtos.map((p) => [Number(p.id), p]));
+    // 26/11/2026 — o nome do ambiente vem de `ambientes[]` pelo `ambienteId` do item
+    const ambientes = mapaDeAmbientesComercial(detalhe.ambientes);
     // P0 do planejamento — a prévia mostra o MESMO conjunto que a liberação
     // importa (acessório não é peça de produção — v14/08/2026)
     const itens = (detalhe.itens || [])
@@ -262,7 +267,7 @@ r.get(
       if (ctPrev) a.cor_trilho = ctPrev;
       const regra = selecionarEstrutura(contextoDeSpec({
         produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
-        cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+        cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: ambienteDoItemComercial(it, ambientes),
         atributos: a, largura: it.larguraCm, altura: it.alturaCm, qnt: it.quantidade,
       }, categorias), regras);
       let produtoId = regra ? Number(regra.produto_id) : null;
@@ -282,6 +287,7 @@ r.get(
       return {
         item_id: it.id != null ? String(it.id) : null,
         tipo: it.tipo || null, colecao: it.colecao || null,
+        ambiente: ambienteDoItemComercial(it, ambientes), // 26/11/2026 — nome pelo `ambienteId` (a tela mostra)
         produto_id: produtoId,
         produto_nome: produtoId && porId.get(produtoId) ? porId.get(produtoId).nome : null,
         origem: origem || (semLocal ? 'nucleo' : null), // 'regra' | 'sku' | 'nome' | 'nucleo' (linha sem estrutura local) | null (pendente)
@@ -333,6 +339,10 @@ r.post(
         .filter((it) => Number(it.quantidade) > 0)
         .filter((it) => it.isAcessorio !== true && it.is_acessorio !== true);
       const cliente = (detalhe.client && (detalhe.client.nome || detalhe.client.name)) || null;
+      // 26/11/2026 — AMBIENTE da peça: o nome mora em `ambientes[]` (o item traz
+      // só o `ambienteId`; a coluna de texto `it.ambiente` é legada e vem nula
+      // nos pedidos montados com ambientes — a fila ficava com o ambiente vazio)
+      const ambientes = mapaDeAmbientesComercial(detalhe.ambientes);
       // F1 — spec ESTRUTURADA: colunas próprias + atributos custom do formulário
       // dinâmico do Comercial (alimentam etiquetas e as futuras regras de
       // estrutura automática). Campos BASE sem coluna própria vão no JSONB.
@@ -368,7 +378,7 @@ r.post(
         if (Number.isFinite(manual) && manual > 0 && idsValidos.has(manual)) return manual;
         const regra = selecionarEstrutura(contextoDeSpec({
           produto: it.tipo, colecao: it.colecao, cor_tecido: it.corTecido,
-          cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: it.ambiente,
+          cor_perfil: it.corPerfil, acionamento: it.acionamento, ambiente: ambienteDoItemComercial(it, ambientes),
           atributos: atributosDe(it), largura: it.larguraCm, altura: it.alturaCm,
           qnt: it.quantidade,
         }, categorias), regras);
@@ -390,7 +400,7 @@ r.post(
             cor_tecido: s120(it.corTecido),
             cor_perfil: s120(it.corPerfil),
             acionamento: s120(it.acionamento),
-            ambiente: s120(it.ambiente),
+            ambiente: ambienteDoItemComercial(it, ambientes),
             atributos: atributosDe(it),
             comercial_item_id: it.id != null ? String(it.id).slice(0, 64) : null,
             // SKU canônico do MOTOR (Núcleo :3070) — alimenta o Plano de Corte

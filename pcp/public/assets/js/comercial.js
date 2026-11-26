@@ -133,6 +133,13 @@ async function comDetalhe(id) {
       api('comercial/pedidos/' + id + '/estrutura-previa').catch(() => null),
     ]);
     const previaPorItem = new Map(((previa && previa.itens) || []).map((x) => [String(x.item_id), x]));
+    // 26/11/2026 — o nome do ambiente vem de `ambientes[]` do pedido (pelo `ambienteId`
+    // do item); a prévia já o resolve. Sem a prévia, resolve aqui; por último a coluna antiga.
+    const nomeAmbiente = new Map((Array.isArray(p.ambientes) ? p.ambientes : []).map((a) => [String(a.id), String(a.nome || '').trim()]));
+    const ambienteDe = (it) => {
+      const pv = previaPorItem.get(String(it.id));
+      return (pv && pv.ambiente) || (it.ambienteId != null && nomeAmbiente.get(String(it.ambienteId))) || it.ambiente || '';
+    };
     const estruturas = (previa && previa.estruturas) || [];
     const podeEscolher = podeEditar('comercial') && estruturas.length > 0;
 
@@ -167,7 +174,7 @@ async function comDetalhe(id) {
         <td>${it.quantidade}× ${esc(it.tipo || '—')}</td>
         <td>${esc([it.colecao, it.corTecido].filter(Boolean).join(' · ') || '—')}</td>
         <td>${med}</td>
-        <td>${esc(it.ambiente || '—')}</td>
+        <td>${esc(ambienteDe(it) || '—')}</td>
         ${celEstrutura(it)}
         <td>${esc(it.observacoesTecnicas || '')}</td>
       </tr>`;

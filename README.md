@@ -24,7 +24,7 @@ liberação do pedido do Comercial (decisão do cliente, 05/11/2026).
 |---|---|
 | **Em produção desde** | **26/11/2026 17:48** — lista de materiais como a venda cotou, commit `48f66c6`, script `deploy/aplicar-lista-como-a-venda.sh` (linha em `deploy/REGISTRO-DEPLOYS.md`); antes, 10/11/2026 — P3 do planejamento de produção (cobre P0–P2), commit `44bde24` |
 | **Branch de produção** | `claude/unified-server-status-7633oz` (checkout git em `/var/www/fabrica`). `main` está parado em 09/06/2026 — não é referência |
-| **Pendente de deploy** | `e981f14 fix(auth)` (login recusava credencial certa — caixa do usuário e bloqueio por IP), só na branch de federação. A revisão de 16/11/2026 (`SESSION_SECRET` obrigatória, CI, docs — commit `5f82e5b`) entrou em 26/11/2026 17:48, no mesmo `git pull` da lista de materiais |
+| **Pendente de deploy** | **ambiente da peça na liberação + tecido aninhado por ambiente** (26/11/2026 — `deploy/aplicar-ambiente-na-liberacao.sh`); e `e981f14 fix(auth)` (login recusava credencial certa — caixa do usuário e bloqueio por IP), só na branch de federação. A revisão de 16/11/2026 (`SESSION_SECRET` obrigatória, CI, docs — commit `5f82e5b`) entrou em 26/11/2026 17:48, no mesmo `git pull` da lista de materiais |
 | **Versão** | o repo não versiona por número; o histórico é por data em `CHANGELOG.md` |
 
 ## Como rodar localmente

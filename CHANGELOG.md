@@ -7,6 +7,20 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
+## 26/11/2026 — ambiente da peça na liberação + tecido aninhado por ambiente (pendente de deploy)
+- **O que estava errado**: a liberação gravava o ambiente da peça a partir de uma coluna antiga do
+  Comercial que vem vazia nos orçamentos montados com ambientes — os itens entravam na fila sem
+  ambiente (Ficha, etiqueta, tela "Ver" da aba Comercial e Plano de Corte "(sem ambiente)").
+- **Agora**: o nome vem do cadastro de ambientes do pedido (pelo vínculo de cada item; a coluna antiga
+  vale para pedido antigo). `bin/completar-ambiente.js` preenche as peças já na fila, só onde está vazio.
+- **Tecido da lista de materiais** (Ficha e Necessidade) — decisão do cliente: aninhado **por ambiente**
+  de cada pedido (a regra da venda). Antes, com o ambiente vazio, o pedido inteiro — e até pedidos
+  diferentes no mesmo cálculo — dividia o rolo. Configurável em `pcp_config.materiais_aninhar`
+  (`ambiente` | `pedido` | `junto`). **Muda a quantidade de tecido** (um pouco mais nos pedidos com
+  vários ambientes; réplica: 65,89 m → 67,64 m num pedido de 14 peças); componentes iguais.
+- Testes: `server/test/nucleo-spec.test.mjs` passa a 90 verificações. Migration: no boot (só a chave de
+  configuração). Muda preço? Não. Deploy: `deploy/aplicar-ambiente-na-liberacao.sh`.
+
 ## 25/11/2026 — lista de materiais COMO A VENDA COTOU (em produção desde 26/11/2026 17:48)
 - **O que estava errado** (medido na réplica; as mesmas três diferenças que o Comercial fechou na
   recotação dele, v2.139.1): `nucleo-spec.js corpoDaPeca` fixava os códigos efetivos gravados na

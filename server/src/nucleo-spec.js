@@ -94,6 +94,69 @@ export function cotacaoDoItemComercial(it) {
   return { produto, tubo_equiparado: Number.isFinite(te) && te > 0 ? te : null };
 }
 
+// ─── AMBIENTE do item do pedido (26/11/2026) ─────────────────────────────────
+// No Comercial o orçamento é montado com AMBIENTES (v2.20.3): cada item traz
+// `ambienteId` e o NOME mora em `pedido.ambientes[]`. A coluna de texto
+// `item.ambiente` é legada e vem NULA nesses pedidos — a liberação lia só ela e
+// gravava o ambiente vazio (Ficha, etiqueta e Plano de Corte "(sem ambiente)").
+// Mesmo critério do Relatório de custo do Comercial (v2.87.0): o vínculo vence;
+// a coluna de texto vale para pedido antigo, sem ambientes.
+
+/** `pedido.ambientes[]` do Comercial → Map(id do ambiente → nome) */
+export function mapaDeAmbientesComercial(ambientes) {
+  const mapa = new Map();
+  for (const a of (Array.isArray(ambientes) ? ambientes : [])) {
+    if (!a || a.id == null) continue;
+    mapa.set(String(a.id), String(a.nome == null ? '' : a.nome).trim());
+  }
+  return mapa;
+}
+
+/** Nome do ambiente de UM item do pedido do Comercial (null = sem ambiente). */
+export function ambienteDoItemComercial(it, mapa) {
+  if (!it || typeof it !== 'object') return null;
+  const doVinculo = it.ambienteId != null && mapa && typeof mapa.get === 'function' ? mapa.get(String(it.ambienteId)) : null;
+  const nome = String(doVinculo || it.ambiente || '').trim();
+  return nome ? nome.slice(0, 120) : null;
+}
+
+// ─── ANINHAMENTO do tecido na lista de materiais (26/11/2026) ────────────────
+// O Núcleo junta no mesmo rolo as peças do mesmo GRUPO × coleção × cor; o grupo
+// é o campo `ambiente` do corpo. Decisão do cliente (26/11): **por ambiente** —
+// só peças do MESMO ambiente do MESMO pedido dividem o rolo, a regra que a venda
+// usou para cobrar (e a conta mais conservadora para comprar). O grupo leva o
+// pedido junto: sem ele, "Sala" de dois pedidos diferentes dividiria o rolo — e,
+// com o ambiente vazio (como vinha até aqui nos pedidos com ambientes), TODAS as
+// peças do mesmo cálculo se juntavam, até de pedidos diferentes.
+export const MODOS_DE_ANINHAMENTO = ['ambiente', 'pedido', 'junto'];
+export const ANINHAMENTO_PADRAO = 'ambiente';
+
+/** texto de `pcp_config.materiais_aninhar` → modo válido (o padrão quando vazio/desconhecido) */
+export function normalizarAninhamento(valor) {
+  const v = String(valor == null ? '' : valor).trim().toLowerCase();
+  return MODOS_DE_ANINHAMENTO.includes(v) ? v : ANINHAMENTO_PADRAO;
+}
+
+/**
+ * Grupo de aninhamento de UM item (vai no campo `ambiente` do /lista-materiais).
+ *   'ambiente' → "PED-… · Sala" (item sem ambiente: só o pedido — as peças sem
+ *                ambiente do mesmo pedido ficam juntas);
+ *   'pedido'   → "PED-…" (o pedido inteiro divide o rolo);
+ *   'junto'    → null (tudo o que vai no mesmo cálculo divide o rolo).
+ * Devolve `null` (e não `undefined`) quando não há grupo: em `corpoDaPeca`,
+ * `opts.ambiente` indefinido cai no ambiente do item — e aí o "junto" viraria
+ * um aninhamento pelo NOME do ambiente, sem o pedido.
+ */
+export function grupoDeAninhamento(item, modo = ANINHAMENTO_PADRAO) {
+  const m = normalizarAninhamento(modo);
+  if (m === 'junto') return null;
+  const pedido = String((item && item.pedido) || '').trim();
+  const amb = String((item && item.ambiente) || '').trim();
+  const partes = m === 'ambiente' ? [pedido, amb] : [pedido];
+  const grupo = partes.filter(Boolean).join(' · ');
+  return grupo ? grupo.slice(0, 200) : null;
+}
+
 /** cm → m (2 casas de cm = 4 de m), null quando inválido */
 const cmParaM = (cm) => {
   const n = Number(cm);

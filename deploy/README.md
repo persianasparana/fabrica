@@ -12,10 +12,9 @@ outra branch no servidor (incidente 16/07/2026). Primeira instalação: `docs/DE
 | 03/08/2026 | `a9009df` | Plano de Corte via Núcleo — `aplicar-plano-corte-nucleo.sh` |
 | 21/07/2026 | `06f5dbe` | F3 BOM+custo na OC + seleção por SKU |
 
-Pendente: `e981f14 fix(auth)` (só na branch de federação), a revisão de 16/11/2026
-(`SESSION_SECRET` obrigatória — **confira que o `server/.env` tem a chave antes de reiniciar**) e a
-**lista de materiais como a venda** (25/11/2026 — `aplicar-lista-como-a-venda.sh`; exige o Núcleo
-v14.97 e o Comercial v2.140.1 ANTES).
+Pendente: `e981f14 fix(auth)` (só na branch de federação) e o **ambiente da peça na liberação**
+(26/11/2026 — `aplicar-ambiente-na-liberacao.sh`; não depende de versão nova dos vizinhos). A revisão de
+16/11/2026 (`SESSION_SECRET` obrigatória) e a lista de materiais como a venda entraram em 26/11/2026 17:48.
 
 ## Arquivos
 
@@ -23,6 +22,7 @@ v14.97 e o Comercial v2.140.1 ANTES).
 |---|---|
 | `install.sh` | Primeira instalação no servidor (pergunta admin/senhas, cria role+banco, `npm ci`, `install-app`, PM2). Idempotente. Imprime o único passo manual (include no Nginx). |
 | `ecosystem.config.js` | Definição do processo PM2 (`cwd` = `server/`, `NODE_ENV=production`, envs do `server/.env`). |
+| `aplicar-ambiente-na-liberacao.sh` | Deploy do ambiente da peça na liberação (26/11/2026): guardas, `node --check`, os dois testes sem banco, `pm2 restart`, health, confere a semente `pcp_config.materiais_aninhar`, roda `bin/completar-ambiente.js` (preenche o ambiente das peças já na fila) e registra. |
 | `aplicar-lista-como-a-venda.sh` | Deploy da lista de materiais como a venda (25/11/2026): guardas, `node --check`, os dois testes sem banco, **sonda** do Núcleo v14.97 e do Comercial v2.140.1 (aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `bin/completar-spec-nucleo.js` (completa as peças já na fila), conferência e registro. Sem migration. |
 | `lib-estado.sh` | Preâmbulo dos scripts novos (cópia da biblioteca de Agenda/Núcleo/Compras/Financeiro): `estado_antes` diz se o deploy já foi aplicado, grava a saída em `deploy/logs/<script>-<data>.log` (fora do git) e, se o script abortar, anexa uma linha **FALHOU/INTERROMPIDO** ao registro (commit + push); `registrar_deploy` grava a linha de sucesso. |
 | `checar-guardas.py` | `python3 deploy/checar-guardas.py . deploy/<script>` — confere cada `grep -q`/`[ -f ]` do script contra o checkout (guarda com string errada bloqueia o deploy à toa). |

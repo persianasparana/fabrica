@@ -38,6 +38,9 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
+- **Pendente de deploy (26/11/2026): AMBIENTE DA PEÇA NA LIBERAÇÃO + tecido aninhado por ambiente** —
+  `deploy/aplicar-ambiente-na-liberacao.sh` (seção "Estado (26/11/2026)" abaixo). Não depende de versão nova
+  do Comercial nem do Núcleo. ⚠ Muda a quantidade de TECIDO da lista de materiais (decisão do cliente).
 - **Revisão da federação de 16/11/2026** (commit `5f82e5b`) — **em produção desde 26/11/2026 17:48**: estava
   na branch sem deploy e entrou no mesmo `git pull` da lista de materiais como a venda (o serviço subiu com
   health OK — o `server/.env` de produção tem a `SESSION_SECRET`). `SESSION_SECRET` passou a ser
@@ -124,6 +127,46 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
+## Estado (26/11/2026) — PENDENTE DE DEPLOY (`deploy/aplicar-ambiente-na-liberacao.sh`): **AMBIENTE DA PEÇA NA LIBERAÇÃO + tecido aninhado POR AMBIENTE**
+Pedido do cliente (26/11): *"corrija o ambiente vazio na liberação do PCP"* (pendência (c) da seção de 25/11).
+**Apurado (réplica, pedido real de 14 itens em 4 ambientes lido do backend do Comercial):** os 13 itens
+entravam na fila com `pcp_itens.ambiente` VAZIO. No Comercial o orçamento é montado com ambientes (v2.20.3):
+o item traz `ambienteId` e o NOME mora em `pedido.ambientes[]`; a coluna de texto `item.ambiente` é legada e
+vem nula — e `routes/comercial.js` lia só ela (prévia, regras de estrutura e o insert). Efeitos: Ficha de
+Produção, etiqueta, tela "Ver" da aba Comercial e Plano de Corte ("(sem ambiente)") sem o ambiente; a
+variável `ambiente` das regras de estrutura (F3) sempre vazia; e a lista de materiais mandava as peças ao
+Núcleo sem grupo — o tecido era aninhado junto, **até entre pedidos diferentes** que caíssem no mesmo cálculo.
+- **`nucleo-spec.js`** (puro, com teste): `mapaDeAmbientesComercial(ambientes)` + `ambienteDoItemComercial(it,
+  mapa)` — o vínculo (`ambienteId` → `ambientes[].nome`) VENCE; a coluna de texto vale para pedido antigo (o
+  mesmo critério do Relatório de custo do Comercial, v2.87.0). Usado na prévia (`estrutura-previa` passa a
+  devolver `itens[].ambiente`), no contexto das regras de estrutura e no insert da liberação.
+- **Peças já na fila**: `src/completar-ambiente.js` + `bin/completar-ambiente.js` (`--simular`, `--pedido`,
+  `--concluidos`) relê o pedido no Comercial e preenche `ambiente` SÓ onde está vazio (o que foi digitado no
+  modal "Ver" nunca é sobrescrito; idempotente). Saída 2 só quando o que falta depende de outra coisa
+  (Comercial fora, pedido sem id); item sem ambiente no próprio Comercial não é pendência.
+- **Tecido aninhado por ambiente** — decisão do cliente (26/11, entre "por ambiente", "por pedido" e "tudo
+  junto, como hoje"): **por ambiente**. `grupoDeAninhamento(item, modo)` monta o grupo que vai no campo
+  `ambiente` do `/lista-materiais`: `'ambiente'` → `"PED-… · Sala"` (item sem ambiente: só o pedido);
+  `'pedido'` → `"PED-…"`; `'junto'` → `null` (o comportamento antigo). O grupo SEMPRE leva o pedido — a "Sala"
+  de dois pedidos não divide o rolo. Config **`pcp_config.materiais_aninhar`** (semeada `ambiente` no boot,
+  `ON CONFLICT DO NOTHING`; lida a cada cálculo — trocar não pede restart); `GET /pcp/pedido/materiais` e a
+  Necessidade ecoam `aninhamento`. ⚠ `grupoDeAninhamento` devolve `null`, nunca `undefined`: em `corpoDaPeca`
+  o `opts.ambiente` indefinido cai no ambiente do item (o "junto" viraria aninhamento pelo nome, sem o pedido).
+- ⚠ **Muda os números de TECIDO** nos pedidos montados com ambientes: antes o pedido inteiro (e pedidos
+  vizinhos no mesmo bloco) dividia o rolo; agora só o mesmo ambiente do mesmo pedido. Réplica, pedido de 14
+  peças: 65,89 m → **67,64 m**; dois pedidos com a mesma coleção/cor na "Sala": 67,64 m → **69,39 m** (o 2º
+  acrescenta exatamente o tecido dele sozinho). Componentes, perfis e tubos iguais nos três modos. Nenhum
+  preço muda.
+- **Provado na réplica**: unitário 90 (`server/test/nucleo-spec.test.mjs` §10–§12) · e2e com Fábrica,
+  Comercial e Núcleo de verdade, 22 (pedido com a coluna antiga nula e `ambienteId` preenchido; prévia;
+  liberação com os 13 ambientes gravados; etiquetas das 14 peças com ambiente; lista nos três modos; dois
+  pedidos; simular/preencher/idempotência do utilitário; ambiente digitado no PCP preservado) · regressão da
+  lista como a venda, 48 · deploy ensaiado no `/var/www` simulado. Roteiros no scratchpad (não versionados).
+- Pendências/observações (não mexidas): (a) etiquetas JÁ impressas seguem sem o ambiente (reimprimir);
+  (b) a troca do modo de aninhamento é por SQL (não há campo na tela) — o script de deploy mostra o comando;
+  (c) o Plano de Corte via Núcleo passa a agrupar pelo ambiente real, mas segue sem saber da troca de tela
+  (pendência (b) da seção de 25/11).
+
 ## Estado (25/11/2026) — EM PRODUÇÃO desde 26/11/2026 17:48 (commit 48f66c6, `aplicar-lista-como-a-venda.sh`): **LISTA DE MATERIAIS COMO A VENDA COTOU**
 Origem: pendência registrada pelo Comercial na v2.139.1 (25/11) — *"`corpoDaPeca` é o espelho do corpo
 ANTIGO (fixa `produto_sku`/`tecido_sku` da venda) — na lista de materiais do PCP valem as mesmas três
@@ -191,9 +234,8 @@ diferenças"*. **Reproduzido na réplica (Núcleo :3070) com o corpo de produç�
   troca de tela nem da seleção automática (seguem pelo sku do item) — a troca de tela chega com a
   Estrutura do rolô e os cortes da peça inteira; quem avisa a bancada é o nome do item ("Somente Tecido")
   e a nota da Ficha;
-  (c) a coluna legada `ambiente` do item do Comercial é NULA nos pedidos montados com ambientes (o nome
-  vem de `ambientes[]` por `ambienteId`) — a liberação grava `ambiente` vazio, então a Ficha/etiqueta
-  saem sem ambiente e o Núcleo aninha o tecido do pedido inteiro num grupo só;
+  (c) ~~ambiente vazio na liberação~~ — **FECHADO em 26/11** (seção "Estado (26/11/2026)" acima: o nome vem
+  de `ambientes[]` pelo `ambienteId`, e o tecido passa a ser aninhado por ambiente de cada pedido);
   (d) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha C/D da matriz ainda não cita
   `nucleoCotacao` nem a v14.97 — registrar na próxima versão do protocolo.
 

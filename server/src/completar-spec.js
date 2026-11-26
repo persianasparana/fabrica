@@ -62,7 +62,15 @@ export async function completarSpecNucleo({ pedidos = null, incluirConcluidos = 
     if (!comercialId) { for (const it of itens) { conta('pedido_sem_id_do_comercial'); out.detalhes.push({ pedido, item_id: Number(it.id), acao: 'pedido_sem_id_do_comercial' }); } continue; }
     let detalhe;
     try { detalhe = await chamar('GET', `/pedidos/${encodeURIComponent(comercialId)}`); }
-    catch (e) { out.erros.push({ pedido, erro: e.message }); for (const it of itens) conta('comercial_nao_respondeu'); continue; }
+    catch (e) {
+      // 4xx do Comercial = o pedido não existe mais lá (apagado, id inválido): definitivo, não adianta
+      // tentar de novo. Rede fora / chave recusada / 5xx (502 no cliente) = tentar depois.
+      const definitivo = [400, 404, 410, 422].includes(Number(e && e.status));
+      const motivo = definitivo ? 'pedido_nao_esta_no_comercial' : 'comercial_nao_respondeu';
+      out.erros.push({ pedido, erro: e.message, definitivo });
+      for (const it of itens) { conta(motivo); out.detalhes.push({ pedido, item_id: Number(it.id), acao: motivo }); }
+      continue;
+    }
     const porId = new Map((Array.isArray(detalhe && detalhe.itens) ? detalhe.itens : []).map((x) => [String(x.id), x]));
     for (const it of itens) {
       const r = cotacaoParaCompletar(it.spec_nucleo, porId.get(String(it.comercial_item_id)));

@@ -32,6 +32,7 @@ const ROTULO = {
   completado: 'completados',
   comercial_sem_o_campo: 'o Comercial ainda não manda `nucleoCotacao` (precisa da v2.140.1 — aplique-a e rode de novo)',
   comercial_nao_respondeu: 'o Comercial não respondeu (rode de novo com ele no ar)',
+  pedido_nao_esta_no_comercial: 'o pedido não existe mais no Comercial (nada a fazer)',
   pedido_sem_id_do_comercial: 'pedido sem o id do Comercial em pcp_pedido_info (liberado antes de 20/07 ou entrada manual)',
   item_nao_esta_no_pedido: 'item não está mais no pedido do Comercial',
   tipo_mudou_no_comercial: 'o tipo de peça mudou no Comercial depois da liberação (fica a estrutura gravada)',
@@ -42,13 +43,14 @@ try {
   const r = await completarSpecNucleo({ pedidos: pedidos.length ? pedidos : null, incluirConcluidos: args.includes('--concluidos'), simular });
   console.log(`${simular ? '[SIMULAÇÃO] ' : ''}Itens sem "como a peça foi cotada": ${r.pendentes} (em ${r.pedidos} pedido(s))`);
   for (const [m, n] of Object.entries(r.por_motivo)) console.log(`  ${String(n).padStart(5)}  ${ROTULO[m] || m}`);
-  for (const e of r.erros) console.log(`  ⚠ ${e.pedido}: ${e.erro}`);
+  for (const e of r.erros.filter((x) => !x.definitivo)) console.log(`  ⚠ ${e.pedido}: ${e.erro}`);
   if (!r.pendentes) console.log('  nada a completar — todos os itens abertos já trazem a informação.');
   else if (simular) console.log('\nNada foi gravado. Para gravar, rode sem --simular.');
   else if (r.completados) console.log(`\n${r.completados} item(ns) completado(s). A lista de materiais (Ficha / Necessidade) já usa a informação.`);
   else console.log('\nNenhum item completado.');
   // pendência que DEPENDE de outra ação = saída 2 (o deploy avisa, não aborta)
-  if (r.pendentes > r.completados) rc = 2;
+  const semSaida = (r.por_motivo.pedido_nao_esta_no_comercial || 0) + (r.por_motivo.item_nao_esta_no_pedido || 0) + (r.por_motivo.tipo_mudou_no_comercial || 0);
+  if (r.pendentes - r.completados - semSaida > 0) rc = 2;
 } catch (e) {
   console.error('ERRO:', e.message);
   rc = 1;

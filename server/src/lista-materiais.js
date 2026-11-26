@@ -15,8 +15,20 @@
  */
 import { q } from './db.js';
 import { HttpError } from './util.js';
-import { corposDaPeca, calcularComReserva } from './nucleo-spec.js';
+import { corposDaPeca, calcularComReserva, grupoDeAninhamento, normalizarAninhamento, ANINHAMENTO_PADRAO } from './nucleo-spec.js';
 import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from './produtos-client.js';
+
+/**
+ * Como o TECIDO é aninhado na lista (26/11/2026): `pcp_config.materiais_aninhar`
+ * = 'ambiente' (padrão — decisão do cliente) | 'pedido' | 'junto'. Banco fora ou
+ * valor estranho → o padrão do código.
+ */
+export async function modoDeAninhamento() {
+  try {
+    const { rows } = await q(`SELECT valor FROM pcp_config WHERE chave = 'materiais_aninhar'`);
+    return normalizarAninhamento(rows[0] && rows[0].valor);
+  } catch { return ANINHAMENTO_PADRAO; }
+}
 
 /** Itens + peças dos pedidos → payload do Núcleo (1 peça por linha de pcp_pecas). */
 export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
@@ -40,6 +52,7 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
      FROM pcp_pecas pp JOIN pcp_itens i ON i.id = pp.item_id
      WHERE i.pedido = ANY($1)${filtroPecas} ORDER BY pp.item_id, pp.numero`, paramsPecas);
   const itemPorId = new Map(itens.map((i) => [Number(i.id), i]));
+  const aninhar = await modoDeAninhamento();
   const payload = [];
   const semSpec = new Set();
   const semCotacao = new Set();
@@ -51,7 +64,8 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
     // Comercial, tecido pela coleção); os códigos gravados na venda ficam de
     // RESERVA (`corposDaPeca`). O sku da Estrutura do PCP (`estrutura_sku`)
     // segue valendo quando o item não tem sku próprio — agora resolvido lá.
-    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: item.ambiente || undefined });
+    // 26/11/2026 — o grupo de aninhamento do tecido (por ambiente do pedido, por pedido ou tudo junto)
+    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: grupoDeAninhamento(item, aninhar) });
     if (item.spec_nucleo && !venda.tem_cotacao) semCotacao.add(Number(item.id));
     // não enumeráveis: não vão ao Núcleo (JSON) — pedido (blocos), reserva e venda (conferência)
     Object.defineProperty(corpo, '__pedido', { value: item.pedido, enumerable: false });
@@ -60,7 +74,7 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
     Object.defineProperty(corpo, '__numero', { value: peca.numero, enumerable: false });
     payload.push(corpo);
   }
-  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec], itens_sem_cotacao: [...semCotacao] };
+  return { pedidos: lista, itens, pecas, payload, itens_sem_spec: [...semSpec], itens_sem_cotacao: [...semCotacao], aninhamento: aninhar };
 }
 
 /**
@@ -150,6 +164,7 @@ export async function listaMateriaisDosPedidos(pedidos, opts = {}) {
     pedidos: m.pedidos, habilitado: listaMateriaisHabilitado(), motivo: null,
     itens: m.itens.length, pecas: m.pecas.length, itens_sem_spec: m.itens_sem_spec,
     itens_sem_cotacao: m.itens_sem_cotacao, reservas: [],
+    aninhamento: m.aninhamento, // 26/11/2026 — como o tecido foi aninhado: 'ambiente' | 'pedido' | 'junto'
     avisos: [], data: null, por_item: {},
   };
   if (!out.habilitado) {
