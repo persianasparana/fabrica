@@ -101,6 +101,7 @@ function etqValor(chave, e) {
     case 'cor_perfil': return e.cor_perfil || '';
     case 'acionamento': return e.acionamento || '';
     case 'ambiente': return e.ambiente || '';
+    case 'grupo_pedido': return e.grupo_pedido || '';
     case 'chegada_pcp': return etqFmtData(e.chegada_pcp);
     case 'data_cliente': return etqFmtData(e.data_cliente);
     case 'tipo': return e.tipo || '';

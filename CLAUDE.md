@@ -27,7 +27,7 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - Coordenação entre conversas: docs no repo `compras` (`PLANO-INTEGRACAO-ERP.md`,
   `MAPA-DO-SERVIDOR.md`, `HANDOFF-CONTINUIDADE.md`, `DIRETRIZES-REVISAO-ERP.md`).
 
-## Estado atual (26/11/2026)
+## Estado atual (27/11/2026)
 - **Em produção** (`/var/www/fabrica`, branch `claude/unified-server-status-7633oz`): tudo até o
   **P3 do planejamento de produção**, publicado em **10/11/2026** pelo `deploy/aplicar-planejamento-p3.sh`
   (cobre P0–P2) — commit `44bde24` (linha em `deploy/REGISTRO-DEPLOYS.md`). As seções "Estado"
@@ -38,6 +38,10 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
+- **PENDENTE DE DEPLOY (27/11/2026): O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
+  `deploy/aplicar-comodo-da-peca.sh` (seção "Estado (27/11/2026)" abaixo). Par do **Núcleo v14.100**, que vai
+  ANTES (o script sonda e aborta dizendo o que aplicar). Colunas novas em `pcp_itens` criadas no boot
+  (`grupo_pedido`, `ambiente_origem`); não muda preço.
 - **Em produção desde 26/11/2026 19:06: PLANO DE CORTE DO TECIDO NA FICHA + AMBIENTE DA PEÇA** —
   `deploy/aplicar-plano-de-corte-do-tecido.sh`, commit `99b21cf`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`;
   seção "Estado (26/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.98** às 19:05 — e o Comercial
@@ -76,7 +80,8 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
   `pcp_compras_pendencias`** (requisição de compra e saída de produção — P3, 06/11/2026).
 - `server/bin/` — `install.js` (schema+seed+admin), `migrate.js` (só o schema), `reset-senha.js`
   (recuperar senha pelo servidor), `limpar-fila.js` (zera a fila, preserva cadastros), `completar-spec-nucleo.js` e
-  `completar-ambiente.js` (completam as peças JÁ NA FILA relendo o pedido no Comercial), `conferir-lista-materiais.js`
+  `completar-ambiente.js` (completam as peças JÁ NA FILA relendo o pedido no Comercial — o segundo relê o AMBIENTE:
+  o cômodo escrito na peça e o grupo do pedido, 27/11), `conferir-lista-materiais.js`
   (sondas dos provedores + resumo da lista de um pedido) e utilitários
   da Estrutura: `preencher-barras.js`, `reparar-keys.js`, `preencher-medidas.js`,
   `preencher-componentes.js`, `seed-tipos.js`, `validar-cortes.js` (motor de corte × planilhas,
@@ -132,6 +137,77 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (27/11/2026) — PENDENTE DE DEPLOY (`aplicar-comodo-da-peca.sh`): **O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO ROLO A ROLO**
+Pedido do cliente (27/11), com o PDF da proposta 2026/1348 (350 peças, 185 itens, lançadas em 8 ambientes do pedido
+"PARTE 1…8", com o cômodo escrito no campo Ambiente de cada peça): *"Nesse pedido foi feito essa separação em partes
+como ambiente mas foi descrito o ambiente na peça. Preciso calcular os materiais que serão usados com as regras
+recentes de aproveitamento de tecido dado que o ambiente teve que ser descrito diferente. Como podemos resolver isso?
+E deixar o aproveitamento de tecido mais preciso possível?"*. **Apurado:** a regra de 26/11 (o ambiente do pedido
+vence o texto da peça) gravava "PARTE 3" em 40 peças de 20 cômodos — a Ficha e a etiqueta perdiam o cômodo e o plano
+de corte do tecido (uma largura de rolo por ambiente) prendia a parte inteira numa largura. Réplica, o pedido
+inteiro pelos três módulos: **1.360,58 m** de tecido pelas partes × **958,38 m** pelos 62 cômodos das peças.
+**Decisões dele (27/11):** (1) se a peça tem o Ambiente preenchido, ele é o cômodo (sem o número da janela do fim);
+a parte segue como agrupamento; (2) a Ficha mostra de qual largura sai cada cômodo e avisa os nomes parecidos em
+larguras diferentes — para juntar, corrige-se o texto; (3) o plano sai rolo a rolo. Quem calcula (o cômodo sem o
+nº da janela, os nomes parecidos, os rolos) é o **Núcleo v14.100**; a parte do PCP:
+- **`nucleo-spec.js`** (puro; testes em `test/ambiente.test.mjs`):
+  - `ambienteDaPecaComercial(it, ambientes)` → `{ambiente, grupo_pedido, ambiente_origem}` — o que a liberação grava:
+    `ambiente` = o texto escrito na peça › o nome do bloco; `grupo_pedido` = o bloco do pedido; `ambiente_origem` =
+    `'peca'` | `'bloco'` (texto igual ao nome do bloco = `'bloco'`). O número da janela NÃO é tirado aqui;
+  - `ambienteParaONucleo(item)` → `{ambiente, ambiente_peca?}`: `ambiente` = o grupo (sem grupo, o próprio ambiente —
+    assim o Núcleo anterior segue como hoje) e `ambiente_peca` só quando a origem é a peça;
+  - `ambienteParaReler(atual, itemComercial, ambientes)` — a peça JÁ NA FILA (`ambiente_origem` nulo): troca o
+    `ambiente` só quando está vazio ou é o nome do bloco; texto digitado no PCP fica (ganha grupo e origem `'peca'`);
+  - `ambienteDoItemComercial` (26/11) segue existindo: é "o nome do bloco".
+- **`db.js`** (boot): `pcp_itens.grupo_pedido VARCHAR(120)` e `pcp_itens.ambiente_origem VARCHAR(10)` (NULL = item
+  liberado antes, ainda não relido). **`routes/comercial.js`**: a liberação grava os três; a prévia e a seleção de
+  estrutura usam o mesmo ambiente. **`routes/pcp.js`**: `GET` ecoa `grupo_pedido`/`ambiente_origem`; no
+  `PUT /pcp/itens`, quem MUDA o `ambiente` (modal "Ver") marca a origem — `'peca'`, ou `'bloco'` se digitou o nome do
+  próprio grupo; sem mexer no ambiente a origem fica.
+- **`lista-materiais.js`**: manda `ambiente` (grupo) + `ambiente_peca` (cômodo) nos dois corpos (venda e reserva);
+  a mescla de blocos soma também `bobinas_por_metros` e `faixas` (só quando existem).
+- **`completar-ambiente.js` + `bin/completar-ambiente.js`** (`--simular`, `--pedido`, `--concluidos`, `--detalhe`):
+  relê os itens com `ambiente_origem` nulo; ações `trocado` (o ambiente virou o cômodo da peça, ou o bloco onde
+  estava vazio) e `marcado` (já estava certo: ganhou grupo e origem). Idempotente; saída 2 = depende do Comercial.
+- **Ficha de Produção** (`ficha-producao.js`): item com **Ambiente** (o cômodo) e **Grupo no pedido**; no plano de
+  corte: tabela **"Largura do rolo → cômodos"** (cada cômodo com as peças; o que aparece em mais de um grupo diz
+  quais), o aviso **"cômodos de nomes parecidos em larguras de rolo diferentes"** (do Núcleo) e o plano **rolo a
+  rolo** — uma tabela por largura ("369,30 m de tecido em 13 rolo(s) de 30,00 m"), "Rolo n de N — m usados · sobra",
+  faixas numeradas na ordem de corte, cada peça com item, peça e o texto dela. Tabela de tecido: "13 × 30 m" e, se
+  diferir, "(pelos metros seriam N)". Núcleo anterior (sem `bobinas`): o bloco sai como antes.
+- **Outros**: modal "Ver" (o campo Ambiente explica que é o cômodo do plano e mostra o grupo); aba Comercial mostra
+  "cômodo (PARTE N)"; etiqueta ganhou o campo opcional `grupo_pedido` ("Grupo no pedido") — o campo `ambiente` dos
+  modelos existentes passa a imprimir o cômodo; **Plano de Corte via Núcleo** agrupa pelo grupo do pedido e mostra o
+  cômodo na peça; `bin/conferir-lista-materiais.js --sonda-comodo` (Núcleo v14.100: `parametros.comodo_pela_peca` e
+  `plano_rolo_a_rolo` existem; saída 3 = Núcleo anterior) e, no resumo `--pedido`, os rolos por largura e a origem
+  do ambiente dos itens; `deploy/checar-guardas.py` confere também as guardas com expressão regular.
+- Testes sem banco: `npm test` = **29** (regra da liberação, envio ao Núcleo, corpo/reserva, releitura da fila,
+  mescla com o rolo a rolo).
+- **Depende de**: **Núcleo v14.100** ANTES (`aplicar-v14-100-comodo-e-rolos.sh`; o script daqui sonda e aborta;
+  `PULAR_SONDAS=1` sobe assim mesmo). Nada quebra na ordem inversa: com o Núcleo anterior a lista segue pelo grupo
+  do pedido (o que é hoje) e a Ficha sai sem a lista de cômodos e sem os rolos. Comercial: sem deploy por causa
+  desta entrega (o contrato `itens[].ambiente` + `ambienteId` + `ambientes[]` do `GET /pedidos/:id` já existe); a
+  v2.142.0 dele só leva o mesmo cômodo ao Relatório de custo.
+- **Provado na réplica** com o pedido do relato lançado no **Comercial real** (backend NestJS compilado, 8 ambientes
+  "PARTE n", 185 itens com o texto do cômodo) → Fábrica → **Núcleo v14.100**: e2e **42** (liberação grava cômodo,
+  grupo e origem; lista 350 peças em 1,4 s; plano com 62 cômodos, cada peça na largura do cômodo dela, 958,38 m em
+  13 + 20 rolos; chaves do Núcleo desligadas → 1.360,58 m pelas partes, como hoje; etiqueta e Necessidade; pedido
+  liberado antes → `completar-ambiente` troca 184 e preserva o digitado no PCP; corrigir o Ambiente no modal refaz o
+  plano; nome com uma letra a mais em outra largura → aviso, corrigido some) · Playwright da Ficha **13** · deploy
+  ensaiado inteiro no `/var/www` simulado. Roteiros no scratchpad da sessão (não versionados).
+- ⚠ **Pendências/observações (não mexidas):**
+  (a) **etiqueta**: o campo `ambiente` dos modelos passa a imprimir o cômodo (com o nº da janela) no lugar do nome
+  do bloco — nos pedidos em que a peça tem o texto; etiqueta já impressa não muda;
+  (b) a **baixa de estoque** da 1ª bipagem segue pedindo a peça SOZINHA ao Núcleo (pendência (a) de 26/11);
+  (c) o texto do cômodo corrigido no PCP (modal "Ver") NÃO volta ao Comercial — o Relatório de custo de lá usa o
+  texto do orçamento; se a correção importa para os dois, corrija nos dois;
+  (d) item sem ambiente nenhum no Comercial fica com `ambiente_origem` nulo e é relido a cada execução do
+  `completar-ambiente` (aparece como "sem ambiente no Comercial"; inofensivo);
+  (e) regra de estrutura (F3) que testasse a variável `ambiente` com o nome do bloco passa a receber o cômodo
+  quando a peça tem o texto (nenhuma regra assim cadastrada na réplica; conferir em produção se houver);
+  (f) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha D (Fábrica → Núcleo) ainda não cita
+  `ambiente_peca` nem a v14.100 — registrar na próxima versão do protocolo.
 
 ## Estado (26/11/2026) — EM PRODUÇÃO desde 26/11/2026 19:06 (commit 99b21cf, `aplicar-plano-de-corte-do-tecido.sh`): **PLANO DE CORTE DO TECIDO + AMBIENTE DA PEÇA**
 Pedido do cliente (26/11): *"Para o cálculo de consumo de tecido eu preciso do melhor aproveitamento de tecido

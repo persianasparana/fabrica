@@ -403,6 +403,13 @@ export async function migrate() {
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS cor_perfil  VARCHAR(120)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS acionamento VARCHAR(120)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS ambiente    VARCHAR(120)`);
+  // 27/11/2026 — o AMBIENTE da peça é o que foi ESCRITO NELA no Comercial (o cômodo), quando há;
+  // o ambiente do pedido em que ela foi lançada (o bloco: "PARTE 1", um pavimento, um apartamento)
+  // fica em `grupo_pedido`. `ambiente_origem` diz de onde veio o `ambiente`: 'peca' (escrito na
+  // peça — é o cômodo da regra "uma largura de rolo por ambiente" do Núcleo v14.100), 'bloco' (o
+  // nome do bloco) ou NULL (item liberado antes desta entrega: `bin/completar-ambiente.js` relê).
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS grupo_pedido    VARCHAR(120)`);
+  await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS ambiente_origem VARCHAR(10)`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS atributos   JSONB NOT NULL DEFAULT '{}'`);
   await q(`ALTER TABLE pcp_itens ADD COLUMN IF NOT EXISTS comercial_item_id VARCHAR(64)`);
   // SKU canônico do produto do MOTOR (Núcleo de Produtos :3070) vindo do item

@@ -21,6 +21,13 @@
  *     do Núcleo. Saída: 0 = pronto · 3 = Núcleo anterior à v14.98 · 5 = não deu
  *     para sondar.
  *
+ *   node bin/conferir-lista-materiais.js --sonda-comodo
+ *     Sonda o Núcleo de Produtos v14.100 (27/11/2026 — o cômodo do plano de corte é
+ *     o Ambiente escrito na peça, sem o nº da janela; plano rolo a rolo): pede duas
+ *     peças do mesmo grupo do pedido com cômodos diferentes escritos nelas e confere
+ *     que o Núcleo conhece as duas regras. Diz também se estão ligadas no painel.
+ *     Saída: 0 = pronto · 3 = Núcleo anterior à v14.100 · 5 = não deu para sondar.
+ *
  *   node bin/conferir-lista-materiais.js [--pedido PED-AAAA/NNNN]
  *     Resumo da lista de um pedido (padrão: o pedido aberto mais recente com a
  *     especificação da venda): peças que calculam, peças pela reserva, itens
@@ -90,6 +97,40 @@ async function sondarPlano() {
   return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou as duas peças da sonda — não deu para conferir o plano de corte' };
 }
 
+async function sondarComodo() {
+  if (!listaMateriaisHabilitado()) return { rc: 5, msg: 'Núcleo: PRODUTOS_SERVICE_KEY ausente (ou PRODUTOS_LISTA_MATERIAIS_ENABLED=0) em server/.env — a lista de materiais está desligada; nada a sondar' };
+  const base = (process.env.PRODUTOS_API_BASE || 'http://127.0.0.1:3070/api/v1').replace(/\/+$/, '');
+  let colecoes = [];
+  try {
+    const r = await fetch(`${base}/catalogo/colecoes?produto_sku=__auto`, { headers: { 'X-Service-Key': process.env.PRODUTOS_SERVICE_KEY || '' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { rc: 5, msg: `Núcleo: /catalogo/colecoes respondeu HTTP ${r.status} — confira a chave (PRODUTOS_SERVICE_KEY) e o produtos-api` };
+    const j = await r.json();
+    colecoes = (Array.isArray(j && j.data) ? j.data : []).map((c) => c && c.colecao).filter(Boolean);
+  } catch (e) { return { rc: 5, msg: `Núcleo inacessível em ${base} (${e.message})` }; }
+  if (!colecoes.length) return { rc: 5, msg: 'Núcleo: nenhuma coleção de rolô no catálogo — não deu para sondar o cômodo da peça' };
+  const ANTES = 'cd /var/www/produtos && git pull --ff-only origin main && bash deploy/aplicar-v14-100-comodo-e-rolos.sh';
+  for (const colecao of colecoes.slice(0, 12)) {
+    const data = await buscarListaMateriais([
+      { ref: 'sonda:1', pedido: 'PED-SONDA', ambiente: 'PARTE 1', ambiente_peca: 'Sala - 01', qtd: 1, largura: 1.2, altura: 1.6, colecao },
+      { ref: 'sonda:2', pedido: 'PED-SONDA', ambiente: 'PARTE 1', ambiente_peca: 'Quarto', qtd: 1, largura: 0.8, altura: 1.6, colecao },
+    ]);
+    if (!data) return { rc: 5, msg: `Núcleo não respondeu o /lista-materiais (${erroListaMateriais() || 'sem detalhe'})` };
+    const par = data.parametros || {};
+    if (!('comodo_pela_peca' in par) || !('plano_rolo_a_rolo' in par)) {
+      return { rc: 3, msg: `Núcleo ANTERIOR à v14.100 — ele ainda não lê o Ambiente escrito na peça (\`ambiente_peca\`) nem monta o plano rolo a rolo: a Ficha segue com o plano pelo grupo do pedido. Aplique antes, no repo produtos: ${ANTES}` };
+    }
+    const calculam = (Array.isArray(data.pecas) ? data.pecas : []).filter((p) => p && p.ok !== false).length;
+    if (calculam < 2) continue;
+    if (par.consumo_tecido_pedido !== true) return { rc: 0, msg: 'Núcleo v14.100 OK — mas o consumo pelo pedido está DESLIGADO no painel do Núcleo (Regras gerais → Parâmetros): sem ele o cômodo da peça e o rolo a rolo não agem' };
+    const desligadas = [par.comodo_pela_peca !== true ? '"Plano de corte — o cômodo é o Ambiente escrito na peça"' : null, par.plano_rolo_a_rolo !== true ? '"Plano de corte — rolo a rolo"' : null].filter(Boolean);
+    if (desligadas.length) return { rc: 0, msg: `Núcleo v14.100 OK — mas ${desligadas.join(' e ')} ${desligadas.length > 1 ? 'estão DESLIGADAS' : 'está DESLIGADA'} no painel do Núcleo (Regras gerais → Parâmetros)` };
+    const pl = (data.plano_tecido || []).find((t) => t && t.pedido === 'PED-SONDA');
+    const comodos = pl ? (pl.ambientes || []).map((a) => a.ambiente).join(' · ') : '';
+    return { rc: 0, msg: `Núcleo v14.100 OK — "${colecao}": o grupo "PARTE 1" virou os cômodos ${comodos || '(sem plano nesta coleção)'}${pl && (pl.larguras || []).some((l) => l.bobinas != null) ? ', com os rolos contados' : ''}` };
+  }
+  return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou as duas peças da sonda — não deu para conferir o cômodo da peça' };
+}
+
 async function sondarComercial() {
   if (!comercialConfigurado()) return { rc: 5, msg: 'Comercial: COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY ausentes em server/.env — nada a sondar' };
   const { rows } = await q(`SELECT pedido, comercial_id FROM pcp_pedido_info WHERE comercial_id IS NOT NULL ORDER BY updated_at DESC LIMIT 5`);
@@ -108,7 +149,11 @@ async function sondarComercial() {
 
 let rc = 0;
 try {
-  if (args.includes('--sonda-plano')) {
+  if (args.includes('--sonda-comodo')) {
+    const n = await sondarComodo();
+    console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
+    rc = n.rc;
+  } else if (args.includes('--sonda-plano')) {
     const n = await sondarPlano();
     console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
     rc = n.rc;
@@ -138,8 +183,13 @@ try {
         const m2 = (v) => Number(v || 0).toFixed(2).replace('.', ',');
         if (planos === null) console.log('    · plano de corte do tecido: o Núcleo é anterior à v14.98 (sem plano_tecido)');
         else if (!planos.length) console.log('    · plano de corte do tecido: nenhum (regra desligada no painel do Núcleo, ou o pedido não tem peça de rolô que aninha)');
-        else for (const t of planos) console.log(`    ✂ ${t.colecao}${t.cor ? ' · ' + t.cor : ''}: ${(t.rolos || []).map((r) => `rolo ${m2(r.largura_rolo)} m × ${m2(r.comprimento)} m`).join(' + ')} — ${(t.ambientes || []).length} ambiente(s)`);
-        console.log(`    · ambientes nas peças: ${ambs.size ? [...ambs].slice(0, 8).join(', ') + (ambs.size > 8 ? '…' : '') : 'NENHUM (as peças estão sem ambiente — rode: node bin/completar-ambiente.js)'}`);
+        else for (const t of planos) console.log(`    ✂ ${t.colecao}${t.cor ? ' · ' + t.cor : ''}: ${(t.rolos || []).map((r, ri) => `rolo ${m2(r.largura_rolo)} m × ${m2(r.comprimento)} m${(t.larguras || [])[ri] && (t.larguras || [])[ri].bobinas != null ? ` em ${(t.larguras || [])[ri].bobinas} rolo(s) de ${m2((t.larguras || [])[ri].metros_bobina)} m` : ''}`).join(' + ')} — ${(t.ambientes || []).length} ${t.comodo_pela_peca ? 'cômodo(s)' : 'ambiente(s)'}${(t.ambientes_parecidos || []).length ? ` · ⚠ ${t.ambientes_parecidos.length} grupo(s) de nomes parecidos em larguras diferentes` : ''}`);
+        // 27/11/2026 — de onde vem o ambiente de cada item (o cômodo escrito na peça × o grupo do pedido)
+        const { rows: origens } = await q(`SELECT COALESCE(ambiente_origem, 'nao_relido') AS o, count(*)::int AS n FROM pcp_itens WHERE pedido = $1 GROUP BY 1`, [pedido]);
+        const nOrigem = (o) => (origens.find((x) => x.o === o) || { n: 0 }).n;
+        console.log(`    · ambiente dos itens: ${nOrigem('peca')} com o cômodo escrito na peça · ${nOrigem('bloco')} pelo grupo do pedido${nOrigem('nao_relido') ? ` · ${nOrigem('nao_relido')} ainda não relido(s) no Comercial (rode: node bin/completar-ambiente.js --pedido ${pedido})` : ''}`);
+        const porComodo = (planos || []).some((t) => t && t.comodo_pela_peca);
+        console.log(`    · ${porComodo ? 'grupos do pedido nas peças' : 'ambientes nas peças'}: ${ambs.size ? [...ambs].slice(0, 8).join(', ') + (ambs.size > 8 ? '…' : '') : 'NENHUM (as peças estão sem ambiente — rode: node bin/completar-ambiente.js)'}`);
         for (const pc of (lm.data.pecas || []).filter((p) => p.ok === false).slice(0, 5)) console.log(`    ✗ peça ${pc.ref}: ${pc.motivo || pc.error}`);
         for (const a of lm.avisos.slice(0, 6)) console.log(`    · ${a}`);
       }

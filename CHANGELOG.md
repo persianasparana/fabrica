@@ -7,6 +7,26 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
+## 27/11/2026 — o cômodo é o Ambiente escrito na peça + plano de corte rolo a rolo (pendente de deploy)
+- **Pedido do cliente** (27/11), com um pedido de 350 peças lançado em 8 "partes" e o cômodo escrito no campo
+  Ambiente de cada peça: calcular os materiais com o aproveitamento de tecido certo, o mais preciso possível.
+  Desde 26/11 o PCP gravava como ambiente da peça o nome do ambiente do pedido — aqui, "PARTE 3" —, e o plano de
+  corte prendia a parte inteira numa largura de rolo (na réplica: 1.360,58 m de tecido; pelos cômodos, 958,38 m).
+- **O que muda para a fábrica**:
+  - a Ficha e a etiqueta mostram o **cômodo escrito na peça**; a parte aparece como **"Grupo no pedido"**. Peça sem
+    o campo preenchido segue com o ambiente do pedido;
+  - nos materiais do pedido, a tabela **"Largura do rolo → cômodos"** diz de qual largura sai cada cômodo, e um aviso
+    aponta **nomes parecidos que saíram de larguras diferentes** (uma letra de diferença; o mesmo nome mudando só o
+    número) — se for o mesmo cômodo, corrige-se o Ambiente da peça no modal "Ver" e a Ficha refaz o plano;
+  - o **plano de corte sai rolo a rolo**: quantos rolos de cada largura, as faixas de cada rolo na ordem de corte
+    e a sobra de cada um (nenhuma faixa começa num rolo e termina em outro). A tabela de tecido conta esses rolos.
+- **Pedidos já na fila**: `bin/completar-ambiente.js` relê cada pedido no Comercial e troca o ambiente só onde ele
+  está vazio ou é o nome da parte (o que a própria liberação gravou); o que alguém digitou no PCP fica.
+- Quem calcula o cômodo (sem o número da janela), os nomes parecidos e os rolos é o Núcleo de Produtos **v14.100**.
+- `bin/conferir-lista-materiais.js --sonda-comodo`; etiqueta com o campo opcional "Grupo no pedido"; `npm test` = 29.
+- Deploy: `deploy/aplicar-comodo-da-peca.sh` — ⚠ **Núcleo v14.100 ANTES** (o script sonda e aborta dizendo o que
+  aplicar). Migration: no boot (duas colunas em `pcp_itens`). Muda preço? Não.
+
 ## 26/11/2026 — plano de corte do tecido na Ficha + ambiente da peça (em produção desde 26/11/2026 19:06)
 - **Pedido do cliente** (26/11): o consumo de tecido tem de sair do melhor aproveitamento do pedido — larguras
   de rolo diferentes entre ambientes, nunca no mesmo ambiente. Quem calcula é o Núcleo de Produtos **v14.98**;

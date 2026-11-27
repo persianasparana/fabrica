@@ -24,6 +24,7 @@ export const CAMPOS_ETIQUETA = [
   { chave: 'cor_perfil',   rotulo: 'Cor do perfil' },
   { chave: 'acionamento',  rotulo: 'Acionamento' },
   { chave: 'ambiente',     rotulo: 'Ambiente' },
+  { chave: 'grupo_pedido', rotulo: 'Grupo no pedido (parte/bloco do orçamento)' },
   { chave: 'chegada_pcp',  rotulo: 'Entrada no PCP' },
   { chave: 'data_cliente', rotulo: 'Prazo do cliente' },
   { chave: 'tipo',         rotulo: 'Tipo de produção' },
@@ -42,7 +43,7 @@ const SELECT_PECAS = `
          to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
          i.id AS item_id, i.pedido, i.produto, i.qnt, i.tipo, i.observacoes,
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
-         i.ambiente, i.atributos,
+         i.ambiente, i.grupo_pedido, i.atributos,
          to_char(i.chegada_pcp,  'YYYY-MM-DD') AS chegada_pcp,
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          (SELECT COUNT(*)::int FROM pcp_pecas t WHERE t.item_id = i.id) AS peca_total
@@ -131,6 +132,8 @@ export async function dadosEtiquetas(pedidos, { setorIds = null, pecaIds = null 
     cor_perfil: p.cor_perfil,
     acionamento: p.acionamento,
     ambiente: p.ambiente,
+    // 27/11/2026 — o bloco do pedido, só quando não é o próprio ambiente (cômodo escrito na peça)
+    grupo_pedido: p.grupo_pedido && p.grupo_pedido !== p.ambiente ? p.grupo_pedido : null,
     chegada_pcp: p.chegada_pcp,
     data_cliente: p.data_cliente,
     tipo: p.tipo,

@@ -161,8 +161,16 @@ async function comDetalhe(id) {
 
     // 26/11/2026 — o ambiente vem de `ambientes[]` pelo `ambienteId` do item (a coluna de texto do
     // item é legada e nula nos pedidos montados com ambientes) — mesma regra da liberação
-    const ambPorId = new Map((p.ambientes || []).map((a) => [String(a.id), String(a.nome || '').trim()]));
-    const ambienteDe = (it) => (it.ambienteId != null && ambPorId.get(String(it.ambienteId))) || String(it.ambiente || '').trim() || '—';
+    // 27/11/2026 — o que foi ESCRITO na peça é o cômodo dela; o ambiente do pedido em que ela foi
+    // lançada ("PARTE 1") aparece ao lado, como grupo — a mesma regra da liberação (`ambienteDaPecaComercial`)
+    const ambPorId = new Map((p.ambientes || []).map((a) => [String(a.id), String(a.nome || '').replace(/\s+/g, ' ').trim()]));
+    const semCaixa = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const ambienteDe = (it) => {
+      const bloco = (it.ambienteId != null && ambPorId.get(String(it.ambienteId))) || '';
+      const texto = String(it.ambiente || '').replace(/\s+/g, ' ').trim();
+      if (texto && (!bloco || semCaixa(texto) !== semCaixa(bloco))) return bloco ? `${texto} (${bloco})` : texto;
+      return bloco || '—';
+    };
     const linhas = (p.itens || []).map((it) => {
       const med = Number(it.larguraCm) > 0
         ? `${(Number(it.larguraCm) / 100).toFixed(2)}×${(Number(it.alturaCm) / 100).toFixed(2)}m`

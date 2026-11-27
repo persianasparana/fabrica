@@ -1,27 +1,35 @@
 /**
- * COMPLETA o AMBIENTE das peças JÁ NA FILA relendo o pedido no COMERCIAL (26/11/2026).
+ * RELÊ o AMBIENTE das peças JÁ NA FILA no pedido do COMERCIAL (26/11 e 27/11/2026).
  *
- * Por que existe: até 26/11 a liberação gravava a coluna de texto `ambiente` do
- * item do Comercial — que é LEGADA e vem nula em todo pedido montado com
- * ambientes (o nome mora em `pedido.ambientes[]`, pelo `ambienteId` do item).
- * As peças liberadas antes ficaram sem ambiente: a Ficha e a etiqueta não o
- * mostram e, na lista de materiais, o Núcleo (v14.98 — consumo de tecido pelo
- * plano do pedido, UMA largura de rolo por ambiente) trata o pedido inteiro
- * como um ambiente só — o tecido do pedido todo sai forçado da mesma largura.
+ * 26/11 — a liberação gravava a coluna de texto `ambiente` do item do Comercial, nula em
+ * todo pedido montado com ambientes (o nome mora em `pedido.ambientes[]`, pelo
+ * `ambienteId`): as peças ficavam sem ambiente e o plano de corte do tecido do Núcleo
+ * tratava o pedido inteiro como um ambiente só.
+ *
+ * 27/11 — pedido do cliente (proposta 2026/1348): quando o vendedor usa os ambientes do
+ * pedido como agrupamento ("PARTE 1…8") e escreve o cômodo no Ambiente da própria peça, o
+ * cômodo é o da PEÇA. A liberação passou a gravar o texto da peça em `ambiente`, o bloco
+ * em `grupo_pedido` e a origem em `ambiente_origem`; as peças liberadas ANTES ficaram com
+ * o nome do bloco em `ambiente` e sem as duas colunas novas — este módulo as completa.
+ *
+ * Quem entra: item vindo do Comercial com `ambiente_origem` NULO (nunca relido).
  *
  * Seguro por construção:
  *  · leitura no Comercial (`GET /pedidos/:id`, X-Service-Key) — nada é escrito lá;
- *  · no PCP só preenche `pcp_itens.ambiente` onde ele está VAZIO (o ambiente que
- *    alguém digitou no modal "Ver" da fila nunca é trocado; idempotente);
- *  · Comercial fora / pedido apagado / item sem ambiente lá → o item fica como
- *    está e entra na contagem (rodar de novo depois resolve).
+ *  · no PCP o `ambiente` só é TROCADO quando está vazio ou é o nome do bloco do pedido (o
+ *    que a própria liberação gravou). O que alguém digitou no modal "Ver" da fila fica —
+ *    só ganha o grupo e a marca de origem. Depois de relido o item não entra de novo
+ *    (idempotente);
+ *  · Comercial fora / pedido apagado / item fora do pedido → o item fica como está e entra
+ *    na contagem (rodar de novo depois resolve).
  */
 import { q } from './db.js';
 import { chamar } from './comercial-client.js';
-import { ambienteDoItemComercial } from './nucleo-spec.js';
+import { ambienteDoItemComercial, ambienteParaReler } from './nucleo-spec.js';
 
 /**
- * PURO — o que fazer com UM item do PCP diante do item do Comercial.
+ * PURO (26/11) — só PREENCHE o ambiente vazio com o do bloco. Mantido para quem ainda o
+ * chama; a decisão completa (texto da peça, grupo, origem) é `ambienteParaReler`.
  * @returns { ambiente } para gravar, ou { motivo } quando não há o que fazer
  */
 export function ambienteParaCompletar(ambienteAtual, itemComercial, ambientes) {
@@ -33,19 +41,21 @@ export function ambienteParaCompletar(ambienteAtual, itemComercial, ambientes) {
 }
 
 /**
- * Completa os itens sem ambiente. `{ pedidos?: [PED-…], incluirConcluidos?, simular? }`
- * @returns { pendentes, completados, pedidos, por_motivo: {motivo: n}, detalhes: [{pedido, item_id, acao, ambiente?}], erros: [{pedido, erro}] }
+ * Relê os itens ainda não relidos. `{ pedidos?: [PED-…], incluirConcluidos?, simular? }`
+ * @returns { pendentes, completados, trocados, pedidos, por_motivo: {motivo: n},
+ *            detalhes: [{pedido, item_id, acao, ambiente?, antes?, grupo_pedido?, origem?}], erros: [{pedido, erro}] }
+ *   `completados` = itens que ganharam grupo/origem · `trocados` = desses, os que mudaram de `ambiente`
  */
 export async function completarAmbiente({ pedidos = null, incluirConcluidos = false, simular = false } = {}) {
   const params = [];
-  let filtro = `btrim(COALESCE(i.ambiente, '')) = '' AND i.comercial_item_id IS NOT NULL`;
+  let filtro = 'i.ambiente_origem IS NULL AND i.comercial_item_id IS NOT NULL';
   if (!incluirConcluidos) filtro += ' AND i.conclusao IS NULL';
   if (Array.isArray(pedidos) && pedidos.length) filtro += ` AND i.pedido = ANY($${params.push(pedidos.map(String))})`;
   const { rows } = await q(
-    `SELECT i.id, i.pedido, i.comercial_item_id, i.ambiente, pi.comercial_id
+    `SELECT i.id, i.pedido, i.comercial_item_id, i.ambiente, i.grupo_pedido, i.ambiente_origem, pi.comercial_id
      FROM pcp_itens i LEFT JOIN pcp_pedido_info pi ON pi.pedido = i.pedido
      WHERE ${filtro} ORDER BY i.pedido, i.id`, params);
-  const out = { pendentes: rows.length, completados: 0, pedidos: 0, por_motivo: {}, detalhes: [], erros: [], simulado: !!simular };
+  const out = { pendentes: rows.length, completados: 0, trocados: 0, pedidos: 0, por_motivo: {}, detalhes: [], erros: [], simulado: !!simular };
   const conta = (m) => { out.por_motivo[m] = (out.por_motivo[m] || 0) + 1; };
   const porPedido = new Map();
   for (const r of rows) { if (!porPedido.has(r.pedido)) porPedido.set(r.pedido, []); porPedido.get(r.pedido).push(r); }
@@ -59,18 +69,23 @@ export async function completarAmbiente({ pedidos = null, incluirConcluidos = fa
     const porId = new Map((Array.isArray(detalhe && detalhe.itens) ? detalhe.itens : []).map((x) => [String(x.id), x]));
     const ambientes = Array.isArray(detalhe && detalhe.ambientes) ? detalhe.ambientes : [];
     for (const it of itens) {
-      const r = ambienteParaCompletar(it.ambiente, porId.get(String(it.comercial_item_id)), ambientes);
-      if (!r.ambiente) { conta(r.motivo); out.detalhes.push({ pedido, item_id: Number(it.id), acao: r.motivo }); continue; }
+      const r = ambienteParaReler(it, porId.get(String(it.comercial_item_id)), ambientes);
+      if (r.motivo) { conta(r.motivo); out.detalhes.push({ pedido, item_id: Number(it.id), acao: r.motivo }); continue; }
       if (!simular) {
-        // só preenche, e só se continua vazio (corrida com outra execução ou com uma edição no modal Ver)
+        // só quem ainda não foi relido (corrida com outra execução ou com uma edição no modal Ver)
         await q(
-          `UPDATE pcp_itens SET ambiente = $2, updated_at = now()
-           WHERE id = $1 AND btrim(COALESCE(ambiente, '')) = ''`,
-          [Number(it.id), r.ambiente]);
+          `UPDATE pcp_itens SET ambiente = $2, grupo_pedido = $3, ambiente_origem = $4, updated_at = now()
+           WHERE id = $1 AND ambiente_origem IS NULL`,
+          [Number(it.id), r.ambiente, r.grupo_pedido, r.ambiente_origem]);
       }
       out.completados += 1;
-      conta('completado');
-      out.detalhes.push({ pedido, item_id: Number(it.id), acao: 'completado', ambiente: r.ambiente });
+      const acao = r.trocou ? 'trocado' : 'marcado';
+      if (r.trocou) out.trocados += 1;
+      conta(acao);
+      out.detalhes.push({
+        pedido, item_id: Number(it.id), acao, ambiente: r.ambiente, grupo_pedido: r.grupo_pedido, origem: r.ambiente_origem,
+        ...(r.trocou ? { antes: it.ambiente || null } : {}),
+      });
     }
   }
   return out;

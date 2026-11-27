@@ -15,7 +15,7 @@
  */
 import { q } from './db.js';
 import { HttpError } from './util.js';
-import { corposDaPeca, calcularComReserva } from './nucleo-spec.js';
+import { corposDaPeca, calcularComReserva, ambienteParaONucleo } from './nucleo-spec.js';
 import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from './produtos-client.js';
 
 /** Itens + peças dos pedidos → payload do Núcleo (1 peça por linha de pcp_pecas). */
@@ -29,7 +29,7 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
   if (!lista.length) throw new HttpError(422, 'Informe o(s) pedido(s)');
   const { rows: itens } = await q(
     `SELECT i.id, i.pedido, i.produto, i.produto_id, i.produto_sku, i.qnt, i.colecao, i.cor_tecido,
-            i.cor_perfil, i.acionamento, i.ambiente, i.atributos, i.spec_nucleo, i.comercial_item_id,
+            i.cor_perfil, i.acionamento, i.ambiente, i.grupo_pedido, i.ambiente_origem, i.atributos, i.spec_nucleo, i.comercial_item_id,
             to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente, i.conclusao,
             p.produto_sku AS estrutura_sku
      FROM pcp_itens i LEFT JOIN pcp_produtos p ON p.id = i.produto_id
@@ -51,7 +51,11 @@ export async function montarPayloadPedidos(pedidos, { pecaIds = null } = {}) {
     // Comercial, tecido pela coleção); os códigos gravados na venda ficam de
     // RESERVA (`corposDaPeca`). O sku da Estrutura do PCP (`estrutura_sku`)
     // segue valendo quando o item não tem sku próprio — agora resolvido lá.
-    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: item.ambiente || undefined });
+    // 27/11/2026 (Núcleo v14.100) — `ambiente` = o grupo do pedido (a "parte"); `ambiente_peca` = o
+    // cômodo escrito na peça, quando foi escrito: é ele que o plano de corte do tecido usa na regra
+    // "uma largura de rolo por ambiente". Núcleo anterior ignora o campo novo e segue pelo grupo.
+    const amb = ambienteParaONucleo(item);
+    const { corpo, reserva, venda } = corposDaPeca(item, peca, { ref: `${item.id}:${peca.id}`, ambiente: amb.ambiente, ambientePeca: amb.ambiente_peca });
     if (item.spec_nucleo && !venda.tem_cotacao) semCotacao.add(Number(item.id));
     // 26/11/2026 (Núcleo v14.98) — o PEDIDO vai na peça, nos dois corpos: o consumo de tecido é
     // planejado no pedido inteiro (peças de ambientes diferentes dividem o rolo, uma largura por
@@ -131,7 +135,7 @@ const r4 = (v) => Math.round((Number(v) || 0) * 10000) / 10000;
 function somar(mapa, k, linha, campos, listas) {
   if (!mapa.has(k)) { mapa.set(k, { ...linha }); for (const l of listas) mapa.get(k)[l] = [...(linha[l] || [])]; return; }
   const a = mapa.get(k);
-  for (const c of campos) a[c] = r4((Number(a[c]) || 0) + (Number(linha[c]) || 0));
+  for (const c of campos) { if (a[c] == null && linha[c] == null) continue; a[c] = r4((Number(a[c]) || 0) + (Number(linha[c]) || 0)); }
   for (const l of listas) for (const x of (linha[l] || [])) if (!a[l].includes(x)) a[l].push(x);
 }
 /** mescla as respostas (data) de vários blocos numa só */
@@ -144,7 +148,7 @@ export function mesclarRespostas(blocos) {
     for (const a of (d.avisos || [])) if (!out.avisos.includes(a)) out.avisos.push(a);
     for (const k of Object.keys(out.totais)) out.totais[k] += Number(d.totais?.[k]) || 0;
     for (const m of (d.materiais || [])) somar(mat, chave(m), m, ['qtd', 'pecas'], ['refs', 'origens']);
-    for (const t of (d.tecido || [])) somar(tec, `${t.colecao}::${t.cor || ''}::${t.largura_rolo || ''}`, t, ['metros', 'bobinas', 'sobra', 'pecas'], ['refs']);
+    for (const t of (d.tecido || [])) somar(tec, `${t.colecao}::${t.cor || ''}::${t.largura_rolo || ''}`, t, ['metros', 'bobinas', 'sobra', 'pecas', 'bobinas_por_metros', 'faixas'], ['refs']); // + rolo a rolo (Núcleo v14.100)
     for (const x of (d.perfis || [])) somar(perf, `${x.sku || x.componente}`, x, ['cortes', 'metros', 'barras', 'sobra_m'], ['refs']);
     for (const t of (d.tubos || [])) somar(tub, `${t.tubo}::${t.corte || ''}`, t, ['cortes', 'metros', 'barras'], []);
   }

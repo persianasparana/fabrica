@@ -101,4 +101,24 @@ test('mescla de blocos: o plano de corte de cada pedido chega inteiro; tecido so
   // Núcleo anterior à v14.98 (sem a chave): a mescla devolve lista vazia, nunca undefined
   const semChave = (b) => { const c = { ...b }; delete c.plano_tecido; return c; };
   assert.deepEqual(mesclarRespostas([semChave(b1), semChave(b2)]).plano_tecido, []);
+  // Núcleo anterior à v14.100: a mescla não inventa os campos do rolo a rolo
+  assert.equal('bobinas_por_metros' in m.tecido[0], false);
+  assert.equal('faixas' in m.tecido[0], false);
+});
+
+test('mescla de blocos com o rolo a rolo (Núcleo v14.100): rolos, contagem pelos metros e faixas somados', () => {
+  const bloco = (ref, pedido, bobinas, porMetros, faixas) => ({
+    pecas: [{ ref, ok: true }], avisos: [], totais: { pecas: 1, pecas_ok: 1, pecas_erro: 0, avulsos: 0 }, parametros: { consumo_tecido_pedido: true, plano_rolo_a_rolo: true },
+    materiais: [], perfis: [], tubos: [],
+    tecido: [{ colecao: 'X', cor: 'BRANCO', largura_rolo: 2, metros: 17, metros_bobina: 8.5, bobinas, sobra: bobinas * 8.5 - 17, pecas: 5, refs: [ref], bobinas_regra: 'rolo_a_rolo', bobinas_por_metros: porMetros, faixas }],
+    plano_tecido: [{ pedido, colecao: 'X', cor: 'BRANCO', rolo_a_rolo: true, rolos: [{ largura_rolo: 2, comprimento: 17, shelves: [], bobinas: [] }] }],
+  });
+  const m = mesclarRespostas([bloco('1:1', 'A', 3, 2, 5), bloco('2:1', 'B', 3, 2, 5)]);
+  assert.equal(m.tecido.length, 1);
+  assert.equal(m.tecido[0].bobinas, 6);
+  assert.equal(m.tecido[0].bobinas_por_metros, 4);
+  assert.equal(m.tecido[0].faixas, 10);
+  assert.equal(m.tecido[0].bobinas_regra, 'rolo_a_rolo');
+  assert.equal(m.tecido_totais.bobinas, 6);
+  assert.deepEqual(m.plano_tecido.map((t) => t.pedido), ['A', 'B']);
 });

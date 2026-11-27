@@ -92,6 +92,7 @@
     const cab = `<div class="peca-head">
       <b>${esc(p.produto_nome || p.produto || 'Peça')}</b>
       ${p.colecao ? ` · ${esc(p.colecao)}` : ''}
+      ${p.ambiente ? ` · 📍 ${esc(p.ambiente)}` : ''}
       · peça ${fmtCm(p.largura_cm)}×${fmtCm(p.altura_cm)} cm
       · nº ${esc(p.numero)}
       ${p.plano ? ` · <i>${esc(p.plano.nome)}</i>` : ''}

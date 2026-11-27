@@ -17,7 +17,8 @@ Pendente: `e981f14 fix(auth)` (só na branch de federação), a revisão de 16/1
 **lista de materiais como a venda** (25/11/2026 — `aplicar-lista-como-a-venda.sh`; exige o Núcleo
 v14.97 e o Comercial v2.140.1 ANTES — as duas últimas entraram em 26/11/2026 17:48) e o **plano de corte
 do tecido na Ficha + ambiente da peça** (26/11/2026 — `aplicar-plano-de-corte-do-tecido.sh`; exige o
-Núcleo v14.98 ANTES).
+Núcleo v14.98 ANTES) — em produção desde 26/11/2026 19:06 — e **o cômodo é o Ambiente escrito
+na peça + plano de corte rolo a rolo** (27/11/2026 — `aplicar-comodo-da-peca.sh`; exige o Núcleo v14.100 ANTES).
 
 ## Arquivos
 
@@ -25,6 +26,7 @@ Núcleo v14.98 ANTES).
 |---|---|
 | `install.sh` | Primeira instalação no servidor (pergunta admin/senhas, cria role+banco, `npm ci`, `install-app`, PM2). Idempotente. Imprime o único passo manual (include no Nginx). |
 | `ecosystem.config.js` | Definição do processo PM2 (`cwd` = `server/`, `NODE_ENV=production`, envs do `server/.env`). |
+| `aplicar-comodo-da-peca.sh` | Deploy do cômodo da peça + plano rolo a rolo (27/11/2026): guardas, `node --check`, os quatro testes sem banco, **sonda** do Núcleo v14.100 (`conferir-lista-materiais.js --sonda-comodo`; aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart` (as duas colunas novas de `pcp_itens` nascem no boot — o script confere), `completar-ambiente.js --detalhe` (relê no Comercial as peças já na fila: o ambiente vira o cômodo escrito na peça onde estava vazio ou era o nome do bloco), conferência e registro. |
 | `aplicar-plano-de-corte-do-tecido.sh` | Deploy do plano de corte do tecido + ambiente da peça (26/11/2026): guardas, `node --check`, os quatro testes sem banco, **sonda** do Núcleo v14.98 (`conferir-lista-materiais.js --sonda-plano`; aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `completar-ambiente.js` (preenche o ambiente das peças já na fila), conferência e registro. |
 | `aplicar-lista-como-a-venda.sh` | Deploy da lista de materiais como a venda (25/11/2026): guardas, `node --check`, os dois testes sem banco, **sonda** do Núcleo v14.97 e do Comercial v2.140.1 (aborta com a instrução; `PULAR_SONDAS=1` sobe assim mesmo), `pm2 restart`, health, `bin/completar-spec-nucleo.js` (completa as peças já na fila), conferência e registro. Sem migration. |
 | `lib-estado.sh` | Preâmbulo dos scripts novos (cópia da biblioteca de Agenda/Núcleo/Compras/Financeiro): `estado_antes` diz se o deploy já foi aplicado, grava a saída em `deploy/logs/<script>-<data>.log` (fora do git) e, se o script abortar, anexa uma linha **FALHOU/INTERROMPIDO** ao registro (commit + push); `registrar_deploy` grava a linha de sucesso. |

@@ -21,7 +21,7 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
   if (!codigo) throw new HttpError(422, 'Informe o pedido');
 
   const { rows: itens } = await q(
-    `SELECT i.id, i.produto, i.colecao, i.acionamento, i.ambiente, i.atributos,
+    `SELECT i.id, i.produto, i.colecao, i.acionamento, i.ambiente, i.grupo_pedido, i.atributos,
             i.produto_sku, p.produto_sku AS estrutura_sku
      FROM pcp_itens i LEFT JOIN pcp_produtos p ON p.id = i.produto_id
      WHERE i.pedido = $1 ORDER BY i.id`, [codigo]);
@@ -76,9 +76,13 @@ export async function calcularPlanoNucleo(pedido, overrides = {}) {
     const r = porRef.get(String(peca.id)) || {};
     const aviso = r.ok === false ? (r.message || 'Peça não resolvida pelo Núcleo') : (r.aviso || null);
     if (aviso) avisos.push(`Peça nº ${peca.numero} (${item.produto || 'item'}): ${aviso}`);
-    const amb = item.ambiente || '(sem ambiente)';
+    // 27/11/2026 — a página agrupa pelo GRUPO do pedido (o bloco em que a peça foi lançada: "PARTE 1");
+    // quando o cômodo foi escrito na peça ele é o `ambiente` do item e sai na linha da peça. Item sem
+    // grupo (liberado antes, ou pedido sem blocos): o ambiente do item, como sempre.
+    const amb = item.grupo_pedido || item.ambiente || '(sem ambiente)';
     if (!grupos.has(amb)) grupos.set(amb, { ambiente: amb, pecas: [] });
     grupos.get(amb).pecas.push({
+      ambiente: item.ambiente && item.ambiente !== amb ? item.ambiente : null,
       item_id: Number(peca.item_id),
       peca_id: Number(peca.id),
       numero: peca.numero,

@@ -100,6 +100,8 @@
       ['Cor do perfil', item.cor_perfil],
       ['Acionamento', item.acionamento],
       ['Ambiente', item.ambiente],
+      // 27/11/2026 — o bloco do pedido em que a peça foi lançada ("PARTE 1"), quando o ambiente é o cômodo escrito na peça
+      ['Grupo no pedido', item.grupo_pedido && item.grupo_pedido !== item.ambiente ? item.grupo_pedido : null],
       ['Quantidade', item.qnt],
       ['Data prometida', fmtData(item.data_cliente)],
       ['Tipo', item.tipo],
@@ -151,28 +153,97 @@
   // lista acima foi calculado com as peças cortadas ASSIM — cortar ambiente por
   // ambiente gasta mais tecido do que o separado/comprado. Núcleo antigo ou regra
   // desligada: `plano_tecido` vazio e o bloco não aparece.
+  //
+  // 27/11/2026 (Núcleo v14.100, pedido do cliente — proposta 2026/1348):
+  //  · o CÔMODO de cada peça é o Ambiente escrito nela (sem o nº da janela); o bloco diz
+  //    de qual LARGURA de rolo sai cada cômodo e avisa os nomes parecidos que saíram de
+  //    larguras diferentes (corrige-se o texto no modal "Ver" da fila);
+  //  · o plano sai ROLO A ROLO: as faixas de cada largura distribuídas nos rolos de
+  //    verdade (nenhuma faixa começa num rolo e termina em outro), com a sobra de cada um.
+  // Núcleo anterior: sem `bobinas`/`ambientes_parecidos` — o bloco sai como antes.
   function blocoPlanoTecido(d) {
     const planos = (d.plano_tecido || []).filter((t) => t && Array.isArray(t.rolos) && t.rolos.length);
     if (!planos.length) return '';
     const m = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const rotulo = (pc) => {
       const quem = estado.refRotulo.get(String(pc.ref)) || '';
-      const onde = [pc.ambiente, pc.janela].filter(Boolean).join(' · ');
+      // o cômodo escrito na peça (com a janela) diz mais que o grupo do pedido em que ela foi lançada
+      const onde = [pc.ambiente_peca || pc.ambiente, pc.janela].filter(Boolean).join(' · ');
       return `<b>${esc(quem || onde || 'peça')}</b>${quem && onde ? ' <small style="color:var(--text3)">' + esc(onde) + '</small>' : ''} ${m(pc.largura)} × ${m(pc.altura)} m${pc.rotacionado ? ' <small>(deitada)</small>' : ''}`;
     };
-    return planos.map((t) => {
-      const linhas = t.rolos.map((ro) => ro.shelves.map((sh, i) => `<tr>
+    const porNome = (a, b) => String(a.ambiente || '').localeCompare(String(b.ambiente || ''), 'pt-BR', { numeric: true });
+
+    // de qual largura sai cada cômodo (só faz sentido com mais de um cômodo no plano)
+    const blocoComodos = (t, titulo) => {
+      const ambs = (t.ambientes || []).filter((a) => a && a.ambiente);
+      if (ambs.length < 2) return '';
+      const larguras = [...new Set(ambs.map((a) => Number(a.largura_rolo)))].sort((a, b) => a - b);
+      const linhas = larguras.map((l) => {
+        const daqui = ambs.filter((a) => Number(a.largura_rolo) === l).sort(porNome);
+        const pecas = daqui.reduce((s2, a) => s2 + Number(a.pecas || 0), 0);
+        const nomes = daqui.map((a) => {
+          const grupos = Array.isArray(a.blocos) && a.blocos.length > 1 ? ` — ${a.blocos.map(esc).join(', ')}` : '';
+          return `${esc(a.ambiente)} <small style="color:var(--text3)">(${a.pecas}${grupos})</small>`;
+        }).join(' · ');
+        return `<tr><td style="font-weight:800;vertical-align:top;white-space:nowrap">Rolo ${m(l)} m<br><small style="font-weight:400;color:var(--text3)">${daqui.length} cômodo(s) · ${pecas} peça(s)</small></td><td>${nomes}</td></tr>`;
+      }).join('');
+      return `<table class="pecas" style="margin-top:8px">
+        <thead><tr><th style="width:130px">📍 Largura do rolo</th><th>Cômodos que saem dela — ${titulo} <small style="font-weight:400">(cada cômodo numa largura só; entre parênteses, as peças)</small></th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>`;
+    };
+
+    // nomes parecidos que saíram de larguras diferentes: aviso (nada é juntado sozinho)
+    const blocoParecidos = (t) => (t.ambientes_parecidos || []).map((g) => {
+      const lista = (g.comodos || []).map((c) => `«${esc(c.ambiente)}» <small>(rolo ${m(c.largura_rolo)} m)</small>`).join(' × ');
+      const oQue = g.motivo === 'grafia' ? 'nomes quase iguais — pode ser erro de digitação' : 'o mesmo nome mudando só o número';
+      return `<div class="alerta">⚠ <b>Cômodos de nomes parecidos em larguras de rolo diferentes</b>: ${lista} — ${oQue}. Se for o mesmo cômodo, deixe o <b>Ambiente</b> das peças escrito igual (modal "Ver" da fila) e abra a Ficha de novo; se forem cômodos diferentes, está certo assim.</div>`;
+    }).join('');
+
+    const tabelaDaLargura = (ro, larg, titulo) => {
+      const cabeca = (primeira) => `<thead><tr><th style="width:150px">${primeira}</th><th style="width:110px;text-align:right">Faixa (comprimento)</th><th>Peças lado a lado na faixa (largura de corte × altura de fábrica)</th></tr></thead>`;
+      if (!Array.isArray(ro.bobinas) || !ro.bobinas.length) {
+        // Núcleo sem o rolo a rolo: a largura como um rolo só (como até 27/11)
+        const linhas = ro.shelves.map((sh, i) => `<tr>
           ${i === 0 ? `<td rowspan="${ro.shelves.length}" style="font-weight:800;vertical-align:top">Rolo ${m(ro.largura_rolo)} m<br><small style="font-weight:400;color:var(--text3)">${m(ro.comprimento)} m de rolo</small></td>` : ''}
           <td style="text-align:right;white-space:nowrap">${i + 1} — ${m(sh.comprimento)} m</td>
           <td>${sh.pecas.map(rotulo).join(' &nbsp;+&nbsp; ')}</td>
-        </tr>`).join('')).join('');
+        </tr>`).join('');
+        return `<table class="pecas" style="margin-top:8px">${cabeca(`✂ Plano de corte — ${titulo}`)}<tbody>${linhas}</tbody></table>`;
+      }
+      const total = ro.bobinas.reduce((s2, b) => s2 + Number(b.bobinas || 1), 0);
+      const origem = ro.metros_bobina_origem === 'cadastro' ? '' : ' <small style="font-weight:400">(tamanho padrão — o desta largura não está cadastrado)</small>';
+      let n = 0;
+      const linhas = ro.bobinas.map((b) => {
+        const faixas = ro.shelves.filter((sh) => Number(sh.bobina) === Number(b.n));
+        const cel = b.excede
+          ? `Faixa maior que o rolo<br><small style="font-weight:400;color:var(--red)">${m(b.metros)} m — não sai de um rolo de ${m(ro.metros_bobina)} m (pede ${b.bobinas || 2} rolos / emenda)</small>`
+          : `Rolo ${b.n} de ${ro.bobinas.length}<br><small style="font-weight:400;color:var(--text3);white-space:nowrap">${m(b.metros)} m usados<br>sobra ${m(b.ponta)} m</small>`;
+        return faixas.map((sh, i) => {
+          n += 1;
+          return `<tr style="page-break-inside:avoid">
+            ${i === 0 ? `<td rowspan="${faixas.length}" style="font-weight:800;vertical-align:top">${cel}</td>` : ''}
+            <td style="text-align:right;white-space:nowrap">${n} — ${m(sh.comprimento)} m</td>
+            <td>${sh.pecas.map(rotulo).join(' &nbsp;+&nbsp; ')}</td>
+          </tr>`;
+        }).join('');
+      }).join('');
+      const resumo = `Largura <b>${m(ro.largura_rolo)} m</b> — ${m(ro.comprimento)} m de tecido em <b>${total} rolo(s) de ${m(ro.metros_bobina)} m</b>${origem}${larg && larg.ponta_m != null ? ` · sobra nas pontas ${m(larg.ponta_m)} m` : ''}`;
+      return `<table class="pecas" style="margin-top:8px">
+        <thead><tr><th colspan="3" style="text-align:left">✂ Plano de corte — ${titulo} · ${resumo}</th></tr></thead>
+        ${cabeca('Rolo')}
+        <tbody>${linhas}</tbody>
+      </table>`;
+    };
+
+    const roloARolo = planos.some((t) => t.rolos.some((ro) => Array.isArray(ro.bobinas) && ro.bobinas.length));
+    const padrao = planos.some((t) => t.rolos.some((ro) => Array.isArray(ro.bobinas) && ro.metros_bobina_origem !== 'cadastro'));
+    return planos.map((t) => {
+      const titulo = `${esc(t.colecao || '')}${t.cor ? ' · ' + esc(t.cor) : ''}`;
       const fora = (t.fora_do_rolo || []).length
         ? `<div class="alerta">⚠ ${t.fora_do_rolo.length} peça(s) fora do plano (não cabem em nenhuma largura de rolo — corte próprio/emenda): ${t.fora_do_rolo.map(rotulo).join('; ')}</div>` : '';
-      return `<table class="pecas" style="margin-top:8px;page-break-inside:avoid">
-        <thead><tr><th style="width:130px">✂ Plano de corte — ${esc(t.colecao || '')}${t.cor ? ' · ' + esc(t.cor) : ''}</th><th style="width:110px;text-align:right">Faixa (comprimento)</th><th>Peças lado a lado na faixa (largura de corte × altura de fábrica)</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>${fora}`;
-    }).join('') + `<div class="alerta" style="background:#F3F7FF;border-color:#8FB1E6">✂ <b>Corte o tecido seguindo o plano acima</b>: os metros de tecido deste pedido foram calculados com as peças de ambientes diferentes dividindo o rolo (cada ambiente numa largura de rolo só). Cortar ambiente por ambiente gasta mais tecido do que o separado.</div>`;
+      return `${blocoComodos(t, titulo)}${blocoParecidos(t)}${t.rolos.map((ro, ri) => tabelaDaLargura(ro, (t.larguras || [])[ri], titulo)).join('')}${fora}`;
+    }).join('') + `<div class="alerta" style="background:#F3F7FF;border-color:#8FB1E6">✂ <b>Corte o tecido seguindo o plano acima</b>: os metros de tecido deste pedido foram calculados com as peças de cômodos diferentes dividindo o rolo (cada cômodo numa largura de rolo só). Cortar cômodo por cômodo gasta mais tecido do que o separado.${roloARolo ? ' Os rolos foram contados com as <b>faixas inteiras</b> — nenhuma faixa começa num rolo e termina em outro; a sobra de cada rolo volta para o estoque.' : ''}${padrao ? ' ⚠ Onde o tamanho do rolo é o <b>padrão</b>, cadastre os metros por rolo da largura no Núcleo de Produtos (Cadastros → Tecidos (coleções)) para a conta de rolos ficar exata.' : ''}</div>`;
   }
 
   // Resumo de materiais do PEDIDO inteiro (tecido por coleção × cor × rolo com
@@ -184,7 +255,7 @@
       return `<div class="alerta so-tela">📦 Lista de materiais indisponível: ${esc(lm.motivo || 'Núcleo de Produtos fora do ar')}</div>`;
     }
     const d = lm.data;
-    const tecido = (d.tecido || []).map((t) => `<tr><td>${esc(t.colecao)}</td><td>${esc(t.cor || '—')}</td><td>${t.largura_rolo ? fmtQtd(t.largura_rolo) + ' m' : '—'}</td><td style="text-align:right;font-weight:800">${fmtQtd(t.metros)} m</td><td style="text-align:right">${t.bobinas}</td><td style="text-align:right">${fmtQtd(t.sobra)} m</td></tr>`).join('');
+    const tecido = (d.tecido || []).map((t) => `<tr><td>${esc(t.colecao)}</td><td>${esc(t.cor || '—')}</td><td>${t.largura_rolo ? fmtQtd(t.largura_rolo) + ' m' : '—'}</td><td style="text-align:right;font-weight:800">${fmtQtd(t.metros)} m</td><td style="text-align:right">${t.bobinas}${t.metros_bobina ? ' × ' + fmtQtd(t.metros_bobina) + ' m' : ''}${t.bobinas_regra === 'rolo_a_rolo' && t.bobinas_por_metros != null && t.bobinas !== t.bobinas_por_metros ? ' <small style="color:var(--text3)">(pelos metros seriam ' + t.bobinas_por_metros + ')</small>' : ''}</td><td style="text-align:right">${fmtQtd(t.sobra)} m</td></tr>`).join('');
     const perfis = (d.perfis || []).map((x) => `<tr><td>${esc(x.componente)}</td><td style="text-align:right">${x.cortes}</td><td style="text-align:right;font-weight:800">${fmtQtd(x.metros)} m</td><td style="text-align:right">${x.barras} × ${fmtQtd(x.barra_m)} m</td><td style="text-align:right">${fmtQtd(x.sobra_m)} m</td></tr>`).join('');
     // os tubos já saem na saída de perfis (mesmo corte) — só entram aqui os que não estão lá
     const nomesPerfis = new Set((d.perfis || []).map((x) => String(x.componente || '').toLowerCase().replace(/\s+/g, '')));
@@ -194,7 +265,7 @@
     return `<div class="resumo-materiais" style="margin-top:16px;page-break-inside:avoid">
       <h2 style="font-size:13px;letter-spacing:.04em;border-bottom:2px solid var(--gold);padding-bottom:4px">📦 MATERIAIS DO PEDIDO — separação (pelo Núcleo de Produtos)</h2>
       ${avisos}
-      ${tecido ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Tecido — coleção</th><th>Cor</th><th>Rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Bobinas</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${tecido}</tbody></table>` : ''}
+      ${tecido ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Tecido — coleção</th><th>Cor</th><th>Largura do rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Rolos</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${tecido}</tbody></table>` : ''}
       ${blocoPlanoTecido(d)}
       ${perfis || tubos ? `<table class="pecas" style="margin-top:8px"><thead><tr><th>Perfis / tubos (barras)</th><th style="text-align:right">Cortes</th><th style="text-align:right">Metros</th><th style="text-align:right">Barras</th><th style="text-align:right">Sobra</th></tr></thead><tbody>${perfis}${tubos}</tbody></table>` : ''}
       ${comps ? `<table class="pecas" style="margin-top:8px"><thead><tr><th style="width:150px">SKU</th><th>Componentes (consolidado)</th><th style="text-align:right">Qtd</th><th style="width:44px">Un</th><th style="width:120px">Origem</th></tr></thead><tbody>${comps}</tbody></table>` : ''}

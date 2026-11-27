@@ -54,7 +54,7 @@ const SELECT_ITEM = `
          to_char(i.data_cliente, 'YYYY-MM-DD') AS data_cliente,
          i.tipo, i.motivo_atraso, i.observacoes, i.especial,
          i.cliente, i.colecao, i.cor_tecido, i.cor_perfil, i.acionamento,
-         i.ambiente, i.atributos, i.comercial_item_id, i.produto_sku,
+         i.ambiente, i.grupo_pedido, i.ambiente_origem, i.atributos, i.comercial_item_id, i.produto_sku,
          i.spec_nucleo, (i.spec_nucleo IS NOT NULL) AS tem_spec, i.prioridade,
          i.status_id, st.nome AS status_nome, st.cor AS status_cor,
          COALESCE(pi.desenho_fabricacao, FALSE) AS desenho_fabricacao,
@@ -99,7 +99,7 @@ export function validarItem(d, partial = false) {
     throw new HttpError(422, 'Etiqueta muito longa (máx. 64 caracteres)');
   // Spec estruturada (F1) — todos opcionais
   if (d.cliente != null && String(d.cliente).length > 160) throw new HttpError(422, 'Nome de cliente muito longo');
-  for (const f of ['colecao', 'cor_tecido', 'cor_perfil', 'acionamento', 'ambiente']) {
+  for (const f of ['colecao', 'cor_tecido', 'cor_perfil', 'acionamento', 'ambiente', 'grupo_pedido']) {
     if (d[f] != null && String(d[f]).length > 120) throw new HttpError(422, `Campo ${f} muito longo (máx. 120)`);
   }
   if (d.atributos !== undefined && d.atributos !== null &&
@@ -166,11 +166,11 @@ export async function inserirItem(client, d, userId) {
        (produto, produto_id, pedido, qnt, chegada_pcp, prev_inicial, prev_producao,
         conclusao, data_cliente, tipo, motivo_atraso, observacoes, especial, created_by,
         cliente, colecao, cor_tecido, cor_perfil, acionamento, ambiente, atributos, comercial_item_id,
-        produto_sku, spec_nucleo)
+        produto_sku, spec_nucleo, grupo_pedido, ambiente_origem)
      VALUES ($1,$2,$3,$4,
              COALESCE($5::date, CASE WHEN $15::varchar IS NOT NULL THEN CURRENT_DATE END),
              $6,$7,$8,$9,$10,$11,$12,$13,$14,
-             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23,$24,$25::jsonb)
+             $16,$17,$18,$19,$20,$21,COALESCE($22::jsonb,'{}'::jsonb),$23,$24,$25::jsonb,$26,$27)
      RETURNING id`,
     [
       String(d.produto).trim(), orNull(d.produto_id), String(d.pedido).trim(),
@@ -185,6 +185,9 @@ export async function inserirItem(client, d, userId) {
       orNull(d.comercial_item_id),
       orNull(d.produto_sku),
       d.spec_nucleo && typeof d.spec_nucleo === 'object' && !Array.isArray(d.spec_nucleo) ? JSON.stringify(d.spec_nucleo) : null,
+      // 27/11/2026 — o bloco do pedido em que a peça foi lançada e de onde veio o `ambiente`
+      orNull(d.grupo_pedido),
+      ['peca', 'bloco'].includes(d.ambiente_origem) ? d.ambiente_origem : null,
     ]
   );
   const id = Number(rows[0].id);
@@ -309,6 +312,13 @@ r.put(
            cor_perfil    = COALESCE($24, cor_perfil),
            acionamento   = COALESCE($25, acionamento),
            ambiente      = COALESCE($26, ambiente),
+           -- 27/11/2026: quem ESCREVE o ambiente no modal "Ver" está dizendo o cômodo da peça
+           -- ('peca' — é ele que o plano de corte do tecido usa); se digitou o nome do próprio
+           -- grupo do pedido, volta a ser 'bloco'. Sem mexer no ambiente, a origem fica.
+           ambiente_origem = CASE
+             WHEN $26::varchar IS NULL OR btrim($26::varchar) = btrim(COALESCE(ambiente, '')) THEN ambiente_origem
+             WHEN grupo_pedido IS NOT NULL AND lower(btrim($26::varchar)) = lower(btrim(grupo_pedido)) THEN 'bloco'
+             ELSE 'peca' END,
            prioridade    = COALESCE($27::smallint, prioridade),
            updated_at    = now()
          WHERE id = $1`,

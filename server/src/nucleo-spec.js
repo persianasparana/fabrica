@@ -122,6 +122,99 @@ export function ambienteDoItemComercial(it, ambientes) {
   return texto || null;
 }
 
+/**
+ * O AMBIENTE DA PEÇA NO PCP (27/11/2026) — o que a liberação grava em `pcp_itens`.
+ *
+ * Pedido do cliente (proposta 2026/1348, 350 peças lançadas em 8 "PARTES" com o cômodo
+ * escrito no campo Ambiente de cada peça): *"foi feito essa separação em partes como
+ * ambiente mas foi descrito o ambiente na peça"*. Com a regra de 26/11 (o bloco do
+ * pedido vence o texto da peça) o PCP gravava "PARTE 3" em 40 peças de 20 cômodos: a
+ * Ficha e a etiqueta perdiam o cômodo e o plano de corte do tecido (uma largura de rolo
+ * por ambiente) prendia a parte inteira numa largura só.
+ *
+ * Decisão dele: **se a peça tem o Ambiente preenchido, ele é o cômodo**; o bloco do
+ * pedido (a "parte") segue como agrupamento. Peça sem o campo: vale o bloco, como antes.
+ *
+ *   · `ambiente`        — o que a Ficha, a etiqueta e a fila mostram: o texto da peça ›
+ *                         o nome do bloco;
+ *   · `grupo_pedido`    — o bloco do pedido em que a peça foi lançada (null sem bloco);
+ *   · `ambiente_origem` — 'peca' (o texto foi escrito na peça) | 'bloco' | null (sem ambiente).
+ *
+ * Texto da peça igual ao nome do bloco (o vendedor repetiu) = 'bloco'. Quem tira o número
+ * da janela do fim ("Recepção - 01") e decide o que é o mesmo cômodo é o NÚCLEO
+ * (`services/comodo.js`, v14.100) — aqui o texto fica como foi escrito.
+ *
+ * @param it         item do `GET /pedidos/:id` do Comercial
+ * @param ambientes  `pedido.ambientes` do mesmo detalhe ([{ id, nome }])
+ */
+export function ambienteDaPecaComercial(it, ambientes) {
+  if (!it || typeof it !== 'object') return { ambiente: null, grupo_pedido: null, ambiente_origem: null };
+  const limpo = (v) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '');
+  let bloco = '';
+  const id = it.ambienteId != null ? String(it.ambienteId) : '';
+  if (id && Array.isArray(ambientes)) {
+    const a = ambientes.find((x) => x && String(x.id) === id);
+    bloco = limpo(a && a.nome);
+  }
+  const texto = limpo(it.ambiente);
+  if (texto && (!bloco || mesmoTexto(texto, bloco) === false)) return { ambiente: texto, grupo_pedido: bloco || null, ambiente_origem: 'peca' };
+  if (bloco) return { ambiente: bloco, grupo_pedido: bloco, ambiente_origem: 'bloco' };
+  return { ambiente: null, grupo_pedido: null, ambiente_origem: null };
+}
+
+/** dois textos iguais sem olhar caixa, acento nem espaço sobrando */
+export function mesmoTexto(a, b) {
+  const n = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return n(a) === n(b);
+}
+
+/**
+ * O que vai ao NÚCLEO como ambiente da peça (27/11/2026; Núcleo v14.100):
+ *   · `ambiente`      — o bloco do pedido (o grupo que a venda usa); sem bloco, o próprio
+ *                       ambiente da peça — assim o Núcleo anterior à v14.100 (ou com a regra
+ *                       do cômodo desligada) segue calculando como até hoje;
+ *   · `ambiente_peca` — só quando o ambiente da peça foi ESCRITO nela (no Comercial ou no
+ *                       modal "Ver" do PCP): é o cômodo da regra "uma largura de rolo por
+ *                       ambiente" (o Núcleo tira o número da janela do fim).
+ * Item liberado antes desta entrega e ainda não relido (`ambiente_origem` nulo): só `ambiente`.
+ */
+export function ambienteParaONucleo(item) {
+  const amb = item && typeof item.ambiente === 'string' ? item.ambiente.replace(/\s+/g, ' ').trim() : '';
+  const grupo = item && typeof item.grupo_pedido === 'string' ? item.grupo_pedido.replace(/\s+/g, ' ').trim() : '';
+  const out = {};
+  if (grupo || amb) out.ambiente = grupo || amb;
+  if (amb && item.ambiente_origem === 'peca') out.ambiente_peca = amb;
+  return out;
+}
+
+/**
+ * Peça JÁ NA FILA, liberada antes de 27/11/2026 (`ambiente_origem` nulo): o que gravar
+ * depois de reler o pedido no Comercial. Nunca troca o que alguém digitou no PCP.
+ *   · `ambiente` vazio, ou igual ao nome do bloco (o que a liberação de 26/11 gravava):
+ *     passa a valer a regra de hoje (texto da peça › bloco);
+ *   · `ambiente` igual ao texto da peça (liberação anterior a 26/11): fica, marcado 'peca';
+ *   · outro texto (digitado no modal "Ver"): fica, marcado 'peca' — é o cômodo que alguém escreveu.
+ * @param atual  { ambiente, grupo_pedido, ambiente_origem } de `pcp_itens`
+ * @returns { ambiente, grupo_pedido, ambiente_origem, trocou } | { motivo }
+ */
+export function ambienteParaReler(atual, itemComercial, ambientes) {
+  const a = atual || {};
+  if (a.ambiente_origem) return { motivo: 'ja_tem' };
+  if (!itemComercial || typeof itemComercial !== 'object') return { motivo: 'item_nao_esta_no_pedido' };
+  const novo = ambienteDaPecaComercial(itemComercial, ambientes);
+  const tinha = typeof a.ambiente === 'string' ? a.ambiente.replace(/\s+/g, ' ').trim() : '';
+  const corta = (v) => (v == null ? null : String(v).slice(0, 120));
+  if (!tinha) {
+    if (!novo.ambiente) return { motivo: 'sem_ambiente_no_comercial' };
+    return { ambiente: corta(novo.ambiente), grupo_pedido: corta(novo.grupo_pedido), ambiente_origem: novo.ambiente_origem, trocou: true };
+  }
+  if (novo.grupo_pedido && mesmoTexto(tinha, novo.grupo_pedido)) {
+    return { ambiente: corta(novo.ambiente), grupo_pedido: corta(novo.grupo_pedido), ambiente_origem: novo.ambiente_origem, trocou: !mesmoTexto(tinha, novo.ambiente) };
+  }
+  // o texto da peça (liberação antiga) ou algo digitado no PCP: o ambiente fica como está
+  return { ambiente: tinha.slice(0, 120), grupo_pedido: corta(novo.grupo_pedido), ambiente_origem: 'peca', trocou: false };
+}
+
 /** cm → m (2 casas de cm = 4 de m), null quando inválido */
 const cmParaM = (cm) => {
   const n = Number(cm);
@@ -174,8 +267,9 @@ function modoDaVenda(item, spec, fixarSkus) {
  * Corpo do /lista-materiais (= /precificar) de UMA peça do PCP.
  * @param item  linha de pcp_itens (produto_sku, estrutura_sku?, colecao, cor_tecido, acionamento, atributos, spec_nucleo, qnt…)
  * @param peca  linha de pcp_pecas (id, largura, altura em cm)
- * @param opts  { ref?, ambiente?, janela?, qtd?, fixarSkus? } — `fixarSkus: true` = a RESERVA
- *              (o corpo de até 25/11/2026, com os códigos gravados na venda)
+ * @param opts  { ref?, ambiente?, ambientePeca?, janela?, qtd?, fixarSkus? } — `fixarSkus: true` = a RESERVA
+ *              (o corpo de até 25/11/2026, com os códigos gravados na venda); `ambientePeca` =
+ *              o Ambiente escrito na peça (Núcleo v14.100 — ver `ambienteParaONucleo`)
  */
 export function corpoDaPeca(item, peca, opts = {}) {
   const spec = item && item.spec_nucleo && typeof item.spec_nucleo === 'object' ? item.spec_nucleo : {};
@@ -183,6 +277,8 @@ export function corpoDaPeca(item, peca, opts = {}) {
   const corpo = {
     ref: opts.ref != null ? String(opts.ref) : (peca && peca.id != null ? String(peca.id) : undefined),
     ambiente: opts.ambiente !== undefined ? opts.ambiente : (item.ambiente || undefined),
+    // só entra quando há (o corpo de quem não usa fica idêntico ao de antes)
+    ...(opts.ambientePeca ? { ambiente_peca: String(opts.ambientePeca) } : {}),
     janela: opts.janela !== undefined ? opts.janela : (atributos.janela || undefined),
     qtd: opts.qtd != null ? Number(opts.qtd) : 1,
   };
