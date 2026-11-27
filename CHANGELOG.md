@@ -7,7 +7,7 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 26/11/2026 — plano de corte do tecido na Ficha + ambiente da peça (pendente de deploy)
+## 26/11/2026 — plano de corte do tecido na Ficha + ambiente da peça (em produção desde 26/11/2026 19:06)
 - **Pedido do cliente** (26/11): o consumo de tecido tem de sair do melhor aproveitamento do pedido — larguras
   de rolo diferentes entre ambientes, nunca no mesmo ambiente. Quem calcula é o Núcleo de Produtos **v14.98**;
   aqui é a parte do PCP.
