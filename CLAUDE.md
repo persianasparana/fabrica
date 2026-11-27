@@ -38,10 +38,13 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
-- **PENDENTE DE DEPLOY (27/11/2026): O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
-  `deploy/aplicar-comodo-da-peca.sh` (seção "Estado (27/11/2026)" abaixo). Par do **Núcleo v14.100**, que vai
-  ANTES (o script sonda e aborta dizendo o que aplicar). Colunas novas em `pcp_itens` criadas no boot
-  (`grupo_pedido`, `ambiente_origem`); não muda preço.
+- **Em produção desde 27/11/2026 12:49: O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
+  `deploy/aplicar-comodo-da-peca.sh`, commit `a5df5a8`, health OK, na 1ª tentativa (linha em
+  `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.100**
+  às 12:48 — e o Comercial v2.142.0 (Relatório de custo pelo mesmo cômodo) às 12:52. Colunas novas em `pcp_itens`
+  criadas no boot (`grupo_pedido`, `ambiente_origem`); não muda preço. ⚠ Pedido JÁ LIBERADO não precisa ser
+  refeito: o deploy rodou o `completar-ambiente` nas peças que estavam na fila e a lista de materiais e o plano de
+  corte da Ficha são calculados na hora, a cada abertura; o que já foi requisitado ao Compras ou cortado não muda.
 - **Em produção desde 26/11/2026 19:06: PLANO DE CORTE DO TECIDO NA FICHA + AMBIENTE DA PEÇA** —
   `deploy/aplicar-plano-de-corte-do-tecido.sh`, commit `99b21cf`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`;
   seção "Estado (26/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.98** às 19:05 — e o Comercial
@@ -138,7 +141,7 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
-## Estado (27/11/2026) — PENDENTE DE DEPLOY (`aplicar-comodo-da-peca.sh`): **O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO ROLO A ROLO**
+## Estado (27/11/2026) — EM PRODUÇÃO desde 27/11/2026 12:49 (commit a5df5a8, `aplicar-comodo-da-peca.sh`): **O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO ROLO A ROLO**
 Pedido do cliente (27/11), com o PDF da proposta 2026/1348 (350 peças, 185 itens, lançadas em 8 ambientes do pedido
 "PARTE 1…8", com o cômodo escrito no campo Ambiente de cada peça): *"Nesse pedido foi feito essa separação em partes
 como ambiente mas foi descrito o ambiente na peça. Preciso calcular os materiais que serão usados com as regras
@@ -188,7 +191,11 @@ nº da janela, os nomes parecidos, os rolos) é o **Núcleo v14.100**; a parte d
   `PULAR_SONDAS=1` sobe assim mesmo). Nada quebra na ordem inversa: com o Núcleo anterior a lista segue pelo grupo
   do pedido (o que é hoje) e a Ficha sai sem a lista de cômodos e sem os rolos. Comercial: sem deploy por causa
   desta entrega (o contrato `itens[].ambiente` + `ambienteId` + `ambientes[]` do `GET /pedidos/:id` já existe); a
-  v2.142.0 dele só leva o mesmo cômodo ao Relatório de custo.
+  v2.142.0 dele só leva o mesmo cômodo ao Relatório de custo. **Os três entraram em 27/11/2026, na ordem:** Núcleo
+  v14.100 às 12:48 → Fábrica às 12:49 → Comercial v2.142.0 às 12:52. ⚠ A linha desse deploy no registro saiu SEM a
+  coluna do processo (`fabrica-server`): a chamada `registrar_deploy` do script tinha perdido o 3º argumento
+  (devolvido em 27/11 — quem derivar o próximo script confere que a chamada termina com `"fabrica-server"`); nada
+  lê essa coluna e a linha gravada não foi reescrita.
 - **Provado na réplica** com o pedido do relato lançado no **Comercial real** (backend NestJS compilado, 8 ambientes
   "PARTE n", 185 itens com o texto do cômodo) → Fábrica → **Núcleo v14.100**: e2e **42** (liberação grava cômodo,
   grupo e origem; lista 350 peças em 1,4 s; plano com 62 cômodos, cada peça na largura do cômodo dela, 958,38 m em

@@ -7,7 +7,7 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 27/11/2026 — o cômodo é o Ambiente escrito na peça + plano de corte rolo a rolo (pendente de deploy)
+## 27/11/2026 — o cômodo é o Ambiente escrito na peça + plano de corte rolo a rolo (em produção desde 27/11/2026 12:49)
 - **Pedido do cliente** (27/11), com um pedido de 350 peças lançado em 8 "partes" e o cômodo escrito no campo
   Ambiente de cada peça: calcular os materiais com o aproveitamento de tecido certo, o mais preciso possível.
   Desde 26/11 o PCP gravava como ambiente da peça o nome do ambiente do pedido — aqui, "PARTE 3" —, e o plano de
