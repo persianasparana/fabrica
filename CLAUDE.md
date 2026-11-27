@@ -248,6 +248,11 @@ corte dos PERFIS do pedido inteiro, por perfil (como o tecido, por largura); (3)
   da requisição em rolos com um Compras simulado (saldo de 100 m → 270 m = 9 rolos). Folhas A4 do pedido do relato:
   Visão geral 1 · Lista de compra 2 · Corte do tecido 19 · Corte dos perfis 17 · Montagem 31 (uma parte: ~3). Roteiros
   no scratchpad da sessão (não versionados).
+- **Deploy ensaiado inteiro** no `/var/www` simulado, partindo do estado de produção de 27/11 (Núcleo no registro da
+  v14.100, Fábrica no registro do cômodo da peça, sem a chave e sem as colunas): Fábrica ANTES do Núcleo → para na
+  sonda com a instrução (rc=1, linha FALHOU no registro); Núcleo v14.101 → rc=0 (todas as suítes, chave semeada);
+  Fábrica de novo → rc=0; reexecução com `INTEGRACAO_API_KEY` no `.env` → REAPLICADO e a integração conferida. A
+  Fábrica implantada no ensaio passou nas 28 verificações do navegador.
 - ⚠ **Para quem for mexer:** (a) documento novo de produção segue o PADRÃO acima (copie o bloco `bloco()`/`cssDaFolha()`
   e as classes de `producao.html`) — e confira no papel: a tela é mais larga que o A4 (o que cabe num corte da barra é
   decidido pela largura do PAPEL, `BARRA_NO_PAPEL`); (b) `confirm()`/emoji/cor sozinha não entram em documento impresso;
