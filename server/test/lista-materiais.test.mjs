@@ -122,3 +122,31 @@ test('mescla de blocos com o rolo a rolo (Núcleo v14.100): rolos, contagem pelo
   assert.equal(m.tecido_totais.bobinas, 6);
   assert.deepEqual(m.plano_tecido.map((t) => t.pedido), ['A', 'B']);
 });
+
+// 27/11/2026 — o tubo de enrolar vem do Núcleo em `perfis` (linha do plano de corte "Tubo 32mm") E em
+// `tubos` (por diâmetro): a métrica "Perfis / tubos" e o CSV da Necessidade somavam os dois (2026/1348:
+// 118 barras de tubo 32 mm, quando eram 59). Fica só o tubo sem linha própria em `perfis`.
+test('necessidade: o tubo que já está em perfis não é somado de novo', async () => {
+  const { tubosForaDosPerfis, necessidadeCsv } = await import('../src/necessidade.js');
+  const perfis = [
+    { componente: 'Tubo 32mm', cortes: 295, metros: 347.26, barras: 59, barra_m: 6 },
+    { componente: 'Tubo rolete', cortes: 350, metros: 415, barras: 71, barra_m: 6 },
+  ];
+  const tubos = [
+    { tubo: 32, corte: 'Tubo 32mm', cortes: 295, metros: 347.26, barras: 59, barra_m: 6 },
+    { tubo: 40, corte: 'Tubo 40 mm', cortes: 55, metros: 69.14, barras: 12, barra_m: 6 }, // nome com espaço: o mesmo
+    { tubo: 47, corte: 'Tubo 47mm', cortes: 3, metros: 4.2, barras: 1, barra_m: 6 },     // sem linha em perfis: fica
+  ];
+  const perfis2 = [...perfis, { componente: 'Tubo 40mm', cortes: 55, metros: 69.14, barras: 12, barra_m: 6 }];
+  const sobra = tubosForaDosPerfis(tubos, perfis2);
+  assert.deepEqual(sobra.map((t) => t.tubo), [47]);
+  assert.deepEqual(tubosForaDosPerfis([], perfis), []);
+  assert.deepEqual(tubosForaDosPerfis(tubos, []).length, 3);
+  // o CSV lista cada tubo UMA vez
+  const csv = necessidadeCsv({
+    horizonte: 'pedidos', ate: null, totais: { pedidos: 1, pecas: 350 }, pedidos: [], tecido: [], componentes: [],
+    perfis: perfis2, tubos: sobra,
+  });
+  assert.equal((csv.match(/Tubo 32/g) || []).length, 1);
+  assert.equal((csv.match(/Tubo 47/g) || []).length, 1);
+});

@@ -108,12 +108,26 @@ export async function necessidadeMateriais(opts = {}) {
     tecido: tecido.map((t) => { const l = comSaldo(t, t.metros); return { ...l, comprar: compraEmRolos({ metros: l.metros, bobinas: l.bobinas, metros_bobina: l.metros_bobina, falta: l.falta }) }; }),
     tecido_totais: d.tecido_totais || { metros: 0, bobinas: 0 },
     perfis, perfis_totais: d.perfis_totais || null,
-    tubos: d.tubos || [],
+    // 27/11/2026 — o tubo de enrolar JÁ sai em `perfis` (linha "Tubo 32mm" do plano de corte, com as barras):
+    // somar `tubos` de novo dobrava as barras do tubo na métrica "Perfis / tubos" e no CSV (a Ficha e a
+    // tabela da tela já filtravam assim). Fica só o tubo que não tem linha própria em `perfis`.
+    tubos: tubosForaDosPerfis(d.tubos || [], perfis),
     componentes: componentes.map((m) => comSaldo(m, m.qtd)),
     itens_sem_spec: lm.itens_sem_spec || [],
     pecas_erro: (d.pecas || []).filter((p) => !p.ok).map((p) => ({ ref: p.ref, pedido: pedidoDoItem.get(String(p.ref || '').split(':')[0]) || null, motivo: p.motivo || p.error || null })),
     por_item: lm.por_item,
   };
+}
+
+/**
+ * Os tubos que NÃO aparecem em `perfis` pelo nome do corte (a MESMA regra da Ficha e da tabela da tela:
+ * nome sem espaços e sem caixa). O Núcleo devolve o tubo de enrolar nos dois lugares — em `perfis` pela
+ * linha do plano de corte ("Tubo 32mm") e em `tubos` pelo diâmetro.
+ */
+export function tubosForaDosPerfis(tubos, perfis) {
+  const chave = (v) => String(v || '').toLowerCase().replace(/\s+/g, '');
+  const nomes = new Set((perfis || []).map((x) => chave(x.componente)));
+  return (tubos || []).filter((t) => !nomes.has(chave(t.corte)));
 }
 
 /** CSV (Excel pt-BR: ; e vírgula decimal, BOM) da necessidade */

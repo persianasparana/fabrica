@@ -38,12 +38,18 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
-- **PENDENTE DE DEPLOY (27/11/2026): PRODUÇÃO POR ETAPAS** — `deploy/aplicar-producao-por-etapas.sh` (seção "Estado
-  (27/11/2026) — PENDENTE DE DEPLOY" abaixo): corte do tecido, corte dos perfis e montagem em documentos separados, o
-  andamento por parte, a lista de compra em rolos/barras e as partes na integração com a Logística. Exige o **Núcleo
-  v14.101** ANTES (o script sonda). Colunas novas criadas no boot (`pcp_ordem_corte_log.detalhe`,
-  `pcp_pedido_info.por_partes`); não muda preço. A expedição por parte na Logística (FASE 2) está pronta na
-  **Logística v5.47** (27/11/2026, também pendente de deploy — `logistica/deploy/aplicar-v5.47.sh`, DEPOIS deste).
+- **PENDENTE DE DEPLOY (27/11/2026): A NECESSIDADE NÃO SOMA O TUBO DUAS VEZES** —
+  `deploy/aplicar-necessidade-sem-tubo-dobrado.sh`. Achado na auditoria do Relatório de custo do 2026/1348: o Núcleo
+  devolve o tubo de enrolar em `perfis` (linha "Tubo 32mm" do plano de corte) e em `tubos` (por diâmetro); a métrica
+  "Perfis / tubos" e o CSV da Necessidade somavam os dois (e, até o Núcleo v14.102, o `tubos` ainda levava o rolete —
+  118 barras de 32 mm no 1348, são 59). `necessidade.js tubosForaDosPerfis` (a regra da Ficha). Não muda preço nem
+  consumo; não depende de versão do Núcleo (ordem recomendada: Núcleo v14.102 → Comercial v2.143.0 → este).
+- **Em produção desde 27/11/2026 19:14: PRODUÇÃO POR ETAPAS** — `deploy/aplicar-producao-por-etapas.sh`, commit `b527da9`,
+  health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo): corte do tecido, corte dos
+  perfis e montagem em documentos separados, o andamento por parte, a lista de compra em rolos/barras e as partes na
+  integração com a Logística. O provedor entrou antes — **Núcleo v14.101** às 19:13. Colunas novas criadas no boot
+  (`pcp_ordem_corte_log.detalhe`, `pcp_pedido_info.por_partes`); não muda preço. A expedição por parte na Logística
+  (FASE 2) está pronta na **Logística v5.47** (27/11/2026, pendente de deploy — `logistica/deploy/aplicar-v5.47.sh`).
 - **Em produção desde 27/11/2026 12:49: O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
   `deploy/aplicar-comodo-da-peca.sh`, commit `a5df5a8`, health OK, na 1ª tentativa (linha em
   `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.100**
@@ -154,7 +160,7 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
-## Estado (27/11/2026) — PENDENTE DE DEPLOY (`aplicar-producao-por-etapas.sh`): **PRODUÇÃO POR ETAPAS — corte do tecido, corte dos perfis e montagem em documentos separados**
+## Estado (27/11/2026) — EM PRODUÇÃO desde 27/11/2026 19:14 (commit b527da9, `aplicar-producao-por-etapas.sh`): **PRODUÇÃO POR ETAPAS — corte do tecido, corte dos perfis e montagem em documentos separados**
 Pedido do cliente (27/11), com o pedido 2026/1348 (350 peças, instalado em 8 partes): *"Preciso que na produção eu
 consiga imprimir um planejamento de corte de tecido separado do planejamento de corte do perfil e no final a montagem.
 (...) quando for cortar os tecidos, preciso concentrar a produção por largura de tecido para que na produção não precise

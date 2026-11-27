@@ -7,7 +7,15 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 27/11/2026 — produção por etapas: corte do tecido, corte dos perfis e montagem em documentos separados (pendente de deploy)
+## 27/11/2026 — a Necessidade de materiais não soma o tubo duas vezes (pendente de deploy)
+- Achado na auditoria do Relatório de custo do pedido 2026/1348 (o cliente perguntou se o aproveitamento de tecido
+  estava certo — o tecido está): a métrica "Perfis / tubos" e o CSV da Necessidade de materiais contavam o tubo de
+  enrolar duas vezes — ele vem do Núcleo na linha do perfil ("Tubo 32mm") e de novo na lista de tubos por diâmetro
+  (que, até o Núcleo v14.102, ainda levava o tubo rolete: 118 barras de 32 mm no 1348, quando são 59). A Necessidade
+  passa a devolver só o tubo que não tem linha própria nos perfis (a mesma regra da Ficha e da tabela da tela).
+- Muda preço? não · migration: não · deploy: `aplicar-necessidade-sem-tubo-dobrado.sh` (não depende de versão do Núcleo).
+
+## 27/11/2026 — produção por etapas: corte do tecido, corte dos perfis e montagem em documentos separados (em produção desde 27/11/2026 19:14)
 - **Pedido do cliente** (27/11), com um pedido de 350 peças que será instalado em 8 partes: imprimir o corte do
   tecido separado do corte dos perfis e, no fim, a montagem; cortar o tecido concentrado por largura; saber quando
   cada parte fica pronta para avisar a expedição; ver a compra dos materiais. E o layout: claro, objetivo, visual e
