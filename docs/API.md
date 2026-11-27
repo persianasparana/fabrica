@@ -228,7 +228,9 @@ Comuns às três: **503** `INTEGRACAO_API_KEY` não configurada · **401** chave
 
 **Pedido por partes (27/11/2026 — chaves ADITIVAS; quem não lê segue como antes).** A regra é a dos documentos de
 produção (`server/src/producao.js pedidoPorPartes`: dois grupos ou mais no pedido e o cômodo escrito na maioria das
-peças, ou o que o PCP definiu). Base da expedição por parte da Logística (fase 2):
+peças, ou o que o PCP definiu). **Consumidas pela Logística v5.47** (expedição, agenda e baixa por parte — é
+CONTRATO: `por_partes`, `partes[].{parte, total_pecas, pecas_concluidas, concluida}`, `parte`, `comodo`,
+`total_pecas_parte` e `pecas[].codigo` não mudam de nome sem mexer lá):
 
 | Rota | Chaves novas |
 |---|---|

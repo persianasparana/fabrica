@@ -42,7 +42,8 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
   (27/11/2026) — PENDENTE DE DEPLOY" abaixo): corte do tecido, corte dos perfis e montagem em documentos separados, o
   andamento por parte, a lista de compra em rolos/barras e as partes na integração com a Logística. Exige o **Núcleo
   v14.101** ANTES (o script sonda). Colunas novas criadas no boot (`pcp_ordem_corte_log.detalhe`,
-  `pcp_pedido_info.por_partes`); não muda preço. A expedição por parte na Logística é a FASE 2 (não começada).
+  `pcp_pedido_info.por_partes`); não muda preço. A expedição por parte na Logística (FASE 2) está pronta na
+  **Logística v5.47** (27/11/2026, também pendente de deploy — `logistica/deploy/aplicar-v5.47.sh`, DEPOIS deste).
 - **Em produção desde 27/11/2026 12:49: O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
   `deploy/aplicar-comodo-da-peca.sh`, commit `a5df5a8`, health OK, na 1ª tentativa (linha em
   `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.100**
@@ -264,10 +265,17 @@ corte dos PERFIS do pedido inteiro, por perfil (como o tecido, por largura); (3)
   responde 401 sem sessão, exista a rota ou não (`r.use(requireAuth)` vem antes) — o ensaio pegou isso; a prova é o
   que só o boot do código novo faz (coluna criada) ou uma rota de integração com a chave.
 - ⚠ **Pendências/observações (não mexidas):**
-  (a) **FASE 2 — Logística** (decisões já tomadas): Expedição e Montar agenda por PARTE (ler `por_partes`/`parte` da
-  integração; guardar a parte em `expedicao_pecas`), baixa só das peças da parte instalada e ENTREGUE no Comercial só
-  na última parte — hoje `baixaPorInstalacao(pedido)` da Logística fecha o pedido INTEIRO na 1ª instalação concluída.
-  Até lá o aviso à expedição é a situação "Pronta" da Visão geral;
+  (a) **FASE 2 — Logística: FEITA na Logística v5.47 (27/11/2026, pendente de deploy)** — `logistica/CLAUDE.md`
+  § v5.47. A Logística passou a LER daqui: `/api/integracao/peca` (`por_partes`, `parte`, `comodo`,
+  `total_pecas_parte` — grava na peça ao bipar), `/api/integracao/pedidos?pedido=|?desde=` (`por_partes`, `partes[]`:
+  pergunta a cada 5 min e avisa no sino "a fábrica concluiu a PARTE n"; painel "Por partes") e
+  `/api/integracao/expedicao?pedido=` (relê a parte/cômodo das peças já bipadas). ⚠ **Essas chaves viraram CONTRATO**:
+  não renomear `por_partes`, `partes[].{parte,total_pecas,pecas_concluidas,concluida}`, `parte`, `comodo`,
+  `total_pecas_parte`, `pecas[].codigo` sem mexer na Logística (`backend/src/services/expedicao-partes*.js`). Lá a
+  agenda e a baixa são por parte e o Comercial só recebe ENTREGUE na última parte. Enquanto a v5.47 de lá não for
+  publicada, vale o de antes (a 1ª instalação OK fecha o pedido inteiro) e o aviso à expedição é a situação "Pronta"
+  da Visão geral. A Logística NÃO lê `pecas_guardadas`/`na_expedicao` (as gavetas do PCP): a situação "Na expedição"
+  daqui e a expedição de lá são coisas diferentes;
   (b) o plano de corte por peça segue pelo sku do item (não pela seleção "como a venda cotou"): quando a lista de
   materiais resolve outra estrutura, o documento AVISA ("o plano de barras difere da lista…"); na linha "tubo 53" o
   corte segue pela variante do tubo do produto (pendência do Núcleo v14.80.1);

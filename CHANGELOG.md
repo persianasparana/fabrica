@@ -37,7 +37,9 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
   pedido do relato, 1.613 m contra 958 m do plano de corte) — agora mostra o plano do pedido; pedido com mais de
   500 peças ficava sem plano de corte; a troca de tela não entra mais no corte dos perfis.
 - **Para a Logística (fase 2)**: a integração passa a dizer se o pedido é por partes, o andamento de cada parte e a
-  parte de cada peça (chaves novas, nada muda para quem não lê). A expedição e a agenda por parte são a próxima fase.
+  parte de cada peça (chaves novas, nada muda para quem não lê). A expedição e a agenda por parte ficaram prontas na
+  **Logística v5.47** (27/11/2026): ela lê essas chaves, avisa quando a fábrica conclui uma parte e só dá o pedido
+  como ENTREGUE na última parte.
 - `bin/conferir-lista-materiais.js --sonda-corte-sheer` e `--producao`; `npm test` = 59.
 - Deploy: `deploy/aplicar-producao-por-etapas.sh` — ⚠ **Núcleo v14.101 ANTES** (o script sonda e aborta dizendo o que
   aplicar). Migration: no boot (uma coluna em `pcp_ordem_corte_log`, uma em `pcp_pedido_info`). Muda preço? Não.
