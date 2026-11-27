@@ -38,9 +38,12 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
-- **Pendente de deploy (26/11/2026): PLANO DE CORTE DO TECIDO NA FICHA + AMBIENTE DA PEÇA** —
-  `deploy/aplicar-plano-de-corte-do-tecido.sh` (seção "Estado (26/11/2026)" abaixo). ⚠ ORDEM: **Núcleo v14.98 →
-  Fábrica** (o script sonda o Núcleo e aborta dizendo o que aplicar).
+- **Em produção desde 26/11/2026 19:06: PLANO DE CORTE DO TECIDO NA FICHA + AMBIENTE DA PEÇA** —
+  `deploy/aplicar-plano-de-corte-do-tecido.sh`, commit `99b21cf`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`;
+  seção "Estado (26/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.98** às 19:05 — e o Comercial
+  v2.141.0 (Relatório de custo pelo plano do pedido) às 19:08. ⚠ Pedido JÁ LIBERADO não precisa ser refeito: a
+  lista de materiais e o plano de corte da Ficha são calculados na hora, a cada abertura (o deploy rodou o
+  `completar-ambiente` nas peças que já estavam na fila); o que já foi requisitado ao Compras ou cortado não muda.
 - **Revisão da federação de 16/11/2026** (commit `5f82e5b`) — **em produção desde 26/11/2026 17:48**: estava
   na branch sem deploy e entrou no mesmo `git pull` da lista de materiais como a venda (o serviço subiu com
   health OK — o `server/.env` de produção tem a `SESSION_SECRET`). `SESSION_SECRET` passou a ser
@@ -130,7 +133,7 @@ COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node 
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
 
-## Estado (26/11/2026) — PENDENTE DE DEPLOY (`deploy/aplicar-plano-de-corte-do-tecido.sh`): **PLANO DE CORTE DO TECIDO + AMBIENTE DA PEÇA**
+## Estado (26/11/2026) — EM PRODUÇÃO desde 26/11/2026 19:06 (commit 99b21cf, `aplicar-plano-de-corte-do-tecido.sh`): **PLANO DE CORTE DO TECIDO + AMBIENTE DA PEÇA**
 Pedido do cliente (26/11): *"Para o cálculo de consumo de tecido eu preciso do melhor aproveitamento de tecido
 economizando o máximo que pudermos mesmo que usemos larguras diferentes do mesmo tecido, só não pode usar larguras
 diferentes do mesmo tecido no mesmo ambiente"*. Quem calcula é o **Núcleo v14.98** (`consumo-tecido.js`: cada tecido
