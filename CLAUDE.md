@@ -221,7 +221,9 @@ corte dos PERFIS do pedido inteiro, por perfil (como o tecido, por largura); (3)
   unidade sempre escrita (m, cm), vírgula decimal; avisos com palavra de sinal (ATENÇÃO / COMO FAZER); "feito" por
   linha e visto no fim; **a cor nunca vai sozinha** (a PARTE é um número num quadro; sobra = hachura) — imprime igual
   em preto e branco; sem emoji no papel; quebra de folha por seção só em pedido grande (> 40 peças / > 30 barras).
-  ⚠ Medidas de corte seguem em **centímetros com 1 casa** (a convenção das planilhas de corte da fábrica), não em mm.
+  ⚠ Medidas de corte em **centímetros com 1 casa** (138,9) — **decisão do cliente (27/11)**, perguntado entre cm (a
+  convenção das planilhas de corte e do Plano de corte da fábrica) e mm (o padrão ISO de desenho técnico): fica cm. Não
+  trocar a unidade de um documento de corte sem nova decisão dele.
 - **Plano de corte por peça** (`plano-corte-nucleo.js`): a seção "Tecido do pedido" passou a mostrar o tecido do PLANO
   DO PEDIDO (lista de materiais: metros e rolos — o mesmo número da Ficha e da compra); a soma peça a peça só aparece
   como "ESTIMATIVA" quando a lista não vem. A linha "Tecido altura" do sheer sai `2H+folga` com o Núcleo v14.101.

@@ -26,7 +26,8 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 - **Padrão dos documentos**: bloco de identificação (pedido, cliente, nº do documento, emissão, emitido por, via),
   "Folha x / y" em toda folha, QR do documento, **via registrada** (reimpressão sai escrita no papel), instruções
   numeradas, caixa de "feito" e visto; a parte é um número num quadro e a sobra é hachura — imprime igual em preto e
-  branco. Campos do bloco pela ISO 7200; controle de emissão pela ISO 9001 (7.5); A4.
+  branco. Campos do bloco pela ISO 7200; controle de emissão pela ISO 9001 (7.5); A4. As medidas de corte seguem em
+  **centímetros** (decisão do cliente: a convenção das planilhas da fábrica, não o milímetro da ISO).
 - **Pedido por partes × pedido comum**: o sistema decide sozinho (dois grupos ou mais no pedido e o cômodo escrito na
   maioria das peças) e o PCP pode corrigir na Visão geral. No pedido comum os blocos são os cômodos e o pedido é uma
   parte só.
