@@ -74,7 +74,7 @@ async function renderNecessidade() {
   necFiltrarComponentes();
   document.getElementById('nec-pedidos-tabela').innerHTML = n.pedidos.length ? `<table>
     <thead><tr><th>Pedido</th><th style="text-align:right">Itens</th><th style="text-align:right">Peças</th><th>Data prometida</th><th>Prioridade</th><th></th></tr></thead>
-    <tbody>${n.pedidos.map((p) => `<tr><td><b>${esc(p.pedido)}</b></td><td style="text-align:right">${p.itens}</td><td style="text-align:right">${p.pecas}</td><td>${fmtDate(p.data_cliente)}</td><td>${badgePrioridade(p)}${PRIORIDADES[Number(p.prioridade) || 0].n}</td><td><a href="ficha-producao.html?pedido=${encodeURIComponent(p.pedido)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--red)">Ficha</a></td></tr>`).join('')}</tbody></table>`
+    <tbody>${n.pedidos.map((p) => `<tr><td><b>${esc(p.pedido)}</b></td><td style="text-align:right">${p.itens}</td><td style="text-align:right">${p.pecas}</td><td>${fmtDate(p.data_cliente)}</td><td>${badgePrioridade(p)}${PRIORIDADES[Number(p.prioridade) || 0].n}</td><td><a href="ficha-producao.html?pedido=${encodeURIComponent(p.pedido)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--red)">Ficha</a> · <a href="producao.html?pedido=${encodeURIComponent(p.pedido)}&doc=compra" target="_blank" rel="noopener" style="font-size:11px;color:var(--red)" title="Lista de compra do pedido em rolos, barras e unidades + os documentos de corte e montagem">Compra e produção</a></td></tr>`).join('')}</tbody></table>`
     : '<div style="color:var(--text3);font-size:12px">Nenhum pedido no horizonte.</div>';
 }
 

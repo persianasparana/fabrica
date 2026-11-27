@@ -356,6 +356,8 @@
       $('#conteudo').innerHTML = '<div class="alerta">Informe o pedido na URL: <code>ficha-producao.html?pedido=PED-2026/0002</code></div>';
       return;
     }
+    const lnk = document.getElementById('lnk-producao');
+    if (lnk) lnk.href = 'producao.html?pedido=' + encodeURIComponent(pedido);
     try {
       await api('auth/session');
       const [dados, estrutura, oc, materiais] = await Promise.all([

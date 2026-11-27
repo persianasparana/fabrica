@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Produção por etapas — PCP Persianas Paraná</title>
+<link rel="icon" type="image/png" href="assets/brand/logos/favicon.png">
+<link rel="stylesheet" href="assets/fonts/manrope.css">
+<style>
+/* ============================================================================
+   PRODUÇÃO POR ETAPAS — documentos de chão de fábrica (27/11/2026)
+   Padrão dos documentos (vale para os cinco):
+   · bloco de identificação no topo, com os campos da ISO 7200 (dono, tipo e título do documento,
+     número de identificação, data de emissão, emitente, via/revisão; a folha x/y sai no rodapé);
+   · identificação e controle de emissão/reimpressão (ISO 9001, 7.5 — informação documentada);
+   · papel A4 (ISO 216), unidades do SI sempre com o símbolo, vírgula decimal;
+   · gestão visual: um número grande por decisão, desenho do rolo e da barra, caixa de "feito" por
+     linha, e NUNCA a cor sozinha — toda cor vem com número ou texto (imprime igual em preto e branco).
+   Marca: preto #1D1D1B, dourado #C6B784, vermelho só em alerta (docs/IDENTIDADE-VISUAL.md).
+   ============================================================================ */
+:root {
+  --preto: #1D1D1B; --vermelho: #C1212D; --dourado: #C6B784; --dourado-escuro: #A89760;
+  --linha: #8E8E89; --linha-clara: #D6D6D2; --fundo: #F4F4F2; --cinza: #ECECEA; --cinza-claro: #F7F7F6;
+  --texto2: #4B4B48; --texto3: #6F6F69;
+  --ok: #15803D; --ok-bg: #DCFCE7; --atencao: #B45309; --atencao-bg: #FEF3C7; --info: #1E40AF; --info-bg: #DBEAFE;
+  --peca: #F6F1E1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: 'Manrope', 'Helvetica Neue', Arial, sans-serif; font-size: 12px; line-height: 1.35; color: var(--preto); background: var(--fundo); font-variant-numeric: tabular-nums; }
+#pagina { max-width: 1060px; margin: 0 auto; padding: 18px 24px 40px; background: #fff; min-height: 100vh; }
+
+/* ── barra de tela (não imprime) ───────────────────────────────────────────── */
+.barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.btn { padding: 9px 16px; border-radius: 6px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--linha-clara); background: #fff; font-family: inherit; color: var(--preto); }
+.btn-red { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+.barra select { font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 10px; border: 1px solid var(--linha-clara); border-radius: 6px; background: #fff; }
+.dica { font-size: 11.5px; color: var(--texto3); }
+.abas { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 18px; border-bottom: 2px solid var(--preto); }
+.aba { display: flex; align-items: center; gap: 8px; padding: 9px 16px 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid transparent; border-bottom: none; background: none; font-family: inherit; color: var(--texto2); border-radius: 6px 6px 0 0; }
+.aba:hover { background: var(--cinza-claro); }
+.aba.ativa { background: var(--preto); color: #fff; }
+.aba .n { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 11px; font-weight: 800; }
+.aba .imp { font-size: 10px; font-weight: 600; opacity: .75; }
+
+/* ── bloco de identificação (campos da ISO 7200) ───────────────────────────── */
+.tb { display: grid; grid-template-columns: 116px 1fr 228px 88px; border: 1.5px solid var(--preto); margin-bottom: 10px; break-inside: avoid; }
+.tb > div { border-right: 1px solid var(--preto); min-width: 0; }
+.tb > div:nth-child(4) { border-right: none; }
+.tb-logo { display: flex; align-items: center; justify-content: center; padding: 8px 10px; }
+.tb-logo img { max-width: 100%; max-height: 46px; display: block; }
+.tb-titulo { padding: 7px 12px 8px; }
+.tb-tipo { font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--texto3); }
+.tb-titulo h1 { font-size: 21px; line-height: 1.12; font-weight: 800; letter-spacing: .005em; margin: 1px 0 2px; }
+.tb-sub { font-size: 11.5px; color: var(--texto2); }
+.tb-pedido { padding: 7px 12px 8px; }
+.tb-pedido .rot, .tb-campos dt { font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); }
+.tb-pedido b { display: block; font-size: 22px; line-height: 1.12; font-weight: 800; white-space: nowrap; }
+.tb-pedido .cli { display: block; font-size: 11.5px; color: var(--texto2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-pedido .qt { display: block; font-size: 11px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+.tb-qr { padding: 6px; display: flex; align-items: center; justify-content: center; }
+.tb-qr svg { width: 76px; height: 76px; display: block; }
+.tb-campos { grid-column: 1 / -1; display: grid; grid-template-columns: 1.6fr 1.05fr 1fr 1.25fr .9fr; border-top: 1.5px solid var(--preto); border-right: none !important; }
+.tb-campos > div { padding: 4px 10px 5px; border-right: 1px solid var(--linha); min-width: 0; }
+.tb-campos > div:last-child { border-right: none; }
+.tb-campos dd { font-size: 11.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-campos dd.reimp { color: var(--vermelho); }
+/* as três etapas, com a deste documento marcada */
+.etapas { display: flex; align-items: center; gap: 0; margin-bottom: 3px; white-space: nowrap; }
+.etapas .e { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; color: var(--texto3); text-transform: uppercase; letter-spacing: .04em; }
+.etapas .e i { font-style: normal; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; border: 1.4px solid var(--linha); font-size: 10px; font-weight: 800; }
+.etapas .e.atual { color: var(--preto); }
+.etapas .e.atual i { background: var(--preto); border-color: var(--preto); color: #fff; }
+.etapas .seta { width: 14px; height: 0; border-top: 1.4px solid var(--linha); margin: 0 5px; }
+
+/* ── avisos com palavra de sinal ───────────────────────────────────────────── */
+.nt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid; border-left-width: 6px; border-radius: 3px; padding: 7px 12px; margin: 8px 0; font-size: 12px; break-inside: avoid; }
+.nt .sinal { font-weight: 800; letter-spacing: .06em; font-size: 11px; white-space: nowrap; padding-top: 1px; }
+.nt.atencao { border-color: #D9A21B; background: var(--atencao-bg); }
+.nt.atencao .sinal { color: #7A4A00; }
+.nt.instr { border-color: var(--linha); background: var(--cinza-claro); }
+.nt ol { margin: 0 0 0 17px; }
+.nt ol li { padding-left: 2px; }
+.nt ol li + li { margin-top: 1px; }
+
+/* ── números-chave ─────────────────────────────────────────────────────────── */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+.kpi { border: 1px solid var(--linha-clara); border-left: 5px solid var(--dourado); padding: 6px 12px 7px; break-inside: avoid; }
+.kpi .rot { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); }
+.kpi b { display: block; font-size: 21px; line-height: 1.15; font-weight: 800; white-space: nowrap; }
+.kpi b small { font-size: 12px; font-weight: 700; }
+.kpi .det { font-size: 11px; color: var(--texto2); }
+
+/* ── seções e tabelas ──────────────────────────────────────────────────────── */
+.sec { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; background: var(--preto); color: #fff; padding: 7px 12px; margin: 16px 0 0; break-after: avoid; break-inside: avoid; }
+.sec .g { font-size: 17px; font-weight: 800; letter-spacing: .01em; }
+.sec .d { font-size: 12px; font-weight: 600; color: #E8E3D0; }
+.sec .dir { margin-left: auto; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.quebra { break-before: page; }
+h2 { font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; border-bottom: 2px solid var(--preto); padding-bottom: 3px; margin: 18px 0 6px; break-after: avoid; }
+.nota { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid var(--linha); padding: 4px 7px; font-size: 12px; vertical-align: middle; text-align: left; }
+thead th { background: var(--cinza); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--preto); }
+tfoot th { background: var(--cinza-claro); font-size: 12px; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+td.c, th.c { text-align: center; }
+tr { break-inside: avoid; }
+.forte { font-weight: 800; font-size: 13px; }
+.etq { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-weight: 700; font-size: 12px; white-space: nowrap; }
+.sec2 { color: var(--texto2); font-size: 11px; }
+.cx { display: inline-block; width: 15px; height: 15px; border: 1.6px solid var(--preto); border-radius: 2px; vertical-align: middle; background: #fff; }
+/* a PARTE da peça: número num quadro (a cor nunca vai sozinha) */
+.pb { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 17px; padding: 0 4px; border: 1.4px solid var(--preto); border-radius: 3px; font-family: inherit; font-style: normal; font-size: 10.5px; font-weight: 800; line-height: 1; background: #fff; color: var(--preto); vertical-align: middle; }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 11px; margin: 8px 0 2px; }
+.legenda + .legenda { margin-top: 3px; }
+.onde { display: flex; align-items: baseline; gap: 6px; }
+.onde .pb { flex: 0 0 auto; align-self: center; }
+.legenda .rot { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); }
+.amostra { display: inline-block; width: 22px; height: 11px; border: 1px solid var(--preto); vertical-align: middle; margin-right: 4px; }
+.amostra.peca { background: var(--peca); }
+.amostra.sobra { background: repeating-linear-gradient(135deg, #fff 0 3px, #B9B9B4 3px 4.2px); }
+.amostra.ponta { background: #fff; border-style: dashed; border-color: var(--linha); }
+tr.grupo th { background: var(--cinza); font-size: 12px; text-transform: none; letter-spacing: 0; }
+tr.grupo th .rot { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); margin-right: 6px; }
+tr.grupo th .sec2 { font-weight: 500; }
+tr.item td, tr.item th { background: var(--cinza-claro); font-size: 11px; font-weight: 500; color: var(--texto2); text-transform: none; letter-spacing: 0; }
+tr.item .rot { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); margin-right: 6px; }
+.doitem { display: block; font-size: 10px; color: var(--texto3); font-weight: 500; }
+tr.grupo, tr.item { break-after: avoid; }
+.corte { white-space: nowrap; }
+.corte + .corte::before { content: '·'; color: var(--linha); margin: 0 5px 0 2px; }
+
+/* ── o ROLO: cartão com o desenho das faixas + a lista ─────────────────────── */
+.rolo { border: 1.2px solid var(--preto); margin-top: 10px; break-inside: avoid; }
+.rolo-cab { display: flex; align-items: baseline; gap: 14px; padding: 5px 10px; background: var(--cinza); border-bottom: 1px solid var(--preto); }
+.rolo-cab .g { font-size: 14px; font-weight: 800; }
+.rolo-cab .d { font-size: 12px; color: var(--texto2); }
+.rolo-cab .dir { margin-left: auto; font-size: 12px; font-weight: 700; }
+.rolo-dz { padding: 6px 10px 2px; border-bottom: 1px solid var(--linha); }
+.rolo-dz svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rolo table th, .rolo table td { border-left: none; border-right: none; }
+.rolo table tr:last-child td { border-bottom: none; }
+.rolo table thead th { border-top: none; }
+.rolo td.fx { font-size: 15px; font-weight: 800; text-align: center; border-right: 1px solid var(--linha) !important; width: 52px; }
+.rolo td.px { font-size: 15px; font-weight: 800; text-align: right; white-space: nowrap; border-right: 1px solid var(--linha) !important; width: 96px; }
+.dz-f { font: 800 10.5px 'Manrope', Arial, sans-serif; fill: #1D1D1B; }
+.dz-p { font: 700 9.5px 'Manrope', Arial, sans-serif; fill: #1D1D1B; }
+.dz-s { font: 600 9.5px 'Manrope', Arial, sans-serif; fill: #6F6F69; }
+.dz-r { font: 600 8.5px 'Manrope', Arial, sans-serif; fill: #6F6F69; }
+
+/* ── a BARRA de perfil: os cortes na ordem, em escala ──────────────────────── */
+.barras { border: 1.2px solid var(--preto); border-top: none; }
+.b-cab, .b-lin { display: grid; grid-template-columns: 46px 1fr 74px 44px; align-items: stretch; }
+.b-cab { background: var(--cinza); border-bottom: 1px solid var(--preto); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.b-cab > div { padding: 4px 7px; }
+.b-lin { border-bottom: 1px solid var(--linha); break-inside: avoid; }
+.b-lin:last-child { border-bottom: none; }
+.b-lin > .bn { display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; border-right: 1px solid var(--linha); }
+.b-lin > .bd { padding: 5px 8px; min-width: 0; }
+.b-lin > .bs { display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; font-size: 12px; font-weight: 700; border-left: 1px solid var(--linha); white-space: nowrap; }
+.b-lin > .bx { display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--linha); }
+.bar { display: flex; height: 36px; border: 1.3px solid var(--preto); background: #fff; }
+.seg { flex: 0 0 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1.3px solid var(--preto); background: var(--peca); line-height: 1.12; }
+.seg:last-child { border-right: none; }
+.seg b { font-size: 12.5px; font-weight: 800; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.seg .etq { font-size: 9.5px; font-weight: 600; }
+.seg .pb { min-width: 15px; height: 13px; font-size: 9px; padding: 0 2px; border-width: 1.1px; }
+.seg.estreito b { font-size: 10px; }
+.seg.sobra { background: repeating-linear-gradient(135deg, #fff 0 4px, #B9B9B4 4px 5.4px); }
+.seg.sobra b { font-size: 9.5px; font-weight: 700; color: var(--texto2); background: #fff; padding: 0 3px; }
+.b-obs { font-size: 10.5px; color: var(--texto2); margin-top: 3px; }
+.b-obs .etq { font-size: 10.5px; }
+.uso { display: inline-block; width: 70px; height: 8px; border: 1px solid var(--preto); vertical-align: middle; margin-right: 6px; background: #fff; }
+.uso > span { display: block; height: 100%; background: var(--preto); }
+
+/* ── andamento das partes ──────────────────────────────────────────────────── */
+.pg .v { display: block; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.pg .v small { font-size: 10px; font-weight: 600; color: var(--texto2); }
+.pg .trilho { height: 9px; border: 1px solid var(--preto); background: #fff; margin-top: 2px; }
+.pg .trilho > span { display: block; height: 100%; background: var(--preto); }
+.andamento td { vertical-align: top; }
+.andamento td.parte { white-space: nowrap; }
+.sit { display: inline-block; padding: 2px 9px; border-radius: 3px; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; border: 1.3px solid var(--linha); background: #fff; white-space: nowrap; }
+.sit.pronta { border-color: var(--ok); background: var(--ok-bg); color: #0E5B2B; }
+.sit.expedicao { border-color: var(--ok); background: var(--ok); color: #fff; }
+.sit.andando { border-color: #D9A21B; background: var(--atencao-bg); color: #7A4A00; }
+.docs td.st { font-size: 11.5px; }
+
+/* ── visto / conferência ───────────────────────────────────────────────────── */
+.visto { display: grid; grid-template-columns: 1.6fr .8fr 1.6fr .8fr; border: 1.2px solid var(--preto); margin-top: 14px; break-inside: avoid; }
+.visto > div { padding: 4px 10px 22px; border-right: 1px solid var(--linha); font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto3); }
+.visto > div:last-child { border-right: none; }
+.fim { margin-top: 10px; font-size: 9.5px; color: var(--texto3); display: flex; justify-content: space-between; }
+
+@media print {
+  body { background: #fff; font-size: 10.5px; }
+  #pagina { max-width: none; padding: 0; min-height: 0; }
+  .no-print { display: none !important; }
+  th, td { font-size: 10.5px; padding: 3px 6px; }
+  thead th { font-size: 8.5px; }
+  .tb-titulo h1 { font-size: 17.5px; }
+  .tb-pedido b { font-size: 19px; }
+  .kpi b { font-size: 18px; }
+  .sec .g { font-size: 15px; }
+  .rolo td.fx, .rolo td.px { font-size: 13.5px; }
+  .forte { font-size: 11.5px; }
+  .etq { font-size: 10.5px; }
+  .fim { display: none; }
+}
+</style>
+<!-- o tamanho da página e o rodapé de cada folha (documento · pedido · emissão · folha x/y) são escritos
+     pelo script, porque levam o pedido e a hora da emissão -->
+<style id="css-folha">@page { size: A4; margin: 10mm 9mm 13mm 9mm; }</style>
+</head>
+<body>
+<div id="pagina">
+  <div class="barra no-print">
+    <button class="btn btn-red" id="btn-imprimir">Imprimir este documento</button>
+    <button class="btn" id="btn-fechar">Fechar</button>
+    <span id="filtro-parte"></span>
+    <span class="dica">Cada aba é um documento, impresso em separado para o seu setor. A peça tem a mesma etiqueta em todos.</span>
+  </div>
+  <div class="abas no-print" id="abas"></div>
+  <div id="conteudo">
+    <div style="padding:40px;text-align:center;color:#777;font-size:13px">Calculando os documentos do pedido pelo Núcleo de Produtos…</div>
+  </div>
+</div>
+<script src="assets/vendor/qrcode.js" defer></script>
+<script src="assets/js/producao.js?v=20261127b" defer></script>
+</body>
+</html>

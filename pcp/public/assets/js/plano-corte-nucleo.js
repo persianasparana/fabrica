@@ -41,7 +41,7 @@
     return data;
   }
 
-  const estado = { pedido: '', overrides: {}, dados: null, status: null };
+  const estado = { pedido: '', overrides: {}, dados: null, status: null, materiais: null };
 
   // v09/08 — documento ÚNICO de corte (OC local aposentada): imprimir passa a
   // registrar no mesmo log de impressão de antes (controle de reimpressão).
@@ -145,11 +145,31 @@
   }
 
   // v09/08 — TECIDO DO PEDIDO (consumo por coleção + bobinas, do Núcleo)
+  // 27/11/2026 — o número que vale é o do PLANO DO PEDIDO (lista de materiais: as peças dividem o rolo,
+  // uma largura por cômodo, rolos inteiros) — é o que se compra e o que a bancada corta. A soma peça a
+  // peça que saía aqui passava muito dele (pedido de 350 peças: 1.613 m × 958 m) e fica só de reserva,
+  // quando a lista de materiais não vem.
   function secaoTecido(d) {
+    const num = (v, c) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: c == null ? 2 : c, maximumFractionDigits: c == null ? 2 : c });
+    const doPlano = (estado.materiais && estado.materiais.data && estado.materiais.data.tecido) || [];
+    if (doPlano.length) {
+      const rolos = (t) => (t.bobinas != null ? `<b style="font-size:13px">${t.bobinas}</b>${t.metros_bobina ? ` × ${num(t.metros_bobina, 0)} m` : ''}` : '—');
+      return `<h2>Tecido do pedido</h2>
+      <table>
+        <thead><tr><th>Coleção</th><th>Cor</th><th class="n" style="width:90px">Rolo (m)</th><th class="n" style="width:100px">Metros</th><th class="n" style="width:120px">Rolos</th></tr></thead>
+        <tbody>${doPlano.map((t) => `<tr>
+          <td><b>${esc(t.colecao)}</b></td>
+          <td>${esc(t.cor || '—')}</td>
+          <td class="n">${t.largura_rolo != null ? num(t.largura_rolo) : '—'}</td>
+          <td class="n">${num(t.metros)}</td>
+          <td class="n">${rolos(t)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div style="font-size:9px;color:#888;margin-top:2px">Tecido pelo PLANO DE CORTE DO PEDIDO (as peças dividem o rolo; uma largura de rolo por cômodo) — o mesmo número da Ficha de Produção e da compra. O corte faixa a faixa, com a peça de cada faixa, está em <b>Produção por etapas → Corte do tecido</b>.</div>`;
+    }
     const rs = d.resumo_tecido || [];
     if (!rs.length) return '';
-    const num = (v, c) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: c == null ? 2 : c, maximumFractionDigits: c == null ? 2 : c });
-    return `<h2>Tecido do pedido</h2>
+    return `<h2>Tecido do pedido — ESTIMATIVA peça a peça</h2>
       <table>
         <thead><tr><th>Coleção</th><th class="n" style="width:90px">Rolo (m)</th><th class="n" style="width:70px">Peças</th><th class="n" style="width:100px">Metros</th><th class="n" style="width:110px">Bobinas (${num(rs[0].metros_bobina, 0)} m)</th></tr></thead>
         <tbody>${rs.map((r) => `<tr>
@@ -160,7 +180,7 @@
           <td class="n"><b style="font-size:13px">${r.bobinas}</b></td>
         </tr>`).join('')}</tbody>
       </table>
-      <div style="font-size:9px;color:#888;margin-top:2px">Consumo linear por peça na largura do rolo — a MESMA conta da precificação (folga de enrolo, dobra do sheer, franzido da cortina). Estimativa sem aproveitamento entre peças e sem o extra de solda.</div>`;
+      <div style="font-size:9px;color:#888;margin-top:2px">⚠ ESTIMATIVA: consumo linear de cada peça sozinha na largura do rolo, SEM aproveitamento entre peças e sem o extra de solda — passa do tecido que o pedido leva. O plano de corte do pedido (lista de materiais do Núcleo) não veio${estado.materiais && estado.materiais.motivo ? ` (${esc(estado.materiais.motivo)})` : ''}; não use este número para comprar.</div>`;
   }
 
   function render() {
@@ -208,14 +228,18 @@
       return;
     }
     estado.pedido = pedido;
+    const lnk = document.getElementById('lnk-producao');
+    if (lnk) lnk.href = 'producao.html?pedido=' + encodeURIComponent(pedido);
     try {
       const sess = await api('auth/session');
       csrfToken = sess.csrf_token;
-      // status de impressão em paralelo (fail-soft: sem status, sem banner)
-      const [dados, status] = await Promise.all([
+      // status de impressão e o tecido do plano do pedido em paralelo (fail-soft: sem eles o plano sai igual)
+      const [dados, status, materiais] = await Promise.all([
         api('pcp/ordem-corte/plano-nucleo?pedido=' + encodeURIComponent(pedido)),
         api('pcp/ordem-corte/status?pedidos=' + encodeURIComponent(pedido)).catch(() => null),
+        api('pcp/pedido/materiais?pedido=' + encodeURIComponent(pedido)).catch((e2) => ({ habilitado: false, motivo: e2.message, data: null })),
       ]);
+      estado.materiais = materiais;
       estado.dados = dados;
       estado.status = status && status.data ? status.data[pedido] || null : null;
       render();

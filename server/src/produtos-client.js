@@ -29,20 +29,37 @@ export const planoCorteHabilitado = () =>
  * modo?, box?, bando?, variante? }]. Retorna o array `data` do Núcleo ou
  * null em qualquer erro (o chamador decide o que fazer — aqui vira 502).
  */
+// 27/11/2026 — o Núcleo aceita até 500 peças por chamada do /plano-corte: pedido maior vai em blocos
+// (antes voltava "Núcleo indisponível" e o pedido grande ficava sem plano de corte nenhum).
+const PLANO_CORTE_BLOCO = 500;
+async function planoCorteDoBloco(pecas) {
+  const resp = await fetch(`${base()}/plano-corte`, {
+    method: 'POST',
+    headers: { 'X-Service-Key': chave(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pecas }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!resp.ok) return null;
+  const j = await resp.json();
+  if (!Array.isArray(j && j.data)) return null;
+  return { pecas: j.data, resumoTecido: Array.isArray(j.resumo_tecido) ? j.resumo_tecido : [] };
+}
 export async function buscarPlanoCorte(pecas) {
   if (!planoCorteHabilitado() || !Array.isArray(pecas) || !pecas.length) return null;
   try {
-    const resp = await fetch(`${base()}/plano-corte`, {
-      method: 'POST',
-      headers: { 'X-Service-Key': chave(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pecas }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok) return null;
-    const j = await resp.json();
-    if (!Array.isArray(j && j.data)) return null;
-    // v09/08 — o Núcleo passou a mandar também o resumo de tecido/bobinas
-    return { pecas: j.data, resumoTecido: Array.isArray(j.resumo_tecido) ? j.resumo_tecido : [] };
+    const out = { pecas: [], resumoTecido: [] };
+    for (let i = 0; i < pecas.length; i += PLANO_CORTE_BLOCO) {
+      const r = await planoCorteDoBloco(pecas.slice(i, i + PLANO_CORTE_BLOCO));
+      if (!r) return null;
+      out.pecas.push(...r.pecas);
+      // v09/08 — o Núcleo manda também o resumo de tecido/bobinas (estimativa peça a peça, sem aproveitamento)
+      for (const t of r.resumoTecido) {
+        const g = out.resumoTecido.find((x) => x.colecao === t.colecao && Number(x.largura_rolo) === Number(t.largura_rolo));
+        if (!g) out.resumoTecido.push({ ...t });
+        else { g.pecas = (Number(g.pecas) || 0) + (Number(t.pecas) || 0); g.metros = Math.round(((Number(g.metros) || 0) + (Number(t.metros) || 0)) * 100) / 100; g.bobinas = (Number(g.bobinas) || 0) + (Number(t.bobinas) || 0); }
+      }
+    }
+    return out;
   } catch {
     return null;
   }

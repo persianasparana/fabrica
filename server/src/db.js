@@ -340,6 +340,10 @@ export async function migrate() {
     )
   `);
   await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_pedido ON pcp_ordem_corte_log (pedido)`);
+  // 27/11/2026 — produção por etapas: cada documento do pedido (corte do tecido, corte dos perfis,
+  // montagem…) registra a própria impressão em `modo` ('prod-tecido', 'prod-perfis', 'prod-montagem'…);
+  // `detalhe` guarda a PARTE quando a montagem é impressa de uma parte só.
+  await q(`ALTER TABLE pcp_ordem_corte_log ADD COLUMN IF NOT EXISTS detalhe VARCHAR(160)`);
   await q(`CREATE INDEX IF NOT EXISTS idx_ordem_corte_setor ON pcp_ordem_corte_log (setor_id)`);
 
   // Outbox do ciclo do pedido (norma de revisão, lente 2 — saga/pendência):

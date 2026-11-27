@@ -1196,6 +1196,7 @@ function renderPedidoEditor() {
         <button class="btn btn-outline" onclick="carregarPedido()">Recarregar</button>
         <button class="btn btn-black" onclick="abrirFichaProducao()" title="Documento completo pra bancada: specs, cores, medidas, observações e etiquetas por item">🗒 Ficha de produção</button>
         <button class="btn btn-outline" onclick="abrirPlanoCorteNucleo()" title="Planejamento de corte do pedido calculado pelo Núcleo de Produtos (variante + medidas de corte por componente)">📐 Plano de corte</button>
+        <button class="btn btn-outline" onclick="abrirProducaoPorEtapas()" title="Documentos SEPARADOS do pedido: corte do tecido (por largura de rolo), corte dos perfis (plano de barras), montagem por parte, andamento das partes e lista de compra">🏭 Produção por etapas</button>
         <button class="btn btn-outline" id="ped-baixa-materiais" onclick="baixarMateriaisPedido()" title="Dá baixa no estoque do Compras dos materiais das peças deste pedido que ainda não foram baixadas (a 1ª bipagem faz isso sozinha). Idempotente.">📦 Baixar materiais no Compras</button>
         <button class="btn btn-outline" style="margin-left:auto;color:var(--red);border-color:var(--red)" onclick="excluirPedido()">Excluir pedido inteiro</button>
       </div>
@@ -1212,6 +1213,14 @@ function abrirPlanoCorteNucleo(pedido) {
   const alvo = pedido || (pedidoCarregado && pedidoCarregado.pedido);
   if (!alvo) return;
   window.open('plano-corte-nucleo.html?pedido=' + encodeURIComponent(alvo), '_blank');
+}
+
+// 27/11/2026 — PRODUÇÃO POR ETAPAS: corte do tecido, corte dos perfis e montagem em documentos
+// separados, o quadro das partes e a lista de compra (producao.html; a regra é server/src/producao.js)
+function abrirProducaoPorEtapas(pedido, doc) {
+  const alvo = pedido || (pedidoCarregado && pedidoCarregado.pedido);
+  if (!alvo) return;
+  window.open('producao.html?pedido=' + encodeURIComponent(alvo) + (doc ? '&doc=' + encodeURIComponent(doc) : ''), '_blank');
 }
 
 // ── Medidas por peça (largura/altura + furos/modelo p/ horizontais) ──────────
@@ -2332,8 +2341,9 @@ async function ocPreview() {
       <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
         <div style="flex:1;font-size:13px;font-weight:700">Pedido ${esc(p)}</div>
         <button class="btn btn-red" onclick="ocAbrirPlanoNucleo('${esc(p).replace(/'/g, "\\'")}')">📐 Abrir plano de corte</button>
+        <button class="btn btn-outline" title="Corte do tecido, corte dos perfis e montagem em documentos separados (pedido grande ou instalado por partes)" onclick="abrirProducaoPorEtapas('${esc(p).replace(/'/g, "\\'")}', 'tecido')">🏭 Produção por etapas</button>
       </div>`).join('')}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:10px">O plano abre em outra aba, por pedido — confira as variantes (dá pra trocar por peça na tela) e use o botão <b>Imprimir e registrar</b> do documento: é ele que grava o “já impresso”.</div>`;
+      <div style="font-size:10px;color:var(--text3);margin-top:10px">O plano abre em outra aba, por pedido — confira as variantes (dá pra trocar por peça na tela) e use o botão <b>Imprimir e registrar</b> do documento: é ele que grava o “já impresso”. Em pedido grande ou instalado por partes, use a <b>Produção por etapas</b>: o tecido do pedido inteiro por largura de rolo, os perfis por perfil e a montagem por parte, cada um no seu papel.</div>`;
     // um pedido só → já abre direto (clique = gesto do usuário, sem bloqueio)
     if (pedidos.length === 1) ocAbrirPlanoNucleo(pedidos[0]);
   } catch (e) {

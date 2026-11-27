@@ -30,6 +30,7 @@ import { ah, HttpError } from '../util.js';
 import { avancarPedidoSilencioso, ehPedidoComercial } from '../comercial-client.js';
 // P0 do planejamento (06/11/2026): lista de materiais pelo Núcleo + roteiro por linha
 import { listaMateriaisDosPedidos } from '../lista-materiais.js';
+import { producaoDoPedido, registrarImpressaoDoDocumento } from '../producao-pedido.js';
 import { linhaDoSku, semEstruturaLocal } from '../nucleo-spec.js';
 import { roteiroDaLinha } from '../roteiro.js';
 // P2 do planejamento (06/11/2026): carga por setor (capacidade × fila sequenciada)
@@ -570,6 +571,35 @@ r.get(
     const pedidos = String(req.query.pedidos || req.query.pedido || '').split(',').map((x) => x.trim()).filter(Boolean);
     if (!pedidos.length) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
     res.json(await listaMateriaisDosPedidos(pedidos));
+  })
+);
+
+// 27/11/2026 — PRODUÇÃO POR ETAPAS: os documentos SEPARADOS do pedido (corte do tecido por largura →
+// rolo → faixa; corte dos perfis com o plano de barras; montagem por PARTE), o quadro das partes e a
+// lista de compra em rolos/barras/unidades. Só leitura; a regra é `producao.js` (puro).
+r.get(
+  '/pedido/producao',
+  requirePerm('fila', 'ver'),
+  ah(async (req, res) => {
+    const pedido = String(req.query.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Parâmetro "pedido" obrigatório');
+    res.json(await producaoDoPedido(pedido));
+  })
+);
+
+// cada documento registra a própria impressão (controle de reimpressão por documento; a montagem,
+// também por parte) — o mesmo log do Plano de corte (`pcp_ordem_corte_log`, modo 'prod-<documento>')
+r.post(
+  '/pedido/producao/impressao',
+  requireCsrf,
+  requirePerm('fila', 'ver'),
+  ah(async (req, res) => {
+    const pedido = String(req.body?.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Envie { pedido, doc }');
+    const r2 = await registrarImpressaoDoDocumento(pedido, String(req.body?.doc || '').trim(), {
+      parte: req.body?.parte || null, userId: req.session.user.id, userNome: req.session.user.full_name,
+    });
+    res.json({ ok: true, ...r2 });
   })
 );
 

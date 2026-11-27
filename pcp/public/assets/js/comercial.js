@@ -110,7 +110,8 @@ function comLinhaProducao(p) {
     : '';
   const fichas = p.pedidoCodigo
     ? `<button class="btn btn-outline" style="font-size:10px" title="Ficha de produção (specs completas pra bancada)" onclick="abrirFichaProducao('${esc(p.pedidoCodigo)}')">🗒 Ficha</button>
-       <button class="btn btn-outline" style="font-size:10px" title="Plano de corte calculado pelo Núcleo de Produtos" onclick="abrirPlanoCorteNucleo('${esc(p.pedidoCodigo)}')">📐 Plano de corte</button>`
+       <button class="btn btn-outline" style="font-size:10px" title="Plano de corte calculado pelo Núcleo de Produtos" onclick="abrirPlanoCorteNucleo('${esc(p.pedidoCodigo)}')">📐 Plano de corte</button>
+       <button class="btn btn-outline" style="font-size:10px" title="Corte do tecido, corte dos perfis e montagem em documentos separados + andamento das partes" onclick="abrirProducaoPorEtapas('${esc(p.pedidoCodigo)}')">🏭 Produção</button>`
     : '';
   return `<tr>
     <td><b>${esc(p.pedidoCodigo || '—')}</b>${comBadgesDesenho(p)}</td>
