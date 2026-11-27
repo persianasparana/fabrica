@@ -11,11 +11,18 @@
  *       ?concluidos=1                    só pedidos com TODAS as peças concluídas
  *       ?desde=YYYY-MM-DD                conclusão a partir desta data
  *       ?pedido=NNN                      um pedido específico
+ *
+ * 27/11/2026 — PEDIDO POR PARTES (chaves ADITIVAS nas três rotas; quem não lê segue como antes):
+ * `por_partes` (o pedido é produzido e instalado por partes?) e, quando sim, `partes[]` com o andamento
+ * de cada uma `{ parte, total_pecas, pecas_concluidas, pecas_guardadas, concluida, na_expedicao }`;
+ * na peça, `parte` e `comodo`. A regra é a dos documentos de produção (`producao.js`): por partes =
+ * dois grupos ou mais no pedido e o cômodo escrito nas peças, ou o que o PCP forçou.
  */
 import { timingSafeEqual } from 'node:crypto';
 import { Router } from 'express';
 import { q } from '../db.js';
 import { ah, HttpError } from '../util.js';
+import { partesDosPedidos } from '../producao-pedido.js';
 
 const r = Router();
 
@@ -83,7 +90,13 @@ r.get(
        ORDER BY MAX(i.conclusao) DESC NULLS LAST, i.pedido`,
       params
     );
-    res.json({ data: rows });
+    const partes = await partesDosPedidos(rows.map((x) => x.pedido));
+    res.json({
+      data: rows.map((x) => {
+        const p = partes.get(x.pedido);
+        return { ...x, por_partes: !!(p && p.por_partes), partes: p ? p.partes : [] };
+      }),
+    });
   })
 );
 
@@ -96,7 +109,7 @@ r.get(
     const codigo = String(req.query.codigo || '').trim();
     if (!codigo) throw new HttpError(422, 'Parâmetro "codigo" obrigatório');
     const { rows } = await q(
-      `SELECT pp.cod_barras, pp.numero,
+      `SELECT pp.cod_barras, pp.numero, pp.item_id,
               to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
               (SELECT g.nome FROM pcp_gavetas g WHERE g.id = pp.gaveta_id) AS gaveta,
               to_char(pp.guardada_em, 'YYYY-MM-DD HH24:MI') AS guardada_em,
@@ -111,7 +124,18 @@ r.get(
       [codigo]
     );
     if (!rows[0]) throw new HttpError(404, 'Etiqueta não encontrada na fábrica');
-    res.json(rows[0]);
+    const { item_id: itemId, ...peca } = rows[0];
+    const p = (await partesDosPedidos([peca.pedido])).get(peca.pedido);
+    const doItem = (p && p.porItem.get(Number(itemId))) || { parte: null, comodo: null };
+    const daParte = p && p.por_partes ? p.partes.find((x) => x.parte === doItem.parte) : null;
+    res.json({
+      ...peca,
+      por_partes: !!(p && p.por_partes),
+      parte: doItem.parte,
+      comodo: doItem.comodo,
+      total_pecas_parte: daParte ? daParte.total_pecas : null,
+      pecas_concluidas_parte: daParte ? daParte.pecas_concluidas : null,
+    });
   })
 );
 
@@ -128,7 +152,7 @@ r.get(
               to_char(pp.conclusao, 'YYYY-MM-DD') AS conclusao,
               g.nome AS gaveta,
               to_char(pp.guardada_em, 'YYYY-MM-DD HH24:MI') AS guardada_em,
-              i.pedido, i.produto, i.cliente, i.ambiente
+              i.pedido, i.produto, i.cliente, i.ambiente, pp.item_id
        FROM pcp_pecas pp
        JOIN pcp_itens i ON i.id = pp.item_id
        LEFT JOIN pcp_gavetas g ON g.id = pp.gaveta_id
@@ -138,13 +162,16 @@ r.get(
     );
     if (!rows.length) throw new HttpError(404, `Pedido ${pedido} não encontrado na fábrica`);
     const guardadas = rows.filter((x) => x.gaveta).length;
+    const p = (await partesDosPedidos([pedido])).get(pedido);
     res.json({
       pedido,
       total_pecas: rows.length,
       embaladas: rows.filter((x) => x.conclusao).length,
       guardadas,
       completo_na_expedicao: guardadas === rows.length,
-      pecas: rows,
+      por_partes: !!(p && p.por_partes),
+      partes: p ? p.partes : [],
+      pecas: rows.map(({ item_id: itemId, ...x }) => ({ ...x, ...((p && p.porItem.get(Number(itemId))) || { parte: null, comodo: null }) })),
     });
   })
 );

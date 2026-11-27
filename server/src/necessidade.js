@@ -14,6 +14,7 @@
 import { q } from './db.js';
 import { HttpError } from './util.js';
 import { listaMateriaisDosPedidos, skuCompras } from './lista-materiais.js';
+import { compraEmRolos } from './producao.js';
 import { saldos as saldosCompras, comprasHabilitado, enviarComOutbox, consultarSolicitacao } from './compras-client.js';
 import { createHash } from 'node:crypto';
 
@@ -102,7 +103,10 @@ export async function necessidadeMateriais(opts = {}) {
     ...base,
     totais: { ...base.totais, pecas_ok: Number(d.totais?.pecas_ok) || 0, pecas_erro: Number(d.totais?.pecas_erro) || 0 },
     habilitado: true, motivo: null, avisos: lm.avisos || [],
-    tecido: tecido.map((t) => comSaldo(t, t.metros)), tecido_totais: d.tecido_totais || { metros: 0, bobinas: 0 },
+    // 27/11/2026 — o tecido se compra em ROLOS INTEIROS: `comprar` = rolos × metros do rolo (com saldo do
+    // Compras, a falta arredondada para cima em rolos) — é a quantidade sugerida na requisição
+    tecido: tecido.map((t) => { const l = comSaldo(t, t.metros); return { ...l, comprar: compraEmRolos({ metros: l.metros, bobinas: l.bobinas, metros_bobina: l.metros_bobina, falta: l.falta }) }; }),
+    tecido_totais: d.tecido_totais || { metros: 0, bobinas: 0 },
     perfis, perfis_totais: d.perfis_totais || null,
     tubos: d.tubos || [],
     componentes: componentes.map((m) => comSaldo(m, m.qtd)),

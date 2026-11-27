@@ -8,7 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ordenarNomes, SEM_PARTE, parteDoItem, comodoDoItem, nomeEVezes, encaixarBarras, montarProducao,
+  ordenarNomes, SEM_PARTE, PEDIDO_INTEIRO, parteDoItem, comodoDoItem, pedidoPorPartes, resumoDasPartes,
+  nomeEVezes, encaixarBarras, compraEmRolos, montarProducao,
 } from '../src/producao.js';
 
 // ── fixtures ───────────────────────────────────────────────────────────────────
@@ -101,7 +102,8 @@ const lista = (comRolos = true) => ({
   },
 });
 
-const montar = (extra = {}) => montarProducao({ pedido: 'PED-1', itens: ITENS, pecas: PECAS, plano: PLANO, lista: lista(), setores: SETORES, ...extra });
+// a fixture é tratada como pedido POR PARTES (como se o PCP tivesse forçado); a regra automática tem os seus testes
+const montar = (extra = {}) => montarProducao({ pedido: 'PED-1', itens: ITENS, pecas: PECAS, plano: PLANO, lista: lista(), setores: SETORES, porPartes: true, ...extra });
 const pecaDe = (d, id) => d.pecas.find((p) => p.id === id);
 
 // ── nomes ──────────────────────────────────────────────────────────────────────
@@ -121,6 +123,99 @@ test('cômodo = o ambiente escrito na peça, só quando não é o próprio nome 
   assert.equal(comodoDoItem({ grupo_pedido: 'PARTE 3', ambiente: 'parte 3' }), null);
   assert.equal(comodoDoItem({ grupo_pedido: null, ambiente: 'Sala' }), null);
   assert.equal(comodoDoItem({ grupo_pedido: 'PARTE 3', ambiente: '' }), null);
+});
+
+// ── pedido por partes × pedido comum ───────────────────────────────────────────
+test('por partes (automático): dois grupos ou mais E o cômodo escrito em pelo menos metade das peças', () => {
+  // o pedido do relato: blocos "PARTE n" e o cômodo na peça
+  const porPartes = [
+    { id: 1, grupo_pedido: 'PARTE 1', ambiente: 'Recepção - 01', qnt: 3 },
+    { id: 2, grupo_pedido: 'PARTE 1', ambiente: 'Sala de Jogos', qnt: 2 },
+    { id: 3, grupo_pedido: 'PARTE 2', ambiente: 'PARTE 2', qnt: 1 },
+  ];
+  assert.deepEqual(pedidoPorPartes(porPartes), { ativo: true, automatico: true, forcado: null });
+  // pedido comum: o bloco É o cômodo
+  const comum = [
+    { id: 1, grupo_pedido: 'Sala', ambiente: 'Sala', qnt: 2 },
+    { id: 2, grupo_pedido: 'Quarto', ambiente: 'Quarto', qnt: 1 },
+    { id: 3, grupo_pedido: 'Cozinha', ambiente: 'Cozinha - janela da pia', qnt: 1 },
+  ];
+  assert.deepEqual(pedidoPorPartes(comum), { ativo: false, automatico: false, forcado: null });
+  // um grupo só não é "por partes", mesmo com o cômodo escrito
+  assert.equal(pedidoPorPartes([{ id: 1, grupo_pedido: 'Casa', ambiente: 'Sala', qnt: 4 }]).ativo, false);
+  // sem grupo (pedido liberado antes de o grupo existir) e sem nada
+  assert.equal(pedidoPorPartes([{ id: 1, grupo_pedido: null, ambiente: 'Sala', qnt: 1 }, { id: 2, grupo_pedido: null, ambiente: 'Quarto', qnt: 1 }]).ativo, false);
+  assert.equal(pedidoPorPartes([]).ativo, false);
+  assert.equal(pedidoPorPartes(null).ativo, false);
+});
+
+test('por partes: cada item pesa pelo nº de peças dele (as peças da fila, quando informadas)', () => {
+  const itens = [
+    { id: 1, grupo_pedido: 'PARTE 1', ambiente: 'Recepção', qnt: 1 },
+    { id: 2, grupo_pedido: 'PARTE 2', ambiente: 'PARTE 2', qnt: 1 },
+  ];
+  assert.equal(pedidoPorPartes(itens).ativo, true, 'metade das peças com o cômodo escrito');
+  const pecas = [{ item_id: 1 }, { item_id: 2 }, { item_id: 2 }, { item_id: 2 }];
+  assert.equal(pedidoPorPartes(itens, pecas).ativo, false, '1 de 4 peças não chega à metade');
+  // `pecas` do item (integração) vale no lugar de qnt
+  assert.equal(pedidoPorPartes([{ ...itens[0], pecas: 5 }, { ...itens[1], pecas: 1 }]).ativo, true);
+});
+
+test('por partes: o que o PCP forçou vence o automático, e o automático continua informado', () => {
+  const comum = [{ id: 1, grupo_pedido: 'Sala', ambiente: 'Sala' }, { id: 2, grupo_pedido: 'Quarto', ambiente: 'Quarto' }];
+  assert.deepEqual(pedidoPorPartes(comum, null, true), { ativo: true, automatico: false, forcado: true });
+  const porPartes = [{ id: 1, grupo_pedido: 'PARTE 1', ambiente: 'Sala' }, { id: 2, grupo_pedido: 'PARTE 2', ambiente: 'Copa' }];
+  assert.deepEqual(pedidoPorPartes(porPartes, null, false), { ativo: false, automatico: true, forcado: false });
+  assert.deepEqual(pedidoPorPartes(porPartes, null, 'sim'), { ativo: true, automatico: true, forcado: null }, 'valor estranho = automático');
+});
+
+test('pedido comum: a parte é o pedido inteiro e o cômodo é o ambiente do item', () => {
+  assert.equal(parteDoItem({ grupo_pedido: 'Sala', ambiente: 'Sala' }, false), PEDIDO_INTEIRO);
+  assert.equal(comodoDoItem({ grupo_pedido: 'Sala', ambiente: 'Sala' }, false), 'Sala');
+  assert.equal(comodoDoItem({ grupo_pedido: 'Sala', ambiente: 'Sala - janela 1' }, false), 'Sala - janela 1');
+  assert.equal(comodoDoItem({ grupo_pedido: 'Sala', ambiente: null }, false), 'Sala');
+  assert.equal(comodoDoItem({}, false), null);
+});
+
+test('pedido comum nos documentos: UMA parte, os ambientes como cômodos, nada de "pronta" por cômodo', () => {
+  const itens = [
+    { id: 10, produto: 'Cortina Rolô', grupo_pedido: 'Sala', ambiente: 'Sala', qnt: 2 },
+    { id: 11, produto: 'Cortina Rolô', grupo_pedido: 'Quarto', ambiente: 'Quarto', qnt: 1 },
+  ];
+  const pecas = [
+    { id: 100, item_id: 10, numero: 1, cod_barras: 'PP10-1', largura: 120, altura: 100, conclusao: '2026-11-27', gaveta_id: null },
+    { id: 101, item_id: 10, numero: 2, cod_barras: 'PP10-2', largura: 120, altura: 100, conclusao: '2026-11-27', gaveta_id: null },
+    { id: 102, item_id: 11, numero: 1, cod_barras: 'PP11-1', largura: 200, altura: 150, conclusao: null, gaveta_id: null },
+  ];
+  const d = montarProducao({ pedido: 'PED-2', itens, pecas, plano: null, lista: null, setores: SETORES });
+  assert.deepEqual(d.por_partes, { ativo: false, automatico: false, forcado: null });
+  assert.deepEqual(d.partes.map((p) => [p.parte, p.pecas]), [[PEDIDO_INTEIRO, 3]]);
+  assert.deepEqual(d.partes[0].comodos, [{ comodo: 'Sala', pecas: [100, 101] }, { comodo: 'Quarto', pecas: [102] }]);
+  assert.deepEqual([d.resumo.partes, d.resumo.partes_prontas, d.partes[0].andamento.pronta], [1, 0, false], 'a Sala inteira embalada não fecha nada: falta o Quarto');
+  assert.deepEqual(d.pecas.map((p) => [p.parte, p.comodo]), [[PEDIDO_INTEIRO, 'Sala'], [PEDIDO_INTEIRO, 'Sala'], [PEDIDO_INTEIRO, 'Quarto']]);
+  // o PCP força "por partes": os blocos viram as partes
+  const f = montarProducao({ pedido: 'PED-2', itens, pecas, plano: null, lista: null, setores: SETORES, porPartes: true });
+  assert.deepEqual(f.partes.map((p) => [p.parte, p.pecas, p.andamento.pronta]), [['Quarto', 1, false], ['Sala', 2, true]]);
+  assert.deepEqual(f.por_partes, { ativo: true, automatico: false, forcado: true });
+});
+
+test('resumo das partes para a integração: só no pedido por partes; a parte fecha com TODAS as peças', () => {
+  const itens = [
+    { id: 1, grupo_pedido: 'PARTE 2', ambiente: 'Recepção', pecas: 3, concluidas: 3, guardadas: 3 },
+    { id: 2, grupo_pedido: 'PARTE 10', ambiente: 'Copa', pecas: 2, concluidas: 2, guardadas: 1 },
+    { id: 3, grupo_pedido: 'PARTE 10', ambiente: 'Sala', pecas: 1, concluidas: 0, guardadas: 0 },
+  ];
+  assert.deepEqual(resumoDasPartes(itens), {
+    por_partes: true,
+    partes: [
+      { parte: 'PARTE 2', total_pecas: 3, pecas_concluidas: 3, pecas_guardadas: 3, concluida: true, na_expedicao: true },
+      { parte: 'PARTE 10', total_pecas: 3, pecas_concluidas: 2, pecas_guardadas: 1, concluida: false, na_expedicao: false },
+    ],
+  });
+  assert.deepEqual(resumoDasPartes(itens, false), { por_partes: false, partes: [] }, 'o PCP disse que é um pedido só');
+  const comum = [{ id: 1, grupo_pedido: 'Sala', ambiente: 'Sala', pecas: 2, concluidas: 2, guardadas: 0 }, { id: 2, grupo_pedido: 'Quarto', ambiente: 'Quarto', pecas: 1, concluidas: 0, guardadas: 0 }];
+  assert.deepEqual(resumoDasPartes(comum), { por_partes: false, partes: [] });
+  assert.equal(resumoDasPartes(comum, true).partes.length, 2);
 });
 
 test('nomeEVezes lê o "(×2)" do rótulo do corte', () => {
@@ -235,7 +330,9 @@ test('altura de corte do tecido: vale a do plano de corte; se ele ainda não dob
   assert.deepEqual([pecaDe(d, 100).tecido.corte_largura_cm, pecaDe(d, 100).tecido.corte_altura_cm, pecaDe(d, 100).tecido.altura_regra], [117, 215, 'sheer_dobro']);
   // Núcleo anterior: "altura + 15" (165 cm) contra 315 cm do plano que comprou o tecido → vale 315, com aviso
   assert.deepEqual([pecaDe(d, 102).tecido.corte_altura_cm, pecaDe(d, 102).tecido.altura_regra, pecaDe(d, 102).tecido.altura_plano_cm], [315, 'plano_de_consumo', 315]);
-  assert.equal(d.avisos.filter((a) => /Em 1 peça\(s\) a altura do tecido/.test(a)).length, 1);
+  const aviso = d.avisos.filter((a) => /Em 1 peça\(s\) a altura do tecido/.test(a.texto));
+  assert.equal(aviso.length, 1);
+  assert.deepEqual(aviso[0].docs, ['tecido', 'montagem'], 'imprime nos documentos de quem corta e de quem monta');
 });
 
 test('peça com tecido fora do plano de aproveitamento: cortar à parte e comprar à parte', () => {
@@ -264,11 +361,26 @@ test('corte dos perfis: pedido inteiro, por perfil, com o plano de barras e a pe
   assert.deepEqual(d.perfis.map((x) => x.perfil), ['Perfil lateral', 'Tubo 32mm']);
 });
 
+test('troca de tela (somente tecido): a peça não entra no corte dos perfis — só o tecido é cortado', () => {
+    const l = lista();
+    l.data.pecas[0].so_tecido = true; // a peça 100 foi vendida como troca de tela
+    const d = montar({ lista: l });
+    assert.equal(pecaDe(d, 100).so_tecido, true);
+    assert.deepEqual(pecaDe(d, 100).cortes, []);
+    assert.deepEqual([pecaDe(d, 100).tecido.corte_largura_cm, pecaDe(d, 100).tecido.corte_altura_cm, pecaDe(d, 100).tecido.rolo_m], [117, 215, 2.2], 'o tecido dela segue no plano');
+    const tubo = d.perfis.find((x) => x.perfil === 'Tubo 32mm');
+    assert.deepEqual(tubo.barras[0].cortes.map((c) => c.id), [102, 101], 'os perfis da peça 100 saíram do plano de barras');
+    assert.equal(d.perfis.find((x) => x.perfil === 'Perfil lateral').cortes, 4);
+    assert.deepEqual(d.itens_por_formula, [{ perfil: 'Corrente', formula: '2*H', pecas: 2 }]);
+    assert.equal(pecaDe(d, 101).so_tecido, false);
+});
+
 test('plano de barras diferente da lista de materiais do Núcleo: avisa (não esconde)', () => {
   const d = montar();
-  const aviso = d.avisos.find((a) => /difere da lista de materiais/.test(a));
-  assert.ok(aviso && /Perfil lateral \(2 × 9\)/.test(aviso), aviso);
-  assert.equal(/Tubo 32mm/.test(aviso), false, 'o que bate não entra no aviso');
+  const aviso = d.avisos.find((a) => /difere da lista de materiais/.test(a.texto));
+  assert.ok(aviso && /Perfil lateral \(2 × 9\)/.test(aviso.texto), JSON.stringify(aviso));
+  assert.equal(/Tubo 32mm/.test(aviso.texto), false, 'o que bate não entra no aviso');
+  assert.deepEqual(aviso.docs, ['perfis', 'compra']);
 });
 
 test('montagem: por parte → cômodo → peça, com os componentes de cada parte (sem o tecido)', () => {
@@ -312,13 +424,27 @@ test('lista de compra: tecido em ROLOS inteiros, perfis em barras, componentes s
   ]);
 });
 
+test('compra do tecido em rolos inteiros: os rolos do plano; com saldo, a falta para cima em rolos', () => {
+  // sem saldo do Compras: os rolos do plano (369,30 m em 13 rolos de 30 m → 390 m)
+  assert.deepEqual(compraEmRolos({ metros: 369.3, bobinas: 13, metros_bobina: 30 }), { metros_rolo: 30, rolos: 13, metros: 390 });
+  // com saldo: falta 269,3 m → 9 rolos (270 m); falta de 30,00 m exatos = 1 rolo; falta zero = nada
+  assert.deepEqual(compraEmRolos({ metros: 369.3, bobinas: 13, metros_bobina: 30, falta: 269.3 }), { metros_rolo: 30, rolos: 9, metros: 270 });
+  assert.deepEqual(compraEmRolos({ metros: 369.3, bobinas: 13, metros_bobina: 30, falta: 30 }), { metros_rolo: 30, rolos: 1, metros: 30 });
+  assert.deepEqual(compraEmRolos({ metros: 369.3, bobinas: 13, metros_bobina: 30, falta: 0 }), { metros_rolo: 30, rolos: 0, metros: 0 });
+  // sem os metros do rolo (Núcleo anterior ao plano rolo a rolo): os metros, como antes
+  assert.deepEqual(compraEmRolos({ metros: 12.345, bobinas: null, metros_bobina: null }), { metros_rolo: null, rolos: null, metros: 12.35 });
+  assert.deepEqual(compraEmRolos({ metros: 12.3, falta: 4.56 }), { metros_rolo: null, rolos: null, metros: 4.56 });
+  assert.deepEqual(compraEmRolos(), { metros_rolo: null, rolos: null, metros: 0 });
+});
+
 test('avisos: o da lista passa; o de cada peça fica na peça e vira UMA contagem', () => {
   const d = montar();
-  assert.ok(d.avisos.includes('aviso da lista de materiais'));
+  assert.deepEqual(d.avisos.find((a) => a.texto === 'aviso da lista de materiais'), { texto: 'aviso da lista de materiais', docs: null }, 'aviso geral: só na Visão geral e na compra');
   assert.equal(pecaDe(d, 103).aviso, 'Sem plano de corte cadastrado');
   assert.equal(pecaDe(d, 104).aviso, 'Produto não encontrado no Núcleo');
-  assert.equal(d.avisos.filter((a) => /^2 peça\(s\) com aviso do Núcleo/.test(a)).length, 1);
-  assert.equal(d.avisos.some((a) => /Peça nº 1 \(Romana\)/.test(a)), false, 'o aviso por peça não sobe um a um');
+  assert.equal(d.avisos.filter((a) => /^2 peça\(s\) com aviso do Núcleo/.test(a.texto)).length, 1);
+  assert.equal(d.avisos.some((a) => /Peça nº 1 \(Romana\)/.test(a.texto)), false, 'o aviso por peça não sobe um a um');
+  assert.equal(new Set(d.avisos.map((a) => a.texto)).size, d.avisos.length, 'sem aviso repetido');
 });
 
 test('Núcleo anterior ao plano rolo a rolo: as faixas saem num grupo só, sem número de rolo', () => {
@@ -346,15 +472,18 @@ test('faixa maior que o rolo conta os rolos que pede', () => {
 });
 
 test('Núcleo fora: os documentos saem vazios com o aviso do que ficou de fora — e as partes continuam', () => {
-  const d = montarProducao({ pedido: 'PED-1', itens: ITENS, pecas: PECAS, plano: null, lista: { habilitado: true, motivo: 'HTTP 502', data: null, avisos: [] }, setores: SETORES });
+  const d = montarProducao({ pedido: 'PED-1', itens: ITENS, pecas: PECAS, plano: null, lista: { habilitado: true, motivo: 'HTTP 502', data: null, avisos: [] }, setores: SETORES, porPartes: true });
   assert.deepEqual([d.tecido.length, d.perfis.length, d.compra.tecido.length, d.compra.componentes.length], [0, 0, 0, 0]);
   assert.equal(d.partes.length, 4);
   assert.equal(d.partes.find((p) => p.parte === 'PARTE 2').andamento.pronta, true);
-  assert.ok(d.avisos.some((a) => /plano de corte por peça não veio/.test(a)));
-  assert.ok(d.avisos.some((a) => /lista de materiais não veio.*HTTP 502/.test(a)));
+  assert.ok(d.avisos.some((a) => /plano de corte por peça não veio/.test(a.texto) && a.docs.includes('perfis')));
+  assert.ok(d.avisos.some((a) => /lista de materiais não veio.*HTTP 502/.test(a.texto) && a.docs.includes('tecido')));
   // sem nada
   const vazio = montarProducao();
-  assert.deepEqual([vazio.pedido, vazio.pecas.length, vazio.partes.length], [null, 0, 0]);
+  assert.deepEqual([vazio.pedido, vazio.pecas.length, vazio.partes.length, vazio.por_partes.ativo], [null, 0, 0, false]);
+  // a mesma fixture no automático: só 2 das 5 peças têm o cômodo escrito → é um pedido só
+  const auto = montarProducao({ pedido: 'PED-1', itens: ITENS, pecas: PECAS, plano: PLANO, lista: lista(), setores: SETORES });
+  assert.deepEqual([auto.por_partes.ativo, auto.partes.length, auto.partes[0].parte], [false, 1, PEDIDO_INTEIRO]);
 });
 
 test('peça do plano do tecido que não está mais na fila não derruba o documento', () => {

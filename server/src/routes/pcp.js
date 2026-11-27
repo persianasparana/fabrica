@@ -30,7 +30,7 @@ import { ah, HttpError } from '../util.js';
 import { avancarPedidoSilencioso, ehPedidoComercial } from '../comercial-client.js';
 // P0 do planejamento (06/11/2026): lista de materiais pelo Núcleo + roteiro por linha
 import { listaMateriaisDosPedidos } from '../lista-materiais.js';
-import { producaoDoPedido, registrarImpressaoDoDocumento } from '../producao-pedido.js';
+import { producaoDoPedido, registrarImpressaoDoDocumento, definirPorPartes } from '../producao-pedido.js';
 import { linhaDoSku, semEstruturaLocal } from '../nucleo-spec.js';
 import { roteiroDaLinha } from '../roteiro.js';
 // P2 do planejamento (06/11/2026): carga por setor (capacidade × fila sequenciada)
@@ -600,6 +600,21 @@ r.post(
       parte: req.body?.parte || null, userId: req.session.user.id, userNome: req.session.user.full_name,
     });
     res.json({ ok: true, ...r2 });
+  })
+);
+
+// o PCP diz se o pedido é produzido e instalado POR PARTES (true/false) ou deixa no automático (null)
+r.put(
+  '/pedido/producao/por-partes',
+  requireCsrf,
+  requirePerm('fila', 'editar'),
+  ah(async (req, res) => {
+    const pedido = String(req.body?.pedido || '').trim();
+    if (!pedido) throw new HttpError(400, 'Envie { pedido, por_partes }');
+    const v = req.body?.por_partes;
+    const out = await definirPorPartes(pedido, v === undefined ? null : v);
+    await audit(req.session.user.id, 'pcp', `producao.por_partes.${out.por_partes == null ? 'auto' : (out.por_partes ? 'sim' : 'nao')}`, { entityType: 'pcp_pedido', entityId: pedido });
+    res.json({ ok: true, ...out });
   })
 );
 

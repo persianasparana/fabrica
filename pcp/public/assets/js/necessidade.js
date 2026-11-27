@@ -58,8 +58,8 @@ async function renderNecessidade() {
   if (!n.compras_habilitado) document.getElementById('nec-avisos').insertAdjacentHTML('beforeend', '<div class="card" style="border-left:4px solid var(--text3);font-size:12px">ℹ Sem integração com o Compras configurada: a tela mostra a necessidade sem saldo/falta e não requisita.</div>');
   else if (!n.compras_online) document.getElementById('nec-avisos').insertAdjacentHTML('beforeend', '<div class="card" style="border-left:4px solid var(--amber);font-size:12px">⚠ Compras fora do ar: saldo/falta indisponíveis agora; a requisição pode ser feita e fica pendente (reenvio automático).</div>');
   document.getElementById('nec-tecido').innerHTML = n.tecido.length ? `<table>
-    <thead><tr><th>Coleção</th><th>Cor</th><th>Rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Bobinas</th><th style="text-align:right">Sobra</th>${cabSaldo}<th style="text-align:right">Peças</th><th>Pedidos</th></tr></thead>
-    <tbody>${n.tecido.map((t) => `<tr><td><b>${esc(t.colecao)}</b></td><td>${esc(t.cor || '—')}</td><td>${t.largura_rolo ? necQtd(t.largura_rolo) + ' m' : '—'}</td><td style="text-align:right;font-weight:700">${necQtd(t.metros)} m</td><td style="text-align:right">${t.bobinas}</td><td style="text-align:right">${necQtd(t.sobra)} m</td>${colSaldo(t)}<td style="text-align:right">${t.pecas ?? ''}</td><td>${necPeds(t.pedidos)}</td></tr>`).join('')}</tbody></table>`
+    <thead><tr><th>Coleção</th><th>Cor</th><th>Rolo</th><th style="text-align:right">Metros</th><th style="text-align:right">Rolos</th><th style="text-align:right">Sobra</th>${cabSaldo}<th style="text-align:right">Peças</th><th>Pedidos</th></tr></thead>
+    <tbody>${n.tecido.map((t) => `<tr><td><b>${esc(t.colecao)}</b></td><td>${esc(t.cor || '—')}</td><td>${t.largura_rolo ? necQtd(t.largura_rolo) + ' m' : '—'}</td><td style="text-align:right;font-weight:700">${necQtd(t.metros)} m</td><td style="text-align:right">${t.bobinas}${t.metros_bobina ? ` × ${necQtd(t.metros_bobina)} m` : ''}</td><td style="text-align:right">${necQtd(t.sobra)} m</td>${colSaldo(t)}<td style="text-align:right">${t.pecas ?? ''}</td><td>${necPeds(t.pedidos)}</td></tr>`).join('')}</tbody></table>`
     : '<div style="color:var(--text3);font-size:12px">Nenhum tecido no horizonte.</div>';
   necCarregarRequisicoes();
 
@@ -98,26 +98,38 @@ function necAbrirRequisicao() {
   if (!NEC) { toast('Calcule a necessidade primeiro.'); return; }
   if (!podeEditar('fila')) { toast('Você não tem permissão para requisitar (editar a fila).'); return; }
   const linhas = [];
-  for (const t of NEC.tecido) linhas.push({ k: 'tec:' + (t.sku_compras || t.colecao + ':' + t.cor), sku: t.sku_compras, descricao: `${t.colecao}${t.cor ? ' cor ' + t.cor : ''} — rolo ${t.largura_rolo ? necQtd(t.largura_rolo) + ' m' : ''}`.trim(), quantidade: t.metros, un: 'M', pedidos: t.pedidos || [], falta: t.falta, saldo: t.saldo });
+  // 27/11/2026 — o tecido se compra em ROLOS INTEIROS: a quantidade sugerida vem do servidor (`comprar`:
+  // os rolos do plano de corte × metros do rolo; com saldo do Compras, a falta para cima em rolos) e a
+  // descrição que vai ao Compras diz quantos rolos são
+  for (const t of NEC.tecido) {
+    const c = t.comprar || { metros_rolo: null, rolos: null, metros: t.falta > 0 ? t.falta : t.metros };
+    linhas.push({ k: 'tec:' + (t.sku_compras || t.colecao + ':' + t.cor), sku: t.sku_compras, descricao: `${t.colecao}${t.cor ? ' cor ' + t.cor : ''} — rolo de ${t.largura_rolo ? necQtd(t.largura_rolo) + ' m' : '?'} de largura`.trim(), quantidade: t.metros, un: 'M', pedidos: t.pedidos || [], falta: t.falta, saldo: t.saldo, sugerido: c.metros, metros_rolo: c.metros_rolo, nota: t.bobinas != null && t.metros_bobina ? `${t.bobinas} rolo(s) de ${necQtd(t.metros_bobina)} m no plano de corte` : '' });
+  }
   for (const m of NEC.componentes) linhas.push({ k: 'comp:' + (m.sku_compras || m.descricao), sku: m.sku_compras, descricao: m.descricao || m.sku, quantidade: m.qtd, un: m.un || 'un', pedidos: m.pedidos || [], falta: m.falta, saldo: m.saldo });
   const temSaldo = linhas.some((l) => l.saldo != null);
   document.getElementById('modal-title').textContent = 'Requisitar ao Compras';
   document.getElementById('modal-body-content').innerHTML = `
-    <div style="grid-column:1/-1;font-size:12px;color:var(--text3)">Marque o que vai para a solicitação de compra. ${temSaldo ? 'Pré-marcados os itens com <b>falta</b> (necessidade maior que o saldo disponível); a quantidade sugerida é a falta.' : 'Sem saldo do Compras: a quantidade é a necessidade inteira.'} O mesmo conjunto de itens nunca vira duas solicitações.</div>
+    <div style="grid-column:1/-1;font-size:12px;color:var(--text3)">Marque o que vai para a solicitação de compra. ${temSaldo ? 'Pré-marcados os itens com <b>falta</b> (necessidade maior que o saldo disponível); a quantidade sugerida é a falta.' : 'Sem saldo do Compras: a quantidade é a necessidade inteira.'} O <b>tecido</b> vai em <b>rolos inteiros</b> (rolos × metros do rolo). Os <b>perfis em barras</b> estão na tabela "Perfis e tubos" — o plano de corte não liga o perfil a um código do cadastro, então eles entram aqui pelos componentes da receita. O mesmo conjunto de itens nunca vira duas solicitações.</div>
     <div class="form-group"><label>Data de necessidade</label><input type="date" id="req-data" value="${(NEC.pedidos.map((p) => p.data_cliente).filter(Boolean).sort()[0] || '')}"></div>
     <div class="form-group"><label>Observações</label><input type="text" id="req-obs" placeholder="opcional"></div>
     <div style="grid-column:1/-1" class="tbl-wrap"><table>
       <thead><tr><th><input type="checkbox" id="req-todos" title="marcar todos"></th><th>Item</th><th>SKU Núcleo</th><th style="text-align:right">Necessidade</th><th style="text-align:right">Saldo</th><th style="text-align:right;width:110px">Requisitar</th><th>Un</th></tr></thead>
       <tbody>${linhas.map((l, i) => `<tr>
         <td><input type="checkbox" class="req-sel" data-i="${i}" ${temSaldo ? (l.falta > 0 ? 'checked' : '') : 'checked'}></td>
-        <td>${esc(l.descricao)}</td><td style="font-family:monospace;font-size:11px">${esc(l.sku || '—')}</td>
+        <td>${esc(l.descricao)}${l.nota ? `<br><small style="color:var(--text3)">${esc(l.nota)}</small>` : ''}</td><td style="font-family:monospace;font-size:11px">${esc(l.sku || '—')}</td>
         <td style="text-align:right">${necQtd(l.quantidade)}</td><td style="text-align:right">${l.saldo == null ? '<span style="color:var(--text3)">—</span>' : necQtd(l.saldo)}</td>
-        <td><input type="number" step="0.01" min="0" class="req-qtd" data-i="${i}" value="${l.falta > 0 ? l.falta : l.quantidade}" style="width:100px;text-align:right"></td><td>${esc(l.un)}</td></tr>`).join('')}</tbody></table></div>`;
+        <td><input type="number" step="0.01" min="0" class="req-qtd" data-i="${i}" value="${l.sugerido != null ? l.sugerido : (l.falta > 0 ? l.falta : l.quantidade)}" style="width:100px;text-align:right"></td><td>${esc(l.un)}</td></tr>`).join('')}</tbody></table></div>`;
   document.getElementById('modal-footer').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" id="req-enviar">📨 Enviar ao Compras</button>`;
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('req-todos').onchange = (e) => document.querySelectorAll('.req-sel').forEach((c) => { c.checked = e.target.checked; });
   document.getElementById('req-enviar').onclick = async () => {
-    const itens = [...document.querySelectorAll('.req-sel:checked')].map((c) => { const l = linhas[Number(c.dataset.i)]; const q = Number(document.querySelector(`.req-qtd[data-i="${c.dataset.i}"]`).value); return { sku: l.sku, descricao: l.descricao, quantidade: q, un: l.un, pedidos: l.pedidos }; }).filter((i) => i.quantidade > 0);
+    const itens = [...document.querySelectorAll('.req-sel:checked')].map((c) => {
+      const l = linhas[Number(c.dataset.i)]; const q = Number(document.querySelector(`.req-qtd[data-i="${c.dataset.i}"]`).value);
+      // tecido: se a quantidade fecha em rolos inteiros, a descrição diz quantos (é como o comprador pede)
+      const rolos = l.metros_rolo > 0 ? q / l.metros_rolo : null;
+      const emRolos = rolos != null && rolos > 0 && Math.abs(rolos - Math.round(rolos)) < 1e-6 ? ` — ${Math.round(rolos)} rolo(s) de ${necQtd(l.metros_rolo)} m` : '';
+      return { sku: l.sku, descricao: l.descricao + emRolos, quantidade: q, un: l.un, pedidos: l.pedidos };
+    }).filter((i) => i.quantidade > 0);
     if (!itens.length) { toast('Marque ao menos um item com quantidade.'); return; }
     document.getElementById('req-enviar').disabled = true;
     try {

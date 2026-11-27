@@ -37,16 +37,71 @@ export function ordenarNomes(nomes) {
   });
 }
 
-/** A PARTE do item: o grupo do pedido em que a peça foi lançada; sem grupo, o próprio ambiente. */
-export function parteDoItem(item) {
+export const PEDIDO_INTEIRO = 'Pedido inteiro';
+
+/**
+ * O pedido é produzido e instalado POR PARTES? Sim quando os blocos do pedido (os ambientes do
+ * Comercial) são um AGRUPAMENTO — "PARTE 1…8" — e o cômodo foi escrito na peça: dois blocos ou mais e,
+ * em pelo menos metade das peças, o Ambiente da peça diferente do nome do bloco. Num pedido comum o
+ * bloco É o cômodo (Sala, Quarto): o pedido é uma parte só. O PCP pode forçar (`forcado` true/false).
+ * `itens` = [{ id?, grupo_pedido, ambiente, qnt?, pecas? }]; `pecas` (opcional) = as peças, para pesar
+ * cada item pelo nº de peças dele.
+ * @returns { ativo, automatico, forcado }
+ */
+export function pedidoPorPartes(itens, pecas, forcado = null) {
+  const porItem = new Map();
+  for (const pc of pecas || []) porItem.set(Number(pc.item_id), (porItem.get(Number(pc.item_id)) || 0) + 1);
+  const blocos = new Set(); let total = 0; let comTexto = 0;
+  for (const it of itens || []) {
+    const n = porItem.size ? (porItem.get(Number(it.id)) || 0) : Math.max(1, Number(it.pecas != null ? it.pecas : it.qnt) || 1);
+    const g = txt(it.grupo_pedido); const amb = txt(it.ambiente);
+    total += n;
+    if (g) blocos.add(g.toLowerCase());
+    if (g && amb && amb.toLowerCase() !== g.toLowerCase()) comTexto += n;
+  }
+  const automatico = blocos.size >= 2 && total > 0 && comTexto / total >= 0.5;
+  const f = forcado === true || forcado === false ? forcado : null;
+  return { ativo: f == null ? automatico : f, automatico, forcado: f };
+}
+
+/** A PARTE do item: o grupo do pedido em que a peça foi lançada (sem grupo, o ambiente); em pedido
+ *  que não é por partes, o pedido inteiro. */
+export function parteDoItem(item, porPartes = true) {
+  if (!porPartes) return PEDIDO_INTEIRO;
   return txt(item && item.grupo_pedido) || txt(item && item.ambiente) || SEM_PARTE;
 }
 
-/** O CÔMODO do item: o Ambiente escrito na peça — só quando ele não é o próprio nome da parte. */
-export function comodoDoItem(item) {
+/** O CÔMODO do item: o Ambiente escrito na peça — no pedido por partes, só quando ele não é o próprio
+ *  nome da parte; no pedido comum, o ambiente do item (ou o bloco). */
+export function comodoDoItem(item, porPartes = true) {
   const amb = txt(item && item.ambiente);
+  if (!porPartes) return amb || txt(item && item.grupo_pedido) || null;
   if (!amb) return null;
   return amb.toLowerCase() === parteDoItem(item).toLowerCase() ? null : amb;
+}
+
+/**
+ * O andamento das partes de UM pedido, para quem só precisa disso (a integração com a Logística):
+ * `itens` = [{ grupo_pedido, ambiente, pecas, concluidas, guardadas }]. Pedido que não é por partes
+ * devolve `partes: []` — quem consome trata o pedido inteiro, como sempre.
+ */
+export function resumoDasPartes(itens, forcado = null) {
+  const pp = pedidoPorPartes(itens, null, forcado);
+  if (!pp.ativo) return { por_partes: false, partes: [] };
+  const mapa = new Map();
+  for (const it of itens || []) {
+    const nome = parteDoItem(it, true);
+    if (!mapa.has(nome)) mapa.set(nome, { parte: nome, total_pecas: 0, pecas_concluidas: 0, pecas_guardadas: 0 });
+    const g = mapa.get(nome);
+    g.total_pecas += Number(it.pecas) || 0; g.pecas_concluidas += Number(it.concluidas) || 0; g.pecas_guardadas += Number(it.guardadas) || 0;
+  }
+  return {
+    por_partes: true,
+    partes: ordenarNomes([...mapa.keys()]).map((nome) => {
+      const g = mapa.get(nome);
+      return { ...g, concluida: g.total_pecas > 0 && g.pecas_concluidas === g.total_pecas, na_expedicao: g.total_pecas > 0 && g.pecas_guardadas === g.total_pecas };
+    }),
+  };
 }
 
 const ehTecido = (comp) => /tecido/i.test(String(comp || ''));
@@ -91,6 +146,27 @@ export function encaixarBarras(cortes, barraCm) {
   };
 }
 
+/**
+ * O tecido se compra em ROLOS INTEIROS: a quantidade a comprar é "rolos × metros do rolo".
+ *   · sem saldo do Compras (`falta` ausente): os rolos do plano de corte — o Núcleo já encaixou as faixas
+ *     nos rolos, uma faixa nunca emendada entre dois;
+ *   · com saldo: a FALTA arredondada para cima em rolos (falta zero = nada a comprar);
+ *   · sem os metros do rolo: os metros, como antes.
+ * @returns { metros_rolo, rolos, metros }
+ */
+export function compraEmRolos({ metros, bobinas, metros_bobina: metrosBobina, falta } = {}) {
+  const m = Number(metrosBobina) > 0 ? Number(metrosBobina) : null;
+  if (falta == null) {
+    return m && Number(bobinas) > 0
+      ? { metros_rolo: m, rolos: Number(bobinas), metros: r2(Number(bobinas) * m) }
+      : { metros_rolo: m, rolos: null, metros: r2(Number(metros) || 0) };
+  }
+  if (!(Number(falta) > 0)) return { metros_rolo: m, rolos: m ? 0 : null, metros: 0 };
+  if (!m) return { metros_rolo: null, rolos: null, metros: r2(falta) };
+  const rolos = Math.ceil(Number(falta) / m - 1e-9);
+  return { metros_rolo: m, rolos, metros: r2(rolos * m) };
+}
+
 /** Linha de corte do tecido no plano por peça (o Núcleo chama de "Tecido largura" / "Tecido altura"). */
 const linhaTecido = (linhas, qual) => (linhas || []).find((l) => new RegExp(`^tecido\\s+${qual}$`, 'i').test(txt(l.comp)) && l.medida != null) || null;
 
@@ -103,9 +179,14 @@ const linhaTecido = (linhas, qual) => (linhas || []).find((l) => new RegExp(`^te
  *   plano  — a resposta de `calcularPlanoNucleo` (ou null: Núcleo fora)
  *   lista  — a resposta de `listaMateriaisDosPedidos` (ou null)
  *   setores — [{ id, nome, ordem }] ativos, na ordem do roteiro (para o quadro das partes)
+ *   porPartes — true/false = o PCP forçou; null = automático (`pedidoPorPartes`)
  */
-export function montarProducao({ pedido, itens = [], pecas = [], plano = null, lista = null, setores = [] } = {}) {
+export function montarProducao({ pedido, itens = [], pecas = [], plano = null, lista = null, setores = [], porPartes = null } = {}) {
+  // cada aviso diz em que documentos ele IMPRIME (`docs`); `null` = aviso geral do pedido, para quem
+  // planeja (sai na Visão geral e na Lista de compra; nos documentos da bancada só aparece na tela)
   const avisos = [];
+  const avisar = (texto, docs = null) => { if (!avisos.some((a) => a.texto === texto)) avisos.push({ texto, docs }); };
+  const pp = pedidoPorPartes(itens, pecas, porPartes);
   const itensOrd = [...itens].sort((a, b) => Number(a.id) - Number(b.id));
   const seqDoItem = new Map(itensOrd.map((it, i) => [Number(it.id), i + 1]));
   const itemPorId = new Map(itensOrd.map((it) => [Number(it.id), it]));
@@ -124,6 +205,9 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
     const lp = listaPorRef.get(`${pc.item_id}:${pc.id}`) || null;
     const linhas = (pl && pl.plano && pl.plano.linhas) || [];
     const tl = linhaTecido(linhas, 'largura'); const ta = linhaTecido(linhas, 'altura');
+    // TROCA DE TELA (a venda cotou só o tecido — a lista de materiais do Núcleo diz): o plano de corte por
+    // peça não sabe disso e traria os perfis da peça inteira; aqui só o tecido é cortado
+    const soTecido = !!(lp && lp.so_tecido);
     const atributos = (item.atributos && typeof item.atributos === 'object' && !Array.isArray(item.atributos)) ? item.atributos : {};
     registro.set(Number(pc.id), {
       id: Number(pc.id),
@@ -131,8 +215,8 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
       item_seq: seqDoItem.get(Number(pc.item_id)) || null,
       numero: Number(pc.numero) || null,
       etiqueta: txt(pc.cod_barras) || null,
-      parte: parteDoItem(item),
-      comodo: comodoDoItem(item),
+      parte: parteDoItem(item, pp.ativo),
+      comodo: comodoDoItem(item, pp.ativo),
       produto: txt(item.produto) || null,
       produto_nome: (pl && pl.produto_nome) || (lp && lp.produto_nome) || null,
       variante: (pl && pl.variante) || (lp && lp.variante) || null,
@@ -147,8 +231,9 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
       acionamento: txt(item.acionamento) || null,
       acabamento: txt(atributos.acabamento) || null,
       observacoes: txt(item.observacoes) || null,
+      so_tecido: soTecido,
       // cortes de PERFIL (cm) e itens por fórmula; o tecido vai à parte
-      cortes: linhas.filter((l) => !ehTecido(l.comp)).map((l) => (l.medida != null
+      cortes: (soTecido ? [] : linhas).filter((l) => !ehTecido(l.comp)).map((l) => (l.medida != null
         ? { comp: txt(l.comp), cm: r1(l.medida) }
         : { comp: txt(l.comp), formula: txt(l.formula) })),
       tecido: {
@@ -248,7 +333,7 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
   // peças com tecido que NÃO entraram em plano nenhum (Romana, painel, cortina, peça com emenda…): cortar à parte
   const foraDoPlano = todas.filter((p) => p.tecido.rolo_m == null && (p.tecido.metros != null || p.tecido.corte_largura_cm != null));
   for (const p of foraDoPlano) p.tecido.fora_do_plano = true;
-  if (alturaPeloPlano) avisos.push(`Em ${alturaPeloPlano} peça(s) a altura do tecido do plano de corte era bem menor que a do plano de consumo (tecido sheer, que leva o dobro da altura): vale a do plano de consumo. Atualize o Núcleo de Produtos para a v14.101 para o plano de corte já sair assim.`);
+  if (alturaPeloPlano) avisar(`Em ${alturaPeloPlano} peça(s) a altura do tecido do plano de corte era bem menor que a do plano de consumo (tecido sheer, que leva o dobro da altura): vale a do plano de consumo. Atualize o Núcleo de Produtos para a v14.101 para o plano de corte já sair assim.`, ['tecido', 'montagem']);
 
   // ── CORTE DOS PERFIS — pedido inteiro, por perfil, com o plano de barras
   const barraDoNucleo = new Map(((dados && dados.perfis) || []).map((x) => [chaveComp(x.componente), x]));
@@ -283,7 +368,7 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
     };
   }).sort((a, b) => b.n_barras - a.n_barras || a.perfil.localeCompare(b.perfil, 'pt-BR'));
   const diverge = perfis.filter((x) => x.barras_na_lista != null && x.barras_na_lista !== x.n_barras);
-  if (diverge.length) avisos.push(`O plano de barras deste documento difere da lista de materiais em ${diverge.map((x) => `${x.perfil} (${x.n_barras} × ${x.barras_na_lista})`).join(', ')} — as peças do plano de corte e as da lista não resolveram a mesma estrutura.`);
+  if (diverge.length) avisar(`O plano de barras deste documento difere da lista de materiais em ${diverge.map((x) => `${x.perfil} (${x.n_barras} × ${x.barras_na_lista})`).join(', ')} — as peças do plano de corte e as da lista não resolveram a mesma estrutura.`, ['perfis', 'compra']);
 
   // ── MONTAGEM — por PARTE → cômodo → peça, com os componentes de cada parte
   const nomesDasPartes = ordenarNomes(new Set(todas.map((p) => p.parte)));
@@ -331,7 +416,7 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
     tecido: tecido.flatMap((t) => t.larguras.map((l) => ({
       colecao: t.colecao, cor: t.cor, largura_rolo: l.largura_rolo, tecido_sku: l.tecido_sku,
       metros: l.metros, n_rolos: l.n_rolos, metros_rolo: l.metros_rolo, metros_rolo_origem: l.metros_rolo_origem, ponta_m: l.ponta_m,
-      metros_a_comprar: l.n_rolos != null && l.metros_rolo ? r2(l.n_rolos * l.metros_rolo) : l.metros,
+      metros_a_comprar: compraEmRolos({ metros: l.metros, bobinas: l.n_rolos, metros_bobina: l.metros_rolo }).metros,
     }))),
     tecido_fora_do_plano: foraDoPlano.filter((p) => p.tecido.metros != null).reduce((acc, p) => {
       const k = `${p.colecao || ''}|${p.cor || ''}|${p.tecido.largura_rolo_m || ''}`;
@@ -352,16 +437,17 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
     })(),
   };
 
-  if (!plano) avisos.push('O plano de corte por peça não veio do Núcleo de Produtos: o corte dos perfis e as medidas de corte da montagem ficam de fora.');
-  if (!dados) avisos.push(`A lista de materiais não veio do Núcleo de Produtos${lista && lista.motivo ? ` (${lista.motivo})` : ''}: o plano de corte do tecido, os componentes e a lista de compra ficam de fora.`);
-  for (const a of (lista && lista.avisos) || []) avisos.push(String(a));
+  if (!plano) avisar('O plano de corte por peça não veio do Núcleo de Produtos: o corte dos perfis e as medidas de corte da montagem ficam de fora.', ['partes', 'perfis', 'montagem']);
+  if (!dados) avisar(`A lista de materiais não veio do Núcleo de Produtos${lista && lista.motivo ? ` (${lista.motivo})` : ''}: o plano de corte do tecido, os componentes e a lista de compra ficam de fora.`, ['partes', 'compra', 'tecido', 'montagem']);
+  for (const a of (lista && lista.avisos) || []) avisar(String(a));
   // o aviso de cada peça sai na linha dela (Montagem); aqui só a contagem — um pedido grande não pode
   // abrir todo documento com centenas de linhas de aviso
   const comAviso = todas.filter((p) => p.aviso).length;
-  if (comAviso) avisos.push(`${comAviso} peça(s) com aviso do Núcleo de Produtos no plano de corte — o aviso está na linha da peça, no documento de Montagem.`);
+  if (comAviso) avisar(`${comAviso} peça(s) com aviso do Núcleo de Produtos no plano de corte — o aviso está na linha da peça, no documento de Montagem.`, ['partes', 'montagem']);
 
   return {
     pedido: txt(pedido) || null,
+    por_partes: pp,
     resumo: {
       itens: itensOrd.length, pecas: todas.length, partes: partes.length,
       embaladas: todas.filter((p) => p.embalada).length, guardadas: todas.filter((p) => p.guardada).length,
@@ -374,6 +460,6 @@ export function montarProducao({ pedido, itens = [], pecas = [], plano = null, l
     itens_por_formula: [...porFormula.values()],
     partes,
     compra,
-    avisos: [...new Set(avisos)],
+    avisos,
   };
 }

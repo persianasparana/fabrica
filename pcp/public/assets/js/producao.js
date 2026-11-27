@@ -75,6 +75,8 @@
     estado.quadro = new Map(nomes.map((n, i) => [n, usaONome ? pelosNomes[i] : String(i + 1)]));
   }
   const temPartes = () => estado.quadro.size > 1;
+  /** no pedido por partes o que fica dentro da parte é o CÔMODO; no pedido comum, o ambiente */
+  const rotComodo = () => (temPartes() ? 'Cômodo' : 'Ambiente');
   const pb = (parte) => (temPartes() && estado.quadro.has(parte) ? `<i class="pb" title="${esc(parte)}">${esc(estado.quadro.get(parte))}</i>` : '');
   function legendaDasPartes() {
     if (!temPartes()) return '';
@@ -147,11 +149,21 @@
 
   // ── avisos (palavra de sinal), instruções numeradas, visto ──
   const atencao = (html) => `<div class="nt atencao"><span class="sinal">ATENÇÃO</span><div>${html}</div></div>`;
+  /**
+   * Os avisos do pedido. Cada um diz em que documentos IMPRIME (`docs`); o aviso geral (`docs: null`) é de
+   * quem planeja: imprime na Visão geral e na Lista de compra e, nos documentos da bancada, fica só na tela.
+   */
   function avisos(lista) {
-    const l = lista || [];
+    const l = (lista || []).map((a) => (typeof a === 'string' ? { texto: a, docs: null } : a));
     if (!l.length) return '';
-    return l.slice(0, 8).map((a) => atencao(esc(a))).join('')
-      + (l.length > 8 ? atencao(`… e mais ${l.length - 8} aviso(s) — veja a Ficha de Produção do pedido.`) : '');
+    const geral = estado.doc === 'partes' || estado.doc === 'compra';
+    const imprime = (a) => (a.docs ? a.docs.includes(estado.doc) : geral);
+    const noPapel = l.filter(imprime); const soNaTela = l.filter((a) => !imprime(a));
+    const caixa = (a, classe) => `<div class="nt atencao${classe}"><span class="sinal">ATENÇÃO</span><div>${esc(a.texto)}</div></div>`;
+    return noPapel.slice(0, 8).map((a) => caixa(a, '')).join('')
+      + (noPapel.length > 8 ? atencao(`… e mais ${noPapel.length - 8} aviso(s) — veja a Visão geral do pedido.`) : '')
+      + soNaTela.slice(0, 6).map((a) => caixa(a, ' no-print')).join('')
+      + (soNaTela.length > 6 ? `<div class="nt atencao no-print"><span class="sinal">ATENÇÃO</span><div>… e mais ${soNaTela.length - 6} aviso(s) do pedido na Visão geral.</div></div>` : '');
   }
   const comoFazer = (passos) => `<div class="nt instr"><span class="sinal">COMO FAZER</span><ol>${passos.map((p) => `<li>${p}</li>`).join('')}</ol></div>`;
   const visto = (campos) => `<div class="visto">${campos.map((c) => `<div>${esc(c)}</div>`).join('')}</div>`;
@@ -170,7 +182,7 @@
       const a = p.andamento;
       const nComodos = p.comodos.filter((c) => c.comodo).length;
       return `<tr>
-        <td class="parte"><b>${esc(p.parte)}</b>${nComodos ? `<div class="sec2">${nComodos} cômodo(s)</div>` : ''}</td>
+        <td class="parte"><b>${esc(p.parte)}</b>${nComodos ? `<div class="sec2">${nComodos} ${rotComodo().toLowerCase()}(s)</div>` : ''}</td>
         <td class="n forte">${p.pecas}</td>
         ${setores.map((s) => { const x = a.setores.find((y) => y.setor_id === s.id) || {}; return `<td>${prog(x.concluidas || 0, p.pecas, (x.iniciadas || 0) - (x.concluidas || 0))}</td>`; }).join('')}
         <td>${prog(a.embaladas, p.pecas, 0)}</td>
@@ -189,23 +201,39 @@
       compra: 'O que o pedido consome: tecido em rolos, perfis em barras, componentes.',
       tecido: 'O tecido do pedido inteiro: largura de rolo → rolo → faixa → peças.',
       perfis: 'Os perfis do pedido inteiro: perfil → barra → cortes.',
-      montagem: 'Parte a parte: cômodo → peça, com as medidas e os componentes da parte.',
+      montagem: temPartes() ? 'Parte a parte: cômodo → peça, com as medidas e os componentes da parte.' : 'Ambiente a ambiente, peça a peça, com as medidas e os componentes do pedido.',
     };
     const t = d.tecido || [];
+    const pp = d.por_partes || { ativo: temPartes(), automatico: temPartes(), forcado: null };
+    const escolha = pp.forcado == null ? 'auto' : (pp.forcado ? 'sim' : 'nao');
+    // só de tela: o PCP confirma (ou corrige) se o pedido é produzido e instalado por partes
+    const chave = `<div class="nt instr no-print"><span class="sinal">POR PARTES?</span><div>
+        Este pedido está sendo tratado como <b>${pp.ativo ? `instalado por partes (${d.resumo.partes})` : 'um pedido só'}</b> — ${pp.forcado == null ? 'decisão automática' : 'definido aqui pelo PCP'}.
+        <select id="sel-por-partes" style="margin-left:8px;font-family:inherit;font-size:12px;padding:3px 6px">
+          <option value="auto"${escolha === 'auto' ? ' selected' : ''}>Automático (${pp.automatico ? 'por partes' : 'pedido inteiro'})</option>
+          <option value="sim"${escolha === 'sim' ? ' selected' : ''}>Por partes</option>
+          <option value="nao"${escolha === 'nao' ? ' selected' : ''}>Pedido inteiro</option>
+        </select>
+        <div class="sec2" style="margin-top:2px">Automático: por partes quando o pedido tem dois grupos ou mais e o cômodo está escrito na maioria das peças. Vale para os documentos, para o andamento e para a expedição.</div>
+      </div></div>`;
+    const unica = d.partes.length === 1 ? d.partes[0].andamento : null;
     return `${bloco()}
       ${avisos(d.avisos)}
       <div class="kpis">
-        ${kpi('Peças', d.resumo.pecas, `${d.resumo.itens} item(ns) · ${d.resumo.partes} parte(s)`)}
+        ${kpi('Peças', d.resumo.pecas, `${d.resumo.itens} item(ns)${temPartes() ? ` · ${d.resumo.partes} parte(s)` : ''}`)}
         ${kpi('Embaladas', `${d.resumo.embaladas}<small> / ${d.resumo.pecas}</small>`, `${pct(d.resumo.embaladas, d.resumo.pecas)}% do pedido`)}
         ${kpi('Na expedição (gaveta)', `${d.resumo.guardadas}<small> / ${d.resumo.pecas}</small>`, `${pct(d.resumo.guardadas, d.resumo.pecas)}% do pedido`)}
-        ${kpi('Partes prontas', `${d.resumo.partes_prontas}<small> / ${d.resumo.partes}</small>`, 'pronta = todas as peças embaladas')}
+        ${temPartes()
+    ? kpi('Partes prontas', `${d.resumo.partes_prontas}<small> / ${d.resumo.partes}</small>`, 'pronta = todas as peças embaladas')
+    : kpi('Situação do pedido', unica && unica.na_expedicao ? 'Na expedição' : (unica && unica.pronta ? 'Pronto' : (d.resumo.embaladas > 0 || (unica && unica.setores.some((x) => x.iniciadas > 0)) ? 'Em produção' : 'Aguardando')), 'pronto = todas as peças embaladas')}
       </div>
-      <h2>Andamento por parte</h2>
+      ${chave}
+      <h2>${temPartes() ? 'Andamento por parte' : 'Andamento do pedido'}</h2>
       <table class="andamento">
-        <thead><tr><th>Parte</th><th class="n">Peças</th>${setores.map((s) => `<th>${esc(s.nome)}</th>`).join('')}<th>Embaladas</th><th>Na expedição</th><th style="width:112px">Situação</th></tr></thead>
+        <thead><tr><th>${temPartes() ? 'Parte' : 'Pedido'}</th><th class="n">Peças</th>${setores.map((s) => `<th>${esc(s.nome)}</th>`).join('')}<th>Embaladas</th><th>Na expedição</th><th style="width:112px">Situação</th></tr></thead>
         <tbody>${d.partes.map(linha).join('')}</tbody>
       </table>
-      <div class="nota">Os setores contam as peças com a etapa concluída na bipagem. A parte fica <b>pronta</b> quando a última peça dela recebe a baixa da embalagem — é a hora de avisar a expedição para agendar a instalação daquela parte.</div>
+      <div class="nota">Os setores contam as peças com a etapa concluída na bipagem. ${temPartes() ? 'A parte fica <b>pronta</b> quando a última peça dela recebe a baixa da embalagem — é a hora de avisar a expedição para agendar a instalação daquela parte.' : 'O pedido fica <b>pronto</b> quando a última peça recebe a baixa da embalagem — é a hora de avisar a expedição.'}</div>
       <h2>Documentos do pedido</h2>
       <table class="docs">
         <thead><tr><th class="c" style="width:46px">Etapa</th><th style="width:112px">Documento</th><th>O que traz</th><th style="width:150px">Para quem</th><th style="width:170px">Impressão</th><th class="no-print" style="width:70px"></th></tr></thead>
@@ -291,7 +319,7 @@
         <td>${p ? idDaPeca(p) : `<span class="etq">peça ${esc(ref.id)}</span>`}</td>
         <td class="n forte">${cm(larg)}</td>
         <td class="n forte">${cm(alt)}</td>
-        <td><div class="onde">${pb(parte)}<span>${esc(comodo || (temPartes() ? '' : parte) || '')}${deitada ? ' <span class="sit">deitada</span>' : ''}</span></div></td>
+        <td><div class="onde">${pb(parte)}<span>${esc(comodo || '')}${deitada ? ' <span class="sit">deitada</span>' : ''}</span></div></td>
         <td class="c"><span class="cx"></span></td></tr>`;
     }).join('');
   }
@@ -310,9 +338,11 @@
     const doPedido = larguras.length <= 2 ? kpi('Tecido do pedido', totRolos != null ? `${totRolos}<small> rolo(s)</small>` : `${num(totMetros)}<small> m</small>`, `${num(totMetros)} m no plano · ${d.resumo.pecas} peça(s)`)
       + (totPontas != null ? kpi('Sobra nas pontas dos rolos', `${num(totPontas)}<small> m</small>`, 'volta ao estoque') : '') : '';
     const cartoes = porLargura + doPedido;
+    // cada largura começa numa folha nova só em pedido grande; pedido pequeno sai corrido
+    const folhaPorLargura = d.resumo.pecas > 40;
     let primeira = true;
     const blocos = larguras.map(({ t, l }) => {
-      const quebra = primeira ? '' : ' quebra'; primeira = false;
+      const quebra = primeira || !folhaPorLargura ? '' : ' quebra'; primeira = false;
       const semCadastro = l.metros_rolo_origem === 'padrao';
       const rolos = l.rolos.map((r) => `<section class="rolo">
           <div class="rolo-cab"><span class="g">${r.n != null ? `ROLO ${r.n} <span class="sec2" style="font-weight:600">de ${l.rolos.length}</span>` : 'FAIXAS'}</span>
@@ -330,10 +360,10 @@
         ${rolos}`;
     }).join('');
     const fora = (d.tecido_fora_do_plano || []).map(peca).filter(Boolean);
-    const blocoFora = fora.length ? `<div class="sec quebra"><span class="g">PEÇAS FORA DO PLANO</span><span class="d">cortar à parte, cada uma no seu rolo</span><span class="dir">${fora.length} peça(s)</span></div>
+    const blocoFora = fora.length ? `<div class="sec${folhaPorLargura ? ' quebra' : ''}"><span class="g">PEÇAS FORA DO PLANO</span><span class="d">cortar à parte, cada uma no seu rolo</span><span class="dir">${fora.length} peça(s)</span></div>
       <div class="nota">Peças que não entram no aproveitamento de rolo (Romana, painel, cortina, peça com emenda…).</div>
       <table><thead><tr><th style="width:118px">Etiqueta</th><th>Tecido</th><th class="n">Largura do rolo</th><th class="n">Largura (cm)</th><th class="n">Altura (cm)</th><th class="n">Metros</th><th>${temPartes() ? 'Parte · cômodo' : 'Ambiente'}</th><th class="c" style="width:48px">Feito</th></tr></thead>
-      <tbody>${fora.map((p) => `<tr><td>${idDaPeca(p)}</td><td>${esc(p.colecao || '—')}${p.cor ? ` · ${esc(p.cor)}` : ''}</td><td class="n">${p.tecido.largura_rolo_m ? `${num(p.tecido.largura_rolo_m)} m` : '—'}</td><td class="n forte">${cm(p.tecido.corte_largura_cm)}</td><td class="n forte">${cm(p.tecido.corte_altura_cm)}</td><td class="n">${p.tecido.metros != null ? `${num(p.tecido.metros)} m` : '—'}</td><td><div class="onde">${pb(p.parte)}<span>${esc(p.comodo || (temPartes() ? '' : p.parte) || '')}</span></div></td><td class="c"><span class="cx"></span></td></tr>`).join('')}</tbody></table>` : '';
+      <tbody>${fora.map((p) => `<tr><td>${idDaPeca(p)}</td><td>${esc(p.colecao || '—')}${p.cor ? ` · ${esc(p.cor)}` : ''}</td><td class="n">${p.tecido.largura_rolo_m ? `${num(p.tecido.largura_rolo_m)} m` : '—'}</td><td class="n forte">${cm(p.tecido.corte_largura_cm)}</td><td class="n forte">${cm(p.tecido.corte_altura_cm)}</td><td class="n">${p.tecido.metros != null ? `${num(p.tecido.metros)} m` : '—'}</td><td><div class="onde">${pb(p.parte)}<span>${esc(p.comodo || '')}</span></div></td><td class="c"><span class="cx"></span></td></tr>`).join('')}</tbody></table>` : '';
     const parecidos = d.tecido.flatMap((t) => t.nomes_parecidos || []);
     return `${bloco()}
       ${avisos(d.avisos)}
@@ -396,7 +426,9 @@
     const totBarraM = d.perfis.reduce((s, x) => s + x.n_barras * x.barra_m, 0);
     const uso = (x) => pct(x.metros, x.n_barras * x.barra_m);
     const resumo = d.perfis.map((x) => `<tr><td><b>${esc(x.perfil)}</b></td><td class="n">${x.cortes}</td><td class="n">${num(x.metros)} m</td><td class="n forte">${x.n_barras} × ${num(x.barra_m)} m</td><td class="n">${num(x.sobra_m)} m</td><td><span class="uso"><span style="width:${uso(x)}%"></span></span>${uso(x)}%</td></tr>`).join('');
-    const blocos = d.perfis.map((x, i) => `<div class="sec${i ? ' quebra' : ''}"><span class="g">${esc(String(x.perfil).toUpperCase())}</span><span class="d">barra de ${num(x.barra_m)} m</span>
+    // cada perfil começa numa folha nova só em pedido grande
+    const folhaPorPerfil = totBarras > 30;
+    const blocos = d.perfis.map((x, i) => `<div class="sec${i && folhaPorPerfil ? ' quebra' : ''}"><span class="g">${esc(String(x.perfil).toUpperCase())}</span><span class="d">barra de ${num(x.barra_m)} m</span>
         <span class="dir">${x.n_barras} barra(s) · ${x.cortes} corte(s) · ${num(x.metros)} m · sobra ${num(x.sobra_m)} m</span></div>
       <div class="barras">
         <div class="b-cab"><div>Barra</div><div>Cortes na ordem, em cm · etiqueta${temPartes() ? ' · parte' : ''}</div><div style="text-align:right">Sobra (cm)</div><div style="text-align:center">Feito</div></div>
@@ -439,7 +471,7 @@
     const especificacao = (p) => {
       const opcoes = [p.acionamento, p.acabamento, p.cor_perfil ? `perfil ${p.cor_perfil}` : null].filter(Boolean).join(' · ');
       const tecido = [p.colecao, p.cor].filter(Boolean).join(' · ');
-      return `${esc(p.produto_nome || p.produto || '')}${p.modo === 'motor' ? ' · <b>MOTORIZADA</b>' : ''}${opcoes ? ` · ${esc(opcoes)}` : ''}${tecido ? ` · tecido <b>${esc(tecido)}</b>` : ''}${p.observacoes ? ` · <b>Obs.: ${esc(p.observacoes)}</b>` : ''}`;
+      return `${p.so_tecido ? '<b>SOMENTE TECIDO (troca de tela)</b> · ' : ''}${esc(p.produto_nome || p.produto || '')}${p.modo === 'motor' ? ' · <b>MOTORIZADA</b>' : ''}${opcoes ? ` · ${esc(opcoes)}` : ''}${tecido ? ` · tecido <b>${esc(tecido)}</b>` : ''}${p.observacoes ? ` · <b>Obs.: ${esc(p.observacoes)}</b>` : ''}`;
     };
     const rotuloDosItens = (nums) => {
       const u = [...new Set(nums.filter((n) => n != null))].sort((a, b) => a - b);
@@ -462,7 +494,7 @@
       return `<tr>
         <td>${idDaPeca(p)}${p.etiqueta && p.item_seq != null ? `<span class="doitem">item ${p.item_seq}</span>` : ''}</td>
         <td class="n forte">${cm(p.largura_cm)} × ${cm(p.altura_cm)}</td>
-        <td>${cortes.join(' ') || '<span class="sec2">sem plano de corte no Núcleo — ver a Ficha de Produção</span>'}${p.aviso ? `<br><b>ATENÇÃO:</b> ${esc(p.aviso)}` : ''}</td>
+        <td>${p.so_tecido ? '<b>Só o tecido</b> (não cortar perfil) · ' : ''}${cortes.join(' ') || '<span class="sec2">sem plano de corte no Núcleo — ver a Ficha de Produção</span>'}${p.aviso ? `<br><b>ATENÇÃO:</b> ${esc(p.aviso)}` : ''}</td>
         <td class="c"><span class="cx"></span></td><td class="c"><span class="cx"></span></td></tr>`;
     };
     const blocos = partes.map((parte, i) => {
@@ -481,26 +513,26 @@
           if (g && g.spec === spec) { g.pecas.push(p); g.itens.push(p.item_seq); } else grupos.push({ spec, pecas: [p], itens: [p.item_seq] });
         }
         const linhas = grupos.map((g) => `${unica ? '' : `<tr class="item"><td colspan="5"><b>${rotuloDosItens(g.itens)}</b> · ${g.spec}</td></tr>`}${g.pecas.map(linhaPeca).join('')}`).join('');
-        return `${c.comodo ? `<tr class="grupo"><th colspan="5"><span class="rot">Cômodo</span>${esc(c.comodo)} <span class="sec2">· ${c.pecas.length} peça(s)</span></th></tr>` : ''}${linhas}`;
+        return `${c.comodo ? `<tr class="grupo"><th colspan="5"><span class="rot">${rotComodo()}</span>${esc(c.comodo)} <span class="sec2">· ${c.pecas.length} peça(s)</span></th></tr>` : ''}${linhas}`;
       }).join('');
-      const comp = parte.componentes.length ? `<h2>Componentes da ${esc(parte.parte)} — separar antes de montar</h2>
+      const comp = parte.componentes.length ? `<h2>${temPartes() ? `Componentes da ${esc(parte.parte)}` : 'Componentes do pedido'} — separar antes de montar</h2>
         <table><thead><tr><th style="width:170px">Código</th><th>Componente</th><th class="n" style="width:96px">Quantidade</th><th style="width:44px">Un.</th><th class="c" style="width:60px">Separado</th></tr></thead>
         <tbody>${parte.componentes.map((m) => `<tr><td class="etq" style="font-weight:500">${esc(m.sku || '—')}</td><td>${esc(m.descricao)}</td><td class="n forte">${qtd(m.qtd)}</td><td>${esc(m.un || '')}</td><td class="c"><span class="cx"></span></td></tr>`).join('')}</tbody></table>` : '';
       const nComodos = parte.comodos.filter((c) => c.comodo).length;
       const a = parte.andamento;
-      return `<div class="sec${i ? ' quebra' : ''}"><span class="g">${esc(String(parte.parte).toUpperCase())}</span><span class="d">${parte.pecas} peça(s)${nComodos ? ` · ${nComodos} cômodo(s)` : ''}</span>
+      return `<div class="sec${i && d.resumo.pecas > 40 ? ' quebra' : ''}"><span class="g">${esc(String(parte.parte).toUpperCase())}</span><span class="d">${parte.pecas} peça(s)${nComodos ? ` · ${nComodos} ${rotComodo().toLowerCase()}(s)` : ''}</span>
           <span class="dir">embaladas ${a.embaladas} / ${parte.pecas}</span></div>
-        <table><thead>${unica ? `<tr class="item"><th colspan="5"><span class="rot">Todas as peças desta parte</span>${unica}</th></tr>` : ''}<tr><th style="width:104px">Etiqueta</th><th class="n" style="width:118px">Medida L × A (cm)</th><th>Conferir os cortes (cm) — perfis · tecido</th><th class="c" style="width:52px">Mont.</th><th class="c" style="width:52px">Emb.</th></tr></thead>
+        <table><thead>${unica ? `<tr class="item"><th colspan="5"><span class="rot">${temPartes() ? 'Todas as peças desta parte' : 'Todas as peças do pedido'}</span>${unica}</th></tr>` : ''}<tr><th style="width:104px">Etiqueta</th><th class="n" style="width:118px">Medida L × A (cm)</th><th>Conferir os cortes (cm) — perfis · tecido</th><th class="c" style="width:52px">Mont.</th><th class="c" style="width:52px">Emb.</th></tr></thead>
         <tbody>${comodos}</tbody></table>
         ${comp}
         ${visto(['Montado por', 'Data', 'Conferido e embalado por', 'Visto'])}`;
     }).join('');
-    return `${bloco(estado.parte ? { sub: `${estado.parte} · cômodo a cômodo` } : null)}
+    return `${bloco(estado.parte ? { sub: `${estado.parte} · cômodo a cômodo` } : (temPartes() ? null : { sub: 'Pedido inteiro · ambiente a ambiente' }))}
       ${avisos(d.avisos)}
       ${comoFazer([
-    '<b>Uma parte por vez.</b> Separe os componentes da parte (lista no fim da parte) antes de começar.',
+    temPartes() ? '<b>Uma parte por vez.</b> Separe os componentes da parte (lista no fim da parte) antes de começar.' : '<b>Separe os componentes</b> do pedido (lista no fim) antes de começar.',
     '<b>Confira pela etiqueta</b> o tecido e os perfis cortados com as medidas da linha, e monte.',
-    'Marque <b>Mont.</b> e <b>Emb.</b> e dê a baixa da embalagem na bipagem. A última peça fecha a parte: <b>avise a expedição</b>.',
+    `Marque <b>Mont.</b> e <b>Emb.</b> e dê a baixa da embalagem na bipagem. A última peça fecha ${temPartes() ? 'a parte' : 'o pedido'}: <b>avise a expedição</b>.`,
   ])}
       ${blocos || atencao('Nenhuma parte com este nome neste pedido.')}
       ${fim()}`;
@@ -590,6 +622,21 @@
     $('#conteudo').innerHTML = avisoDeImpressao() + RENDER[estado.doc]();
     cssDaFolha();
     document.title = `${DOC(estado.doc).aba} — ${estado.d.pedido}`;
+    const chave = $('#sel-por-partes');
+    if (chave) {
+      chave.onchange = async () => {
+        const v = chave.value === 'sim' ? true : (chave.value === 'nao' ? false : null);
+        chave.disabled = true;
+        try {
+          await api('pcp/pedido/producao/por-partes', { method: 'PUT', body: { pedido: estado.pedido, por_partes: v } });
+          estado.parte = '';
+          await carregar();
+        } catch (e) {
+          window.alert('Não foi possível gravar: ' + e.message);
+        }
+        render();
+      };
+    }
     const sel = $('#sel-parte');
     if (sel) {
       sel.onchange = () => {
@@ -616,6 +663,13 @@
     if (b) irPara(b.getAttribute('data-doc'));
   });
 
+  async function carregar() {
+    estado.d = await api('pcp/pedido/producao?pedido=' + encodeURIComponent(estado.pedido));
+    estado.porId = new Map((estado.d.pecas || []).map((p) => [Number(p.id), p]));
+    montarQuadros(estado.d.partes);
+    if (estado.parte && !estado.d.partes.some((p) => p.parte === estado.parte)) estado.parte = '';
+  }
+
   (async () => {
     $('#btn-imprimir').onclick = imprimirERegistrar;
     $('#btn-fechar').onclick = () => window.close();
@@ -633,10 +687,7 @@
       const sess = await api('auth/session');
       csrfToken = sess.csrf_token;
       estado.usuario = (sess.user && (sess.user.full_name || sess.user.username)) || '';
-      estado.d = await api('pcp/pedido/producao?pedido=' + encodeURIComponent(pedido));
-      estado.porId = new Map((estado.d.pecas || []).map((p) => [Number(p.id), p]));
-      montarQuadros(estado.d.partes);
-      if (estado.parte && !estado.d.partes.some((p) => p.parte === estado.parte)) estado.parte = '';
+      await carregar();
       render();
     } catch (e) {
       if (e.message !== 'Não autenticado') $('#conteudo').innerHTML = `<div class="nt atencao"><span class="sinal">ERRO</span><div>${esc(e.message)}</div></div>`;

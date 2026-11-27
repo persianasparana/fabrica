@@ -381,6 +381,10 @@ export async function migrate() {
   // Gravado na liberação; o arquivo em si fica no Comercial (proxy sob demanda).
   await q(`ALTER TABLE pcp_pedido_info ADD COLUMN IF NOT EXISTS desenho_fabricacao BOOLEAN NOT NULL DEFAULT FALSE`);
   await q(`ALTER TABLE pcp_pedido_info ADD COLUMN IF NOT EXISTS desenho_instalacao BOOLEAN NOT NULL DEFAULT FALSE`);
+  // 27/11/2026 — produção por etapas: o pedido é produzido e instalado POR PARTES? NULL = automático
+  // (producao.js pedidoPorPartes: dois grupos ou mais e o cômodo escrito nas peças); TRUE/FALSE = o PCP
+  // forçou. A liberação não mexe nesta coluna.
+  await q(`ALTER TABLE pcp_pedido_info ADD COLUMN IF NOT EXISTS por_partes BOOLEAN`);
 
   // Categoria de tecido POR COLEÇÃO (Lisa/Sheer/Vision...) — parametrizada pelo
   // PCP (não é o vendedor que escolhe); vira a variável `categoria` nas regras
