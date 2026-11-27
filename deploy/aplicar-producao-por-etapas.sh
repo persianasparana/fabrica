@@ -175,12 +175,14 @@ COLUNAS="$(sudo -u postgres psql fabrica_db -Atc "SELECT count(*) FROM informati
 [ "$COLUNAS" = "2" ] || { echo "ERRO: as colunas detalhe / por_partes nao foram criadas no boot (achei ${COLUNAS:-?} de 2) — veja: pm2 logs fabrica-server --lines 40"; exit 1; }
 echo "== colunas novas criadas no boot (pcp_ordem_corte_log.detalhe, pcp_pedido_info.por_partes) =="
 
-# ── o processo NO AR e o desta entrega? (a pagina responde; a rota nova existe e pede sessao)
-PAGINA="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3020/pcp/producao.html || true)"
-[ "$PAGINA" = "200" ] || { echo "ERRO: /pcp/producao.html respondeu HTTP ${PAGINA:-?} (esperado 200)"; exit 1; }
-ROTA="$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3020/api/pcp/pedido/producao?pedido=PED-SONDA' || true)"
-[ "$ROTA" = "401" ] || { echo "ERRO: GET /api/pcp/pedido/producao respondeu HTTP ${ROTA:-?} sem sessao (esperado 401) — o processo no ar nao e o desta entrega: pm2 delete fabrica-server && pm2 start deploy/ecosystem.config.js --only fabrica-server && pm2 save"; exit 1; }
-echo "== pagina e rota da producao por etapas no ar =="
+# ── o processo NO AR e o desta entrega? As duas colunas acima so sao criadas pelo boot do codigo NOVO (e a prova:
+#    toda rota de /api/pcp responde 401 sem sessao, exista ou nao, entao a rota nova nao serve de sonda). A pagina
+#    e os scripts sao arquivos servidos do disco — conferidos aqui.
+for ARQ in pcp/producao.html pcp/assets/js/producao.js pcp/assets/vendor/qrcode.js; do
+  HTTP="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3020/$ARQ" || true)"
+  [ "$HTTP" = "200" ] || { echo "ERRO: /$ARQ respondeu HTTP ${HTTP:-?} (esperado 200)"; exit 1; }
+done
+echo "== pagina da producao por etapas no ar (producao.html + producao.js + qrcode.js) =="
 
 # ── integracao com a Logistica: as chaves novas (so se a chave da integracao estiver configurada)
 CHAVE_INTEG="$(grep -E '^INTEGRACAO_API_KEY=' /var/www/fabrica/server/.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'"'"'\r' || true)"

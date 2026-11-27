@@ -253,6 +253,9 @@ corte dos PERFIS do pedido inteiro, por perfil (como o tecido, por largura); (3)
   decidido pela largura do PAPEL, `BARRA_NO_PAPEL`); (b) `confirm()`/emoji/cor sozinha não entram em documento impresso;
   (c) a regra "por partes" é UMA (`pedidoPorPartes`) — documentos, andamento e integração leem dela; (d) chave nova na
   resposta não pode ter custo/preço/valor no nome (a prova confere "sem dinheiro" pelo nome da chave).
+  (e) em script de deploy, "a rota nova responde 401" NÃO prova que o processo no ar é o novo: todo `/api/pcp/*`
+  responde 401 sem sessão, exista a rota ou não (`r.use(requireAuth)` vem antes) — o ensaio pegou isso; a prova é o
+  que só o boot do código novo faz (coluna criada) ou uma rota de integração com a chave.
 - ⚠ **Pendências/observações (não mexidas):**
   (a) **FASE 2 — Logística** (decisões já tomadas): Expedição e Montar agenda por PARTE (ler `por_partes`/`parte` da
   integração; guardar a parte em `expedicao_pecas`), baixa só das peças da parte instalada e ENTREGUE no Comercial só
