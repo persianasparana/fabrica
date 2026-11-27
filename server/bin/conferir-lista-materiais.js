@@ -28,6 +28,18 @@
  *     que o Núcleo conhece as duas regras. Diz também se estão ligadas no painel.
  *     Saída: 0 = pronto · 3 = Núcleo anterior à v14.100 · 5 = não deu para sondar.
  *
+ *   node bin/conferir-lista-materiais.js --sonda-corte-sheer
+ *     Sonda o Núcleo de Produtos v14.101 (27/11/2026 — no plano de corte por peça, a
+ *     altura do tecido SHEER é 2 × altura + folga do tubo): lê a versão do produtos-api
+ *     e, se achar uma coleção sheer, pede o plano de corte de uma peça e diz se a regra
+ *     está ligada no painel. Saída: 0 = pronto · 3 = Núcleo anterior à v14.101 · 5 = não
+ *     deu para sondar.
+ *
+ *   node bin/conferir-lista-materiais.js --producao [--pedido PED-AAAA/NNNN]
+ *     Resumo dos documentos da PRODUÇÃO POR ETAPAS de um pedido (padrão: o pedido aberto
+ *     com mais peças): se é por partes, o tecido por largura de rolo (metros e rolos), as
+ *     barras por perfil e o andamento das partes. Só leitura.
+ *
  *   node bin/conferir-lista-materiais.js [--pedido PED-AAAA/NNNN]
  *     Resumo da lista de um pedido (padrão: o pedido aberto mais recente com a
  *     especificação da venda): peças que calculam, peças pela reserva, itens
@@ -36,7 +48,7 @@
 import 'dotenv/config';
 import { pool, q } from '../src/db.js';
 import { chamar, configurado as comercialConfigurado } from '../src/comercial-client.js';
-import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais } from '../src/produtos-client.js';
+import { buscarListaMateriais, listaMateriaisHabilitado, erroListaMateriais, buscarPlanoCorte, planoCorteHabilitado } from '../src/produtos-client.js';
 import { listaMateriaisDosPedidos } from '../src/lista-materiais.js';
 
 const args = process.argv.slice(2);
@@ -131,6 +143,41 @@ async function sondarComodo() {
   return { rc: 5, msg: 'Núcleo: nenhuma das 12 primeiras coleções cotou as duas peças da sonda — não deu para conferir o cômodo da peça' };
 }
 
+async function sondarCorteSheer() {
+  if (!planoCorteHabilitado()) return { rc: 5, msg: 'Núcleo: PRODUTOS_SERVICE_KEY ausente em server/.env — o plano de corte pelo Núcleo está desligado; nada a sondar' };
+  const base = (process.env.PRODUTOS_API_BASE || 'http://127.0.0.1:3070/api/v1').replace(/\/+$/, '');
+  let versao = '';
+  try {
+    // o /api/health fica ao lado do /api/v1 e diz a versão do produtos-api
+    const r = await fetch(`${base.replace(/\/v\d+$/, '')}/health`, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { rc: 5, msg: `Núcleo: /health respondeu HTTP ${r.status}` };
+    versao = String(((await r.json()) || {}).versao || '');
+  } catch (e) { return { rc: 5, msg: `Núcleo inacessível em ${base} (${e.message})` }; }
+  const m = /^(\d+)\.(\d+)/.exec(versao);
+  if (!m) return { rc: 5, msg: `Núcleo: /health sem versão legível ("${versao}")` };
+  // comparação NUMÉRICA (14.101 vem depois de 14.99; como texto viria antes)
+  const temARegra = Number(m[1]) > 14 || (Number(m[1]) === 14 && Number(m[2]) >= 101);
+  if (!temARegra) return { rc: 3, msg: `Núcleo ANTERIOR à v14.101: está na ${versao} — o plano de corte por peça ainda manda "altura + folga" no tecido sheer. Aplique no produtos: bash deploy/aplicar-v14-101-corte-sheer.sh` };
+  // a regra está ligada? (melhor esforço: precisa de uma coleção sheer no catálogo)
+  let ligada = null;
+  try {
+    const r = await fetch(`${base}/catalogo/colecoes?produto_sku=soft_sheer`, { headers: { 'X-Service-Key': process.env.PRODUTOS_SERVICE_KEY || '' }, signal: AbortSignal.timeout(8000) });
+    const colecoes = r.ok ? ((await r.json()).data || []).map((c) => c && c.colecao).filter(Boolean) : [];
+    for (const colecao of colecoes.slice(0, 6)) {
+      const plano = await buscarPlanoCorte([{ ref: 1, produto_sku: 'soft_sheer', colecao, largura: 1.2, altura: 1.6, modo: 'manual', bando: false, box: false }]);
+      const linhas = (plano && plano.pecas && plano.pecas[0] && plano.pecas[0].plano && plano.pecas[0].plano.linhas) || [];
+      const altura = linhas.find((l) => /^tecido\s+altura$/i.test(String(l.comp || '').trim()));
+      if (!altura) continue;
+      ligada = altura.regra === 'sheer_dobro';
+      break;
+    }
+  } catch { /* fica sem saber: a versão já basta */ }
+  const estado = ligada == null ? 'não deu para conferir se a regra está ligada (sem coleção sheer que corte na sonda)'
+    : ligada ? 'regra LIGADA: o tecido sheer sai com 2 × altura + folga do tubo'
+      : 'ATENÇÃO: a regra está DESLIGADA no painel do Núcleo (Regras gerais → Parâmetros → "Plano de corte — altura do tecido SHEER") — o plano por peça segue "altura + folga"; os documentos da produção por etapas usam a altura do plano de consumo e avisam';
+  return { rc: 0, msg: `Núcleo OK (v${versao}): ${estado}` };
+}
+
 async function sondarComercial() {
   if (!comercialConfigurado()) return { rc: 5, msg: 'Comercial: COMERCIAL_API_BASE/COMERCIAL_SERVICE_KEY ausentes em server/.env — nada a sondar' };
   const { rows } = await q(`SELECT pedido, comercial_id FROM pcp_pedido_info WHERE comercial_id IS NOT NULL ORDER BY updated_at DESC LIMIT 5`);
@@ -149,7 +196,11 @@ async function sondarComercial() {
 
 let rc = 0;
 try {
-  if (args.includes('--sonda-comodo')) {
+  if (args.includes('--sonda-corte-sheer')) {
+    const n = await sondarCorteSheer();
+    console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
+    rc = n.rc;
+  } else if (args.includes('--sonda-comodo')) {
     const n = await sondarComodo();
     console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
     rc = n.rc;
@@ -157,6 +208,28 @@ try {
     const n = await sondarPlano();
     console.log(`  ${n.rc === 0 ? '✓' : n.rc === 5 ? '?' : '✗'} ${n.msg}`);
     rc = n.rc;
+  } else if (args.includes('--producao')) {
+    // 27/11/2026 — os documentos da produção por etapas de um pedido, em resumo
+    let pedido = arg('--pedido');
+    if (!pedido) {
+      const { rows } = await q(`SELECT i.pedido FROM pcp_itens i JOIN pcp_pecas pp ON pp.item_id = i.id
+        WHERE i.conclusao IS NULL AND i.spec_nucleo IS NOT NULL AND btrim(COALESCE(i.pedido, '')) <> ''
+        GROUP BY i.pedido ORDER BY count(*) DESC, max(i.id) DESC LIMIT 1`);
+      pedido = rows[0] ? rows[0].pedido : null;
+    }
+    if (!pedido) console.log('  nenhum pedido aberto com a especificação da venda na fila — nada a conferir.');
+    else {
+      const { producaoDoPedido } = await import('../src/producao-pedido.js');
+      const d = await producaoDoPedido(pedido);
+      const m2 = (v) => Number(v || 0).toFixed(2).replace('.', ',');
+      const como = d.por_partes.forcado == null ? 'automático' : 'definido pelo PCP';
+      console.log(`  ${pedido}: ${d.resumo.itens} item(ns), ${d.resumo.pecas} peça(s) — ${d.por_partes.ativo ? `POR PARTES (${d.resumo.partes}; ${como})` : `pedido inteiro (${como})`}`);
+      for (const t of d.tecido) for (const l of t.larguras) console.log(`    ✂ ${t.colecao}${t.cor ? ' · ' + t.cor : ''} — rolo de ${m2(l.largura_rolo)} m: ${m2(l.metros)} m${l.n_rolos != null ? ` em ${l.n_rolos} rolo(s) de ${m2(l.metros_rolo)} m` : ''} · ${l.faixas} faixa(s) · ${l.pecas} peça(s)`);
+      if (!d.tecido.length) console.log('    ✂ sem plano de corte do tecido');
+      console.log(`    ▭ perfis: ${d.perfis.length ? `${d.perfis.map((x) => `${x.perfil} ${x.n_barras}`).join(' · ')} barra(s)` : 'nenhum corte de perfil'}`);
+      if (d.por_partes.ativo) console.log(`    ▣ partes: ${d.partes.map((p) => `${p.parte} ${p.andamento.embaladas}/${p.pecas}${p.andamento.pronta ? ' PRONTA' : ''}`).join(' · ')}`);
+      for (const a of d.avisos.slice(0, 6)) console.log(`    · ${a.texto}`);
+    }
   } else if (args.includes('--sonda')) {
     const n = await sondarNucleo();
     const c = await sondarComercial();

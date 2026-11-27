@@ -55,6 +55,9 @@ Prefixo interno `/api` (pela rede, `https://192.168.0.207/fabrica/api`).
 | POST | `/pcp/pedido/baixa-materiais` `{pedido}` | fila:editar | sim | Baixa manual dos materiais das peças do pedido no Compras (idempotente por peça) | 400 · 404 · 503 |
 | GET | `/pcp/pedido/baixa-materiais?pedido=` | fila:ver | não | Estado da baixa por peça | 400 |
 | GET | `/pcp/pedido/materiais?pedido=\|pedidos=a,b` | autenticado | não | Lista de materiais do(s) pedido(s) pelo Núcleo (sem dinheiro), por item e consolidada. Desde 25/11/2026 a peça é pedida **como a venda cotou** (ver "Lista de materiais — o corpo que vai ao Núcleo"): `por_item[id]` ganhou `notas[]` (texto para a Ficha) e `so_tecido`; a resposta ganhou `itens_sem_cotacao[]` (ids de itens liberados antes de o Comercial informar como a peça foi cotada) e `reservas[]` (`{ref, pedido, motivo, nota}` — peças listadas pelos códigos gravados na venda). Chaves só acrescentadas Desde 26/11/2026: cada peça vai ao Núcleo com o `pedido` dela, um pedido nunca é partido em blocos (até 2.000 peças) e `data.plano_tecido[]` traz o **plano de corte do tecido** de cada pedido × tecido (Núcleo v14.98: `{pedido, colecao, cor, pecas, ambientes[{ambiente, largura_rolo, pecas}], larguras[], rolos[{largura_rolo, comprimento, shelves[{comprimento, pecas[{ref, largura, altura, rotacionado, ambiente}]}]}], fora_do_rolo[]}`; lista vazia com a regra desligada no Núcleo; ausente com Núcleo anterior) | 400 | **27/11/2026 (Núcleo v14.100):** a peça vai com `ambiente` = o grupo do pedido e `ambiente_peca` = o cômodo escrito nela; `data.plano_tecido[]` traz `ambientes[]` (cômodo → largura, com `origem`/`blocos`), `ambientes_parecidos[]`, e os rolos (`larguras[].bobinas`/`ponta_m`, `rolos[].bobinas[]`, `rolos[].shelves[].bobina`); `data.tecido[].bobinas` pelo encaixe.
+| GET | `/pcp/pedido/producao?pedido=` | fila:ver | não | **Produção por etapas** (27/11/2026): os documentos separados do pedido, num JSON só (sem dinheiro) — `por_partes{ativo, automatico, forcado}`, `resumo`, `pecas[]` (etiqueta, item, parte, cômodo, cortes de perfil em cm, corte do tecido, rolo/faixa), `tecido[]` (coleção × cor → larguras → rolos → faixas → peças), `tecido_fora_do_plano[]`, `perfis[]` (perfil → barras → cortes), `partes[]` (cômodos, componentes e `andamento` por setor/embaladas/guardadas/pronta), `compra{tecido (em rolos), perfis (em barras), componentes}`, `avisos[{texto, docs}]`, `impressoes` (o que já foi impresso, por documento e por parte). Plano de corte e lista de materiais vêm do Núcleo em paralelo; cada um falha sozinho (o documento diz o que ficou de fora) | 400 · 404 |
+| POST | `/pcp/pedido/producao/impressao` `{pedido, doc: partes\|compra\|tecido\|perfis\|montagem, parte?}` | fila:ver | sim | Registra a impressão de UM documento (log `pcp_ordem_corte_log`, `modo = 'prod-<doc>'`; na montagem de uma parte, `detalhe` = a parte) e devolve `{reimpressao, impressoes}` | 400 · 404 · 422 documento inválido |
+| PUT | `/pcp/pedido/producao/por-partes` `{pedido, por_partes: true\|false\|null}` | fila:editar | sim | O PCP define se o pedido é produzido e instalado por partes (`null` = automático: dois grupos ou mais e o cômodo escrito na maioria das peças). Grava `pcp_pedido_info.por_partes`; auditado | 400 · 404 · 422 |
 | GET | `/pcp/pedido?pedido=NNN` | autenticado | não | Itens/peças do pedido + `info` (cliente, vendedor, prazo, desenhos) | 400 · 404 |
 | PUT | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Edição em massa de todos os itens + `acao: 'concluir'\|'reabrir'` (todas as peças), `status_id`, `prioridade` | 400 · 404 · 422 |
 | DELETE | `/pcp/pedido?pedido=NNN` | pedido:editar | sim | Exclui o pedido inteiro (+ `pcp_pedido_info`, pendências do ciclo e saídas pendentes do Compras) | 400 · 404 |
@@ -203,6 +206,8 @@ Utilitários (em `server/`, com o `.env` do serviço):
 | `node bin/conferir-lista-materiais.js --sonda` | Sonda os provedores: Núcleo v14.97 (troca de tela volta só com o tecido) e Comercial v2.140.1 (itens com `nucleoCotacao`). Saída 0 · 3 Núcleo anterior · 4 Comercial anterior · 5 não deu para sondar |
 | `node bin/conferir-lista-materiais.js --sonda-plano` | Sonda o Núcleo v14.98 (consumo de tecido pelo plano do pedido): a resposta do `/lista-materiais` traz `plano_tecido`; diz se a regra está desligada no painel do Núcleo. Saída 0 · 3 Núcleo anterior · 5 não deu para sondar |
 | `node bin/conferir-lista-materiais.js --sonda-comodo` | Sonda o Núcleo v14.100 (o cômodo pela peça + plano rolo a rolo): a resposta do `/lista-materiais` traz `parametros.comodo_pela_peca` e `plano_rolo_a_rolo`; diz se estão desligadas no painel do Núcleo. Saída 0 · 3 Núcleo anterior · 5 não deu para sondar |
+| `node bin/conferir-lista-materiais.js --sonda-corte-sheer` | Sonda o Núcleo v14.101 (no plano de corte por peça, o tecido sheer sai com 2 × altura + folga do tubo): lê a versão do `/api/health` (comparada como número) e diz se a regra está ligada. Saída 0 · 3 Núcleo anterior · 5 não deu para sondar |
+| `node bin/conferir-lista-materiais.js --producao [--pedido PED-…]` | Resumo dos documentos da produção por etapas (padrão: o pedido aberto com mais peças): por partes?, tecido por largura (metros e rolos), barras por perfil, andamento das partes |
 | `node bin/conferir-lista-materiais.js [--pedido PED-…]` | Resumo da lista de um pedido: peças que calculam, pela reserva, itens sem "como foi cotada", os rolos do plano de corte do tecido, os ambientes das peças, avisos |
 | `node bin/completar-ambiente.js [--simular] [--pedido PED-…] [--concluidos] [--detalhe]` | Relê no Comercial o AMBIENTE das peças já na fila ainda não relidas (`ambiente_origem` nulo): grava o grupo do pedido e a origem e, onde o `ambiente` está vazio ou é o nome do bloco, o cômodo escrito na peça (27/11/2026); o que foi digitado no PCP fica; idempotente. Saída 0 · 2 = ficou pendência que depende do Comercial |
 
@@ -220,6 +225,16 @@ federação (linha B da matriz do `PROTOCOLO-FEDERACAO.md`). **Somente leitura.*
 | GET | `/integracao/expedicao?pedido=` | Localização de todas as peças do pedido nas gavetas: `{pedido, total_pecas, embaladas, guardadas, completo_na_expedicao, pecas[]}` | 422 · 404 |
 
 Comuns às três: **503** `INTEGRACAO_API_KEY` não configurada · **401** chave inválida ou ausente.
+
+**Pedido por partes (27/11/2026 — chaves ADITIVAS; quem não lê segue como antes).** A regra é a dos documentos de
+produção (`server/src/producao.js pedidoPorPartes`: dois grupos ou mais no pedido e o cômodo escrito na maioria das
+peças, ou o que o PCP definiu). Base da expedição por parte da Logística (fase 2):
+
+| Rota | Chaves novas |
+|---|---|
+| `/integracao/pedidos` | por pedido: `por_partes` (bool) e `partes[]` = `{parte, total_pecas, pecas_concluidas, pecas_guardadas, concluida, na_expedicao}` (vazio no pedido comum) |
+| `/integracao/peca` | `por_partes`, `parte` (nulo no pedido comum), `comodo`, `total_pecas_parte`, `pecas_concluidas_parte` |
+| `/integracao/expedicao` | `por_partes`, `partes[]` e, em cada peça, `parte` e `comodo` |
 
 ## O que a Fábrica CHAMA nos vizinhos (para referência cruzada)
 

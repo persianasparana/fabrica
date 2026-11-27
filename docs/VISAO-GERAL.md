@@ -39,7 +39,10 @@ registra não conformidades e seus indicadores.
    a carga programa as peças por setor pela capacidade; a necessidade soma, pelo Núcleo, tecido,
    perfis e componentes do horizonte e compara com o saldo do Compras ("Requisitar ao Compras").
 4. **Etiquetas, Ficha de Produção e Plano de Corte** — etiqueta própria por peça; a Ficha traz
-   specs, cortes por setor e a lista de materiais; o plano de corte vem do Núcleo.
+   specs, cortes por setor e a lista de materiais; o plano de corte vem do Núcleo. Em pedido
+   grande ou instalado por partes usa-se a **Produção por etapas**: o corte do tecido do pedido
+   inteiro por largura de rolo, o corte dos perfis por perfil e a montagem por parte, cada um no
+   seu documento, com o andamento de cada parte e a lista de compra em rolos e barras.
 5. **Bipagem** — cada setor bipa início/fim da peça; o início do primeiro setor avança o pedido
    para `EM_PRODUCAO` e baixa os materiais da peça no Compras; o fim do setor final dá a baixa e,
    quando todas as peças do pedido estão baixadas, o pedido vai a `EMBALADO`.

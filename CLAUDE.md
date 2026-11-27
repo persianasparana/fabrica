@@ -38,6 +38,11 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
+- **PENDENTE DE DEPLOY (27/11/2026): PRODUÇÃO POR ETAPAS** — `deploy/aplicar-producao-por-etapas.sh` (seção "Estado
+  (27/11/2026) — PENDENTE DE DEPLOY" abaixo): corte do tecido, corte dos perfis e montagem em documentos separados, o
+  andamento por parte, a lista de compra em rolos/barras e as partes na integração com a Logística. Exige o **Núcleo
+  v14.101** ANTES (o script sonda). Colunas novas criadas no boot (`pcp_ordem_corte_log.detalhe`,
+  `pcp_pedido_info.por_partes`); não muda preço. A expedição por parte na Logística é a FASE 2 (não começada).
 - **Em produção desde 27/11/2026 12:49: O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO DE CORTE ROLO A ROLO** —
   `deploy/aplicar-comodo-da-peca.sh`, commit `a5df5a8`, health OK, na 1ª tentativa (linha em
   `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo). O provedor entrou antes — **Núcleo v14.100**
@@ -81,16 +86,19 @@ frontend HTML/CSS/JS vanilla em `pcp/public/` servido estático pelo próprio se
   **outbox `pcp_ciclo_pendencias`** (retry do avanço de ciclo com o Comercial fora).
 - `server/src/compras-client.js` — cliente REST do Compras (X-Service-Key) + **outbox
   `pcp_compras_pendencias`** (requisição de compra e saída de produção — P3, 06/11/2026).
+- `server/src/producao.js` (puro) + `producao-pedido.js` — **produção por etapas** (27/11/2026): os documentos
+  separados do pedido (corte do tecido, corte dos perfis, montagem), o andamento por parte, a compra em rolos e a regra
+  "pedido por partes"; página `pcp/public/producao.html` + `assets/js/producao.js`.
 - `server/bin/` — `install.js` (schema+seed+admin), `migrate.js` (só o schema), `reset-senha.js`
   (recuperar senha pelo servidor), `limpar-fila.js` (zera a fila, preserva cadastros), `completar-spec-nucleo.js` e
   `completar-ambiente.js` (completam as peças JÁ NA FILA relendo o pedido no Comercial — o segundo relê o AMBIENTE:
   o cômodo escrito na peça e o grupo do pedido, 27/11), `conferir-lista-materiais.js`
-  (sondas dos provedores + resumo da lista de um pedido) e utilitários
+  (sondas dos provedores + resumo da lista de um pedido; `--producao` = resumo da produção por etapas) e utilitários
   da Estrutura: `preencher-barras.js`, `reparar-keys.js`, `preencher-medidas.js`,
   `preencher-componentes.js`, `seed-tipos.js`, `validar-cortes.js` (motor de corte × planilhas,
   sem banco), `atualizar-horizontais.js`.
-- `server/test/carga.test.mjs`, `nucleo-spec.test.mjs`, `lista-materiais.test.mjs` e `ambiente.test.mjs` — as
-  suítes sem banco (`npm test`);
+- `server/test/carga.test.mjs`, `nucleo-spec.test.mjs`, `lista-materiais.test.mjs`, `ambiente.test.mjs` e
+  `producao.test.mjs` — as suítes sem banco (`npm test`, 59 casos);
   `npm run check` = `node --check` nos módulos principais.
 - `pcp/public/assets/js/` — `app.js` (fila/editar pedido/estrutura), `comercial.js`
   (análise/liberação), `ordem-corte-plano.js` (FFD/desenho/CSV), `ficha-producao.js`,
@@ -121,6 +129,10 @@ digita metros ×100). A OC converte para a unidade do PRODUTO (`unidade='m'` →
    `POST /lista-materiais` v14.88; sem dinheiro; Núcleo fora = ficha sai sem a lista).
    **Ordem de Corte**: tabela item×corte igual às planilhas oficiais + SAÍDA DE PERFIS
    (ceil(metros/barra)) + desenho das barras (FFD) + SAÍDA DE MATERIAIS + CSV.
+   **Produção por etapas** (`producao.html?pedido=PED-…`, 27/11/2026): os documentos SEPARADOS do pedido —
+   1 Corte do tecido (pedido inteiro, por largura de rolo → rolo → faixa), 2 Corte dos perfis (pedido inteiro, por
+   perfil → barra), 3 Montagem (por parte → cômodo → peça) —, a Visão geral (andamento por parte) e a Lista de
+   compra; cada um registra a própria impressão. É o caminho para pedido grande ou instalado por partes.
 5. Produção avança o ciclo federado: EM_PRODUCAO → EMBALADO → NA_EXPEDICAO (avanço
    automático com outbox se o Comercial estiver fora).
 6. Excluir pedido (Editar Pedido) limpa itens/peças em cascata **e** `pcp_pedido_info`
@@ -140,6 +152,123 @@ cd server && node bin/install.js         # schema + seed + admin (admin/Senha123
 COMERCIAL_API_BASE=http://127.0.0.1:3995 COMERCIAL_SERVICE_KEY=chave-teste node src/server.js  # :3021 via .env
 # NUNCA `pkill -f "node src/server.js"` (mata o wrapper) — usar `fuser -k 3021/tcp`
 ```
+
+## Estado (27/11/2026) — PENDENTE DE DEPLOY (`aplicar-producao-por-etapas.sh`): **PRODUÇÃO POR ETAPAS — corte do tecido, corte dos perfis e montagem em documentos separados**
+Pedido do cliente (27/11), com o pedido 2026/1348 (350 peças, instalado em 8 partes): *"Preciso que na produção eu
+consiga imprimir um planejamento de corte de tecido separado do planejamento de corte do perfil e no final a montagem.
+(...) quando for cortar os tecidos, preciso concentrar a produção por largura de tecido para que na produção não precise
+ficar puxando tecido diferente o tempo inteiro, também preciso de alguma forma avisar a expedição quando as partes desse
+pedido grande estiverem concluídas para eles agendarem a instalação (...) tudo tem que estar sincronizado e planejado
+corretamente, além do mais vou precisar ver a solicitação de compra"*; e, no mesmo dia: *"o layout do PCP para a
+produção deve ser claro, objetivo, visual, e seguindo padrões internacionais."* **Apurado:** havia UM documento de corte
+(Plano de corte por peça: tecido e perfis juntos, peça a peça) e a Ficha; o total de tecido desse plano era a soma peça a
+peça sem aproveitamento (réplica, o pedido do relato: 1.613 m / 54 rolos × 958,38 m / 33 rolos do plano do pedido); o
+plano por peça mandava cortar o tecido SHEER com "altura + folga" — metade do que a peça leva (fechado no **Núcleo
+v14.101**); pedido com mais de 500 peças ficava sem plano de corte; o andamento era só por pedido; a requisição ao
+Compras pedia o tecido em metros soltos. **Decisões dele (27/11):** (1) tecido sheer = 2 × altura + folga do tubo; (2)
+corte dos PERFIS do pedido inteiro, por perfil (como o tecido, por largura); (3) a expedição por parte é NA LOGÍSTICA
+(fase 2); (4) o pedido só vira ENTREGUE na última parte (fase 2). Esta entrega é a **FASE 1** (Fábrica + Núcleo v14.101).
+- **`server/src/producao.js`** (puro; `test/producao.test.mjs`, 30 casos) — junta a fila, o plano de corte por peça
+  (`calcularPlanoNucleo`) e a lista de materiais (`listaMateriaisDosPedidos`); **não recalcula regra de produto**:
+  - `montarProducao({pedido, itens, pecas, plano, lista, setores, porPartes})` → `{pedido, por_partes{ativo, automatico,
+    forcado}, resumo, pecas[] (a identificação da peça é a MESMA nos documentos: `etiqueta`, `item_seq`, `numero`, `parte`,
+    `comodo`; `cortes[]` de perfil em cm; `tecido{corte_largura_cm, corte_altura_cm, altura_regra, rolo_m, rolo_n, faixa_n,
+    reservado_cm, deitada, fora_do_plano}`; `so_tecido`), tecido[] (coleção × cor → larguras → rolos → faixas → `{id}`),
+    tecido_fora_do_plano[], perfis[] (perfil → barras → cortes `{cm, id}`; `barras_na_lista` = as do Núcleo),
+    itens_por_formula[], partes[] (parte → cômodos → ids; `componentes[]` da parte; `andamento{setores[], embaladas,
+    guardadas, pronta, na_expedicao}`), compra{tecido[], tecido_fora_do_plano[], perfis[], componentes[]}, avisos[{texto,
+    docs}]}`. Sem dinheiro;
+  - **`pedidoPorPartes(itens, pecas, forcado)`**: o pedido é produzido e instalado POR PARTES? Automático = dois grupos
+    (`grupo_pedido`) ou mais **e** o cômodo escrito em pelo menos metade das peças (Ambiente da peça ≠ nome do bloco); o
+    PCP pode forçar. **Pedido comum** (bloco = cômodo: Sala, Quarto) = UMA parte ("Pedido inteiro"), os blocos são os
+    cômodos — nada de "parte pronta" por cômodo, nem folha por cômodo. `parteDoItem(item, porPartes)`,
+    `comodoDoItem(item, porPartes)`, `resumoDasPartes(itens, forcado)` (para a integração);
+  - `encaixarBarras(cortes, barraCm)` — First-Fit do maior para o menor, a MESMA conta do `motor.empacotarBarras` do
+    Núcleo (o teste compara 300 casos com uma cópia dela); corte maior que a barra vira `emenda`;
+  - altura de corte do tecido: vale a linha "Tecido altura" do plano por peça; se a do plano de CONSUMO passar dela em
+    mais de 30 cm (Núcleo anterior à v14.101), vale a do plano de consumo e sai AVISO;
+  - **troca de tela** (`so_tecido` da lista): a peça não entra no corte dos perfis (o plano por peça não sabe da troca);
+  - `compraEmRolos({metros, bobinas, metros_bobina, falta})` — o tecido se compra em rolos inteiros: os rolos do plano ×
+    metros do rolo; com saldo do Compras, a FALTA arredondada para cima em rolos;
+  - avisos com `docs`: o aviso geral (`docs: null`) imprime só na Visão geral e na Lista de compra; nos documentos da
+    bancada só aparece na tela. O aviso por peça fica na linha da peça (uma contagem no topo, não 300 caixas).
+- **`server/src/producao-pedido.js`** (banco + Núcleo): `producaoDoPedido(pedido)` (plano e lista em paralelo, cada um
+  falha sozinho), `impressoesDoPedido`/`registrarImpressaoDoDocumento(pedido, doc, {parte})` (log
+  `pcp_ordem_corte_log`, `modo = 'prod-<doc>'`, `detalhe` = a parte na montagem de uma parte só),
+  `definirPorPartes(pedido, true|false|null)`, `partesDosPedidos(pedidos)` (a integração, numa consulta).
+- **Rotas** (`routes/pcp.js`): `GET /api/pcp/pedido/producao?pedido=` (fila:ver) · `POST
+  /api/pcp/pedido/producao/impressao {pedido, doc, parte?}` (CSRF; reimpressão = o MESMO documento — na montagem, a parte
+  ou o pedido inteiro) · `PUT /api/pcp/pedido/producao/por-partes {pedido, por_partes: true|false|null}` (CSRF,
+  fila:editar; auditado). **`db.js`** (boot): `pcp_ordem_corte_log.detalhe VARCHAR(160)` e `pcp_pedido_info.por_partes
+  BOOLEAN` (NULL = automático; a liberação não mexe nela).
+- **`produtos-client.buscarPlanoCorte`**: o `/plano-corte` do Núcleo aceita 500 peças por chamada — agora vai em blocos
+  (antes o pedido maior voltava "Núcleo indisponível" e ficava sem plano).
+- **Página** `pcp/public/producao.html` + `assets/js/producao.js` (`?pedido=&doc=partes|compra|tecido|perfis|montagem
+  &parte=`): cinco documentos, um por aba e um por impressão — **Visão geral** (andamento por parte em barras, situação
+  "Pronta · avisar a expedição" / "Na expedição", documentos do pedido com o que já foi impresso, chave "POR PARTES?"),
+  **Lista de compra** (tecido em rolos, perfis em barras, componentes), **1 Corte do tecido** (largura de rolo → cartão
+  do ROLO com o desenho das faixas → uma linha por peça: faixa, puxar do rolo, etiqueta, largura × altura de corte,
+  parte · cômodo, feito), **2 Corte dos perfis** (perfil → cada BARRA desenhada em escala: medida, parte no quadro,
+  etiqueta; sobra hachurada; corte curto demais para a etiqueta vai na linha de baixo), **3 Montagem** (parte → cômodo →
+  peça com as medidas de conferência; especificação igual sai uma vez; componentes da parte; seletor de uma parte só).
+  Atalhos: Editar Pedido, aba Pedidos Comercial, aba Plano de Corte, Necessidade ("Compra e produção"), Ficha e Plano
+  de corte por peça.
+- **PADRÃO DOS DOCUMENTOS DE PRODUÇÃO** (vale para todo documento novo de chão de fábrica — o CSS está comentado no
+  topo de `producao.html`): bloco de identificação com os campos da **ISO 7200** (dono/logo, etapa ou tipo, título, nº
+  do documento `PCP-<CT|CP|MT|AP|LC>-<pedido>`, emissão, emitido por, via); **"Folha x / y"** + documento + emissão no
+  rodapé de TODA folha (caixas de margem do `@page`, escritas pelo script em `#css-folha`); **QR** do documento (abre a
+  versão atualizada); **via registrada** — "1ª via" / "REIMPRESSÃO · Nª via" no papel (ISO 9001, 7.5); A4 (ISO 216);
+  unidade sempre escrita (m, cm), vírgula decimal; avisos com palavra de sinal (ATENÇÃO / COMO FAZER); "feito" por
+  linha e visto no fim; **a cor nunca vai sozinha** (a PARTE é um número num quadro; sobra = hachura) — imprime igual
+  em preto e branco; sem emoji no papel; quebra de folha por seção só em pedido grande (> 40 peças / > 30 barras).
+  ⚠ Medidas de corte seguem em **centímetros com 1 casa** (a convenção das planilhas de corte da fábrica), não em mm.
+- **Plano de corte por peça** (`plano-corte-nucleo.js`): a seção "Tecido do pedido" passou a mostrar o tecido do PLANO
+  DO PEDIDO (lista de materiais: metros e rolos — o mesmo número da Ficha e da compra); a soma peça a peça só aparece
+  como "ESTIMATIVA" quando a lista não vem. A linha "Tecido altura" do sheer sai `2H+folga` com o Núcleo v14.101.
+- **Integração com a Logística** (`routes/integracao.js`, chaves ADITIVAS — quem não lê segue como antes):
+  `/pedidos` → `por_partes`, `partes[{parte, total_pecas, pecas_concluidas, pecas_guardadas, concluida, na_expedicao}]`;
+  `/peca` → `por_partes`, `parte`, `comodo`, `total_pecas_parte`, `pecas_concluidas_parte`; `/expedicao` →
+  `por_partes`, `partes[]` e `parte`/`comodo` em cada peça. Pedido comum: `por_partes: false`, `partes: []`, `parte: null`.
+- **Compra**: `necessidade.js` devolve `tecido[].comprar {metros_rolo, rolos, metros}`; a tabela mostra "13 × 30 m" e o
+  modal "Requisitar ao Compras" sugere os rolos inteiros (a descrição que vai ao Compras diz "— N rolo(s) de X m").
+  Perfis em barras NÃO entram na requisição por código: o plano de corte não liga o perfil a um sku do cadastro.
+- `bin/conferir-lista-materiais.js --sonda-corte-sheer` (Núcleo v14.101 pela versão do `/api/health`, comparada como
+  NÚMERO; diz se a regra está ligada; saída 3 = Núcleo anterior) e `--producao [--pedido]` (resumo dos documentos).
+- Testes sem banco: `npm test` = **59** (os 29 de antes + 30 de `producao.test.mjs`).
+- **Depende de**: **Núcleo v14.101** ANTES (`aplicar-v14-101-corte-sheer.sh`; o script daqui sonda e aborta;
+  `PULAR_SONDAS=1` sobe assim mesmo). Nada quebra na ordem inversa: o Corte do tecido usa a altura do plano de consumo
+  e avisa. Logística e Comercial: sem deploy (as chaves da integração são aditivas). Migration no boot; não muda preço.
+- **Provado na réplica** com o pedido do relato (Núcleo v14.101 real): e2e API **58** (958,38 m em 13 + 20 rolos; as
+  350 peças no plano uma vez cada, na ordem de corte; nenhuma peça mais alta que a faixa nem mais larga que o rolo;
+  altura do sheer = 2 × altura + folga em todas; um cômodo numa largura só; barras por perfil = as do Núcleo — 71 / 71 /
+  59 / 57 / 15 / 12 / 3 —, 1.400 cortes com a peça de origem; componentes = lista de materiais; impressão/reimpressão
+  por documento e por parte; por partes automático/forçado; integração; bipagem → parte pronta → na expedição) ·
+  Playwright **28** (bloco de identificação, 33 rolos desenhados, 288 barras somando 100%, nada cortado nem fora da
+  largura do A4, via no papel, atalhos) + **21** em pedidos comuns (uma parte só, sem quadros, legado sem medidas) + **6**
+  da requisição em rolos com um Compras simulado (saldo de 100 m → 270 m = 9 rolos). Folhas A4 do pedido do relato:
+  Visão geral 1 · Lista de compra 2 · Corte do tecido 19 · Corte dos perfis 17 · Montagem 31 (uma parte: ~3). Roteiros
+  no scratchpad da sessão (não versionados).
+- ⚠ **Para quem for mexer:** (a) documento novo de produção segue o PADRÃO acima (copie o bloco `bloco()`/`cssDaFolha()`
+  e as classes de `producao.html`) — e confira no papel: a tela é mais larga que o A4 (o que cabe num corte da barra é
+  decidido pela largura do PAPEL, `BARRA_NO_PAPEL`); (b) `confirm()`/emoji/cor sozinha não entram em documento impresso;
+  (c) a regra "por partes" é UMA (`pedidoPorPartes`) — documentos, andamento e integração leem dela; (d) chave nova na
+  resposta não pode ter custo/preço/valor no nome (a prova confere "sem dinheiro" pelo nome da chave).
+- ⚠ **Pendências/observações (não mexidas):**
+  (a) **FASE 2 — Logística** (decisões já tomadas): Expedição e Montar agenda por PARTE (ler `por_partes`/`parte` da
+  integração; guardar a parte em `expedicao_pecas`), baixa só das peças da parte instalada e ENTREGUE no Comercial só
+  na última parte — hoje `baixaPorInstalacao(pedido)` da Logística fecha o pedido INTEIRO na 1ª instalação concluída.
+  Até lá o aviso à expedição é a situação "Pronta" da Visão geral;
+  (b) o plano de corte por peça segue pelo sku do item (não pela seleção "como a venda cotou"): quando a lista de
+  materiais resolve outra estrutura, o documento AVISA ("o plano de barras difere da lista…"); na linha "tubo 53" o
+  corte segue pela variante do tubo do produto (pendência do Núcleo v14.80.1);
+  (c) os documentos não conhecem a troca de VARIANTE feita na tela do Plano de corte por peça (ela não é gravada);
+  (d) perfis em barras sem código do cadastro → não entram na requisição ao Compras (só os componentes da receita);
+  (e) o tamanho do rolo (30 m) e da barra (6 m) são os padrões enquanto o Núcleo não tiver o cadastro — os documentos
+  dizem quando é padrão;
+  (f) o ciclo federado (EMBALADO / NA_EXPEDICAO) continua por PEDIDO inteiro;
+  (g) a Ficha de Produção e o Plano de corte por peça continuam no layout antigo (não foram pedidos nesta entrega);
+  (h) `docs/PROTOCOLO-FEDERACAO.md` (mantido nos 8 repos): a linha B (Logística → Fábrica) ainda não cita
+  `por_partes`/`partes`/`parte`/`comodo` — registrar na próxima versão do protocolo.
 
 ## Estado (27/11/2026) — EM PRODUÇÃO desde 27/11/2026 12:49 (commit a5df5a8, `aplicar-comodo-da-peca.sh`): **O CÔMODO É O AMBIENTE ESCRITO NA PEÇA + PLANO ROLO A ROLO**
 Pedido do cliente (27/11), com o PDF da proposta 2026/1348 (350 peças, 185 itens, lançadas em 8 ambientes do pedido

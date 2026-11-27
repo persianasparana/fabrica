@@ -7,6 +7,40 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
+## 27/11/2026 — produção por etapas: corte do tecido, corte dos perfis e montagem em documentos separados (pendente de deploy)
+- **Pedido do cliente** (27/11), com um pedido de 350 peças que será instalado em 8 partes: imprimir o corte do
+  tecido separado do corte dos perfis e, no fim, a montagem; cortar o tecido concentrado por largura; saber quando
+  cada parte fica pronta para avisar a expedição; ver a compra dos materiais. E o layout: claro, objetivo, visual e
+  dentro de padrões internacionais.
+- **O que muda para a fábrica** — a página **Produção por etapas** (Editar Pedido, aba Pedidos Comercial, Plano de
+  Corte, Necessidade e Ficha levam a ela), com cinco documentos, cada um impresso em separado para o seu setor:
+  - **1 Corte do tecido** — o pedido inteiro, uma largura de rolo por vez: cada rolo com o **desenho das faixas** e
+    uma linha por peça (faixa, quanto puxar do rolo, etiqueta, largura × altura de corte, parte e cômodo, "feito");
+  - **2 Corte dos perfis** — o pedido inteiro, um perfil por vez: **cada barra desenhada** com os cortes na ordem, a
+    etiqueta e a parte de cada corte, e a sobra;
+  - **3 Montagem** — uma parte por vez (dá para imprimir uma parte só), cômodo a cômodo, com as medidas para
+    conferir e os componentes da parte;
+  - **Visão geral** — o andamento de cada parte por setor, embaladas e na expedição; a parte fica **"Pronta"** quando
+    a última peça dela recebe a baixa da embalagem;
+  - **Lista de compra** — tecido em **rolos inteiros**, perfis em **barras**, componentes.
+- **Padrão dos documentos**: bloco de identificação (pedido, cliente, nº do documento, emissão, emitido por, via),
+  "Folha x / y" em toda folha, QR do documento, **via registrada** (reimpressão sai escrita no papel), instruções
+  numeradas, caixa de "feito" e visto; a parte é um número num quadro e a sobra é hachura — imprime igual em preto e
+  branco. Campos do bloco pela ISO 7200; controle de emissão pela ISO 9001 (7.5); A4.
+- **Pedido por partes × pedido comum**: o sistema decide sozinho (dois grupos ou mais no pedido e o cômodo escrito na
+  maioria das peças) e o PCP pode corrigir na Visão geral. No pedido comum os blocos são os cômodos e o pedido é uma
+  parte só.
+- **Compra**: a Necessidade de materiais e o "Requisitar ao Compras" passam a sugerir o tecido em rolos inteiros
+  (com saldo do Compras, a falta arredondada para cima em rolos).
+- **Correções que vieram junto**: o Plano de corte por peça mostrava o tecido do pedido somando peça a peça (no
+  pedido do relato, 1.613 m contra 958 m do plano de corte) — agora mostra o plano do pedido; pedido com mais de
+  500 peças ficava sem plano de corte; a troca de tela não entra mais no corte dos perfis.
+- **Para a Logística (fase 2)**: a integração passa a dizer se o pedido é por partes, o andamento de cada parte e a
+  parte de cada peça (chaves novas, nada muda para quem não lê). A expedição e a agenda por parte são a próxima fase.
+- `bin/conferir-lista-materiais.js --sonda-corte-sheer` e `--producao`; `npm test` = 59.
+- Deploy: `deploy/aplicar-producao-por-etapas.sh` — ⚠ **Núcleo v14.101 ANTES** (o script sonda e aborta dizendo o que
+  aplicar). Migration: no boot (uma coluna em `pcp_ordem_corte_log`, uma em `pcp_pedido_info`). Muda preço? Não.
+
 ## 27/11/2026 — o cômodo é o Ambiente escrito na peça + plano de corte rolo a rolo (em produção desde 27/11/2026 12:49)
 - **Pedido do cliente** (27/11), com um pedido de 350 peças lançado em 8 "partes" e o cômodo escrito no campo
   Ambiente de cada peça: calcular os materiais com o aproveitamento de tecido certo, o mais preciso possível.

@@ -14,7 +14,9 @@ corte, guardar nas gavetas da expedição e entregar à Logística. Também tem 
 Pedido · Editar Pedido · Indicadores · **Pedidos Comercial** (análise e liberação) · Bipagem ·
 Estrutura do Produto (+ regras de seleção automática) · Plano de Corte (pelo Núcleo) ·
 Expedição (gavetas) · Etiquetas · Status / Tipos / Setores / Usuários (admin) · Manual ·
-Ficha de Produção (página própria) · **Fotos para e-commerce** (mini-PWA em `/pcp/fotos/`).
+Ficha de Produção (página própria) · **Produção por etapas** (página própria: corte do tecido, corte
+dos perfis e montagem em documentos separados, andamento por parte e lista de compra) ·
+**Fotos para e-commerce** (mini-PWA em `/pcp/fotos/`).
 Não existe mais entrada manual de pedidos nem importação PDF/Excel — a entrada é só a
 liberação do pedido do Comercial (decisão do cliente, 05/11/2026).
 
@@ -48,7 +50,7 @@ sistema sobe normalmente: cada integração fica desligada enquanto a chave não
 
 ```bash
 cd server
-npm test        # sem banco: sequenciador de carga (test/carga.test.mjs) + corpo do Núcleo como a venda (test/nucleo-spec.test.mjs)
+npm test        # sem banco (59 casos): carga, corpo do Núcleo como a venda, lista de materiais, ambiente e produção por etapas (test/*.test.mjs)
 npm run check   # node --check nos módulos principais
 ```
 
