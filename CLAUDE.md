@@ -27,7 +27,7 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - Coordenação entre conversas: docs no repo `compras` (`PLANO-INTEGRACAO-ERP.md`,
   `MAPA-DO-SERVIDOR.md`, `HANDOFF-CONTINUIDADE.md`, `DIRETRIZES-REVISAO-ERP.md`).
 
-## Estado atual (27/11/2026)
+## Estado atual (28/11/2026)
 - **Em produção** (`/var/www/fabrica`, branch `claude/unified-server-status-7633oz`): tudo até o
   **P3 do planejamento de produção**, publicado em **10/11/2026** pelo `deploy/aplicar-planejamento-p3.sh`
   (cobre P0–P2) — commit `44bde24` (linha em `deploy/REGISTRO-DEPLOYS.md`). As seções "Estado"
@@ -38,12 +38,14 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
 - **Em produção desde 26/11/2026 17:48: LISTA DE MATERIAIS COMO A VENDA COTOU** — `deploy/aplicar-lista-como-a-venda.sh`,
   commit `48f66c6`, health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (25/11/2026)" abaixo). Os
   provedores entraram antes, no mesmo dia e nesta ordem: **Núcleo v14.97** às 17:45 → **Comercial v2.140.1** às 17:48.
-- **PENDENTE DE DEPLOY (27/11/2026): A NECESSIDADE NÃO SOMA O TUBO DUAS VEZES** —
-  `deploy/aplicar-necessidade-sem-tubo-dobrado.sh`. Achado na auditoria do Relatório de custo do 2026/1348: o Núcleo
+- **Em produção desde 28/11/2026 03:53: A NECESSIDADE NÃO SOMA O TUBO DUAS VEZES** —
+  `deploy/aplicar-necessidade-sem-tubo-dobrado.sh`, commit `f9e8334`, health OK, na 1ª tentativa (linha em
+  `deploy/REGISTRO-DEPLOYS.md`). Os provedores entraram antes, na ordem: **Núcleo v14.102** às 02:42 → **Comercial
+  v2.143.0** às 03:52. Achado na auditoria do Relatório de custo do 2026/1348: o Núcleo
   devolve o tubo de enrolar em `perfis` (linha "Tubo 32mm" do plano de corte) e em `tubos` (por diâmetro); a métrica
   "Perfis / tubos" e o CSV da Necessidade somavam os dois (e, até o Núcleo v14.102, o `tubos` ainda levava o rolete —
   118 barras de 32 mm no 1348, são 59). `necessidade.js tubosForaDosPerfis` (a regra da Ficha). Não muda preço nem
-  consumo; não depende de versão do Núcleo (ordem recomendada: Núcleo v14.102 → Comercial v2.143.0 → este).
+  consumo; não depende de versão do Núcleo.
   ⚠ Do Núcleo v14.102 (revisão adversarial de 28/11), para o PCP saber: o plano de corte do tecido passa a nunca sair
   acima de "cortar cada ambiente do orçamento no seu rolo" quando cada cômodo está num ambiente só — caso raro em
   pedido pequeno por partes; o plano desse tecido muda na Ficha (recalculada a cada abertura), SEMPRE para menos

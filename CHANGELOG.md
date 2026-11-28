@@ -7,7 +7,7 @@ deste módulo rodam **no boot** (`server/src/db.js`), por isso "migration: no bo
 "só reiniciar o serviço". "Deploy" = script em `deploy/`; produção = linha em
 `deploy/REGISTRO-DEPLOYS.md`.
 
-## 27/11/2026 — a Necessidade de materiais não soma o tubo duas vezes (pendente de deploy)
+## 27/11/2026 — a Necessidade de materiais não soma o tubo duas vezes (em produção desde 28/11/2026 03:53)
 - Achado na auditoria do Relatório de custo do pedido 2026/1348 (o cliente perguntou se o aproveitamento de tecido
   estava certo — o tecido está): a métrica "Perfis / tubos" e o CSV da Necessidade de materiais contavam o tubo de
   enrolar duas vezes — ele vem do Núcleo na linha do perfil ("Tubo 32mm") e de novo na lista de tubos por diâmetro
