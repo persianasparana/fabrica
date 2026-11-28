@@ -44,6 +44,10 @@ de barras) e **Ficha de Produção**. É o consumidor de produção do **Pedido 
   "Perfis / tubos" e o CSV da Necessidade somavam os dois (e, até o Núcleo v14.102, o `tubos` ainda levava o rolete —
   118 barras de 32 mm no 1348, são 59). `necessidade.js tubosForaDosPerfis` (a regra da Ficha). Não muda preço nem
   consumo; não depende de versão do Núcleo (ordem recomendada: Núcleo v14.102 → Comercial v2.143.0 → este).
+  ⚠ Do Núcleo v14.102 (revisão adversarial de 28/11), para o PCP saber: o plano de corte do tecido passa a nunca sair
+  acima de "cortar cada ambiente do orçamento no seu rolo" quando cada cômodo está num ambiente só — caso raro em
+  pedido pequeno por partes; o plano desse tecido muda na Ficha (recalculada a cada abertura), SEMPRE para menos
+  tecido. No 2026/1348 nada muda.
 - **Em produção desde 27/11/2026 19:14: PRODUÇÃO POR ETAPAS** — `deploy/aplicar-producao-por-etapas.sh`, commit `b527da9`,
   health OK (linha em `deploy/REGISTRO-DEPLOYS.md`; seção "Estado (27/11/2026)" abaixo): corte do tecido, corte dos
   perfis e montagem em documentos separados, o andamento por parte, a lista de compra em rolos/barras e as partes na
